@@ -37,6 +37,11 @@ def test_competencies_catalog_and_role_access(client):
     assert catalog.status_code == 200
     assert any(item["name"] == "SQL" for item in catalog.json())
 
+    filtered = client.get("/api/projects", params={"competency": "SQL", "limit": 100})
+    assert filtered.status_code == 200
+    assert filtered.json()["total"] >= 1
+    assert all("SQL" in item["required_competencies"] for item in filtered.json()["items"])
+
     manager_headers = auth_headers(client, "manager@utmn.ru")
     me = client.get("/api/me", headers=manager_headers)
     assert me.status_code == 200

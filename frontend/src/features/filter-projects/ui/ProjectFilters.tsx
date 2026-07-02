@@ -12,9 +12,18 @@ type Props = {
   includeArchived?: boolean;
 };
 
+export function getVisibleCompetencySuggestions(competencies: Competency[], selected?: string) {
+  return competencies.filter((competency) => competency.name !== selected).slice(0, 8);
+}
+
 export function ProjectFilters({ value, onChange, includeArchived = false }: Props) {
-  const [competencySearch, setCompetencySearch] = useState("");
+  const [competencySearch, setCompetencySearch] = useState(value.competency ?? "");
   const [competencies, setCompetencies] = useState<Competency[]>([]);
+  const visibleCompetencies = getVisibleCompetencySuggestions(competencies, value.competency);
+
+  useEffect(() => {
+    setCompetencySearch(value.competency ?? "");
+  }, [value.competency]);
 
   useEffect(() => {
     let ignore = false;
@@ -86,11 +95,18 @@ export function ProjectFilters({ value, onChange, includeArchived = false }: Pro
       />
       <div className="filter-chips" aria-label="Фильтр по компетенциям">
         {value.competency && (
-          <button type="button" className="chip chip-selected" onClick={() => onChange({ ...value, competency: "" })}>
+          <button
+            type="button"
+            className="chip chip-selected"
+            onClick={() => {
+              setCompetencySearch("");
+              onChange({ ...value, competency: "" });
+            }}
+          >
             {value.competency}
           </button>
         )}
-        {competencies.slice(0, 8).map((competency) => (
+        {visibleCompetencies.map((competency) => (
           <button
             key={competency.name}
             type="button"

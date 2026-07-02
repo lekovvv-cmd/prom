@@ -24,6 +24,18 @@ def upsert_user(repo: UserRepository, *, email: str, full_name: str, role: UserR
     return repo.create(email=email, full_name=full_name, role=role)
 
 
+def refresh_demo_project_competencies(db) -> None:
+    demo_competencies = {
+        "Цифровая карта образовательных инициатив": "Аналитика данных, SQL, Интервью, Визуализация данных",
+        "Наставничество для новых преподавателей": "Методология образования, Коммуникации, Фасилитация, Наставничество",
+        "Исследование вовлечённости сотрудников": "Опросы, Интервью, Аналитика данных",
+    }
+    for title, required_competencies in demo_competencies.items():
+        project = db.query(Project).filter(Project.title == title).one_or_none()
+        if project is not None:
+            project.required_competencies = required_competencies
+
+
 def main() -> None:
     db = SessionLocal()
     try:
@@ -67,7 +79,7 @@ def main() -> None:
                     start_date=date(2026, 9, 1),
                     responsible_user_id=manager.id,
                     contact_email="manager@utmn.ru",
-                    required_competencies="Аналитика, интервью, визуализация данных",
+                    required_competencies="Аналитика данных, SQL, Интервью, Визуализация данных",
                     planned_tasks="Собрать требования, описать данные, подготовить витрину",
                     created_by=admin.id,
                 ),
@@ -82,7 +94,7 @@ def main() -> None:
                     status=ProjectStatus.ACTIVE,
                     responsible_user_id=manager.id,
                     contact_email="manager@utmn.ru",
-                    required_competencies="Методология, коммуникации, фасилитация",
+                    required_competencies="Методология образования, Коммуникации, Фасилитация, Наставничество",
                     planned_tasks="Описать маршрут, собрать наставников, провести пилот",
                     created_by=admin.id,
                 ),
@@ -99,7 +111,7 @@ def main() -> None:
                     end_date=date(2026, 12, 15),
                     responsible_user_id=analyst.id,
                     contact_email="analyst@utmn.ru",
-                    required_competencies="Опросы, интервью, анализ данных",
+                    required_competencies="Опросы, Интервью, Аналитика данных",
                     planned_tasks="Подготовить анкету, провести интервью, собрать выводы",
                     created_by=admin.id,
                 ),
@@ -209,6 +221,7 @@ def main() -> None:
                 ]
             )
 
+        refresh_demo_project_competencies(db)
         db.commit()
         print("Seed data is ready")
     finally:
