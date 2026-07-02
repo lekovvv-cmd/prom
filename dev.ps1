@@ -88,6 +88,20 @@ function Ensure-Python314 {
     }
 }
 
+function Test-BackendDependencies {
+    param([string]$PythonExe)
+
+    $code = @"
+import importlib.util
+
+modules = ('alembic', 'fastapi', 'psycopg', 'pydantic', 'sqlalchemy', 'uvicorn')
+raise SystemExit(0 if all(importlib.util.find_spec(module) for module in modules) else 1)
+"@
+
+    & $PythonExe -c $code
+    return $LASTEXITCODE -eq 0
+}
+
 function Ensure-BackendVenv {
     $defaultVenv = Join-Path $BackendDir ".venv"
     $py314Venv = Join-Path $BackendDir ".venv-py314"
@@ -148,8 +162,7 @@ function Ensure-BackendDependencies {
         return
     }
 
-    & $PythonExe -c "import alembic, fastapi, psycopg, pydantic, sqlalchemy, uvicorn" *> $null
-    if ($LASTEXITCODE -eq 0) {
+    if (Test-BackendDependencies $PythonExe) {
         Write-Step "Backend dependencies already installed"
         return
     }
