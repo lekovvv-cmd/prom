@@ -1,4 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
+import { filterDefaultCompetencies } from "../lib/defaultCompetencies";
 import type { Competency } from "../model/types";
 
 export function getCompetencies(search?: string) {
@@ -7,5 +8,7 @@ export function getCompetencies(search?: string) {
     params.set("search", search);
   }
   const query = params.toString();
-  return apiClient.request<Competency[]>(`/competencies${query ? `?${query}` : ""}`, { auth: false });
+  return apiClient
+    .request<Competency[]>(`/competencies${query ? `?${query}` : ""}`, { auth: false })
+    .catch(() => filterDefaultCompetencies(search));
 }

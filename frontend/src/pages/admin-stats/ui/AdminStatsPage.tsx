@@ -24,18 +24,34 @@ export function AdminStatsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
+
     async function loadStats() {
       try {
-        setIsLoading(true);
-        setError(null);
-        setStats(await getAdminStats());
+        if (!ignore) {
+          setIsLoading(true);
+          setError(null);
+        }
+        const payload = await getAdminStats();
+        if (!ignore) {
+          setStats(payload);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Не удалось загрузить статистику");
+        if (!ignore) {
+          setStats(null);
+          setError(err instanceof Error ? err.message : "Не удалось загрузить статистику");
+        }
       } finally {
-        setIsLoading(false);
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
     }
+
     void loadStats();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   return (
