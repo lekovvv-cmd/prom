@@ -1,4 +1,5 @@
 import type { ProjectMutationPayload } from "../model/types";
+import { CompetencyPicker } from "../../competency/ui/CompetencyPicker";
 import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { Textarea } from "../../../shared/ui/Textarea";
@@ -137,12 +138,10 @@ export function ProjectFormFields({
           onChange={(event) => setForm({ ...form, end_date: event.target.value })}
         />
       </div>
-      <Textarea
+      <CompetencyPicker
         label="Требуемые компетенции"
-        name="required_competencies"
-        rows={3}
-        value={form.required_competencies ?? ""}
-        onChange={(event) => setForm({ ...form, required_competencies: event.target.value })}
+        value={form.required_competencies}
+        onChange={(required_competencies) => setForm({ ...form, required_competencies })}
       />
       <Textarea
         label="Планируемые задачи"

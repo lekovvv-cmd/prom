@@ -1,5 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
-import type { Paginated, Project, ProjectDetails, ProjectListParams, ProjectMutationPayload } from "../model/types";
+import type { Attachment, Paginated, Project, ProjectDetails, ProjectListParams, ProjectMutationPayload } from "../model/types";
 
 function toQuery(params: ProjectListParams = {}) {
   const searchParams = new URLSearchParams();
@@ -45,5 +45,14 @@ export function updateAdminProject(projectId: string, payload: Partial<ProjectMu
 export function archiveAdminProject(projectId: string) {
   return apiClient.request<{ ok: boolean }>(`/admin/projects/${projectId}`, {
     method: "DELETE"
+  });
+}
+
+export function uploadAdminProjectAttachment(projectId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiClient.request<Attachment>(`/admin/projects/${projectId}/attachments`, {
+    method: "POST",
+    body: formData
   });
 }

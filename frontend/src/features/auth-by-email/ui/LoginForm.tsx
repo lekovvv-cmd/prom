@@ -7,6 +7,12 @@ import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import { requestCode, verifyCode } from "../api/authApi";
 
+const demoUsers = [
+  { label: "Админ", email: "admin@utmn.ru", description: "проекты, отклики, статистика" },
+  { label: "Руководитель", email: "manager@utmn.ru", description: "ведение проектов и откликов" },
+  { label: "Сотрудник", email: "employee@utmn.ru", description: "витрина и отклик" }
+];
+
 export function LoginForm() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -38,6 +44,20 @@ export function LoginForm() {
 
   return (
     <form className="form-panel login-form" onSubmit={handleSubmit}>
+      <div className="role-switcher" aria-label="Демо-роли">
+        {demoUsers.map((user) => (
+          <button
+            type="button"
+            key={user.email}
+            className={email === user.email ? "role-option role-option-active" : "role-option"}
+            onClick={() => setEmail(user.email)}
+          >
+            <strong>{user.label}</strong>
+            <span>{user.email}</span>
+            <small>{user.description}</small>
+          </button>
+        ))}
+      </div>
       <Input
         label="Email"
         name="email"

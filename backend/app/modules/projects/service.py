@@ -2,9 +2,11 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import ProjectStatus, ProjectType
+from app.core.enums import AttachmentOwnerType, ProjectStatus, ProjectType
 from app.core.exceptions import DomainError
 from app.core.schemas.common import PaginatedResponse
+from app.modules.attachments.repository import AttachmentRepository
+from app.modules.attachments.schemas import AttachmentRead
 from app.modules.projects.models import Project
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import (
@@ -28,6 +30,7 @@ class ProjectService:
         search: str | None,
         status: ProjectStatus | None,
         project_type: ProjectType | None,
+        competency: str | None,
         sort: str,
         limit: int | None,
         offset: int | None,
@@ -37,6 +40,7 @@ class ProjectService:
             search=search,
             status=status,
             project_type=project_type,
+            competency=competency,
             sort=sort,
             limit=limit,
             offset=offset,
@@ -48,6 +52,7 @@ class ProjectService:
         search: str | None,
         status: ProjectStatus | None,
         project_type: ProjectType | None,
+        competency: str | None,
         sort: str,
         limit: int | None,
         offset: int | None,
@@ -57,6 +62,7 @@ class ProjectService:
             search=search,
             status=status,
             project_type=project_type,
+            competency=competency,
             sort=sort,
             limit=limit,
             offset=offset,
@@ -104,6 +110,7 @@ class ProjectService:
         search: str | None,
         status: ProjectStatus | None,
         project_type: ProjectType | None,
+        competency: str | None,
         sort: str,
         limit: int | None,
         offset: int | None,
@@ -113,6 +120,7 @@ class ProjectService:
             search=search,
             status=status,
             project_type=project_type,
+            competency=competency,
             sort=sort,
             limit=limit,
             offset=offset,
@@ -143,13 +151,13 @@ class ProjectService:
             start_date=project.start_date,
             end_date=project.end_date,
             responsible=UserShort.model_validate(project.responsible) if project.responsible else None,
+            required_competencies=project.required_competencies,
             responses_count=responses_count,
             created_at=project.created_at,
         )
 
-    @classmethod
-    def _to_details(cls, project: Project, responses_count: int) -> ProjectDetails:
-        summary = cls._to_summary(project, responses_count).model_dump()
+    def _to_details(self, project: Project, responses_count: int) -> ProjectDetails:
+        summary = self._to_summary(project, responses_count).model_dump()
         members = [
             ProjectMemberRead(
                 id=member.user.id,
@@ -159,13 +167,26 @@ class ProjectService:
             )
             for member in project.members
         ]
+        attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.PROJECT, project.id)
         return ProjectDetails(
             **summary,
             description=project.description,
             expected_result=project.expected_result,
             contact_email=project.contact_email,
             members=members,
-            required_competencies=project.required_competencies,
+            attachments=[
+                AttachmentRead(
+                    id=attachment.id,
+                    owner_type=attachment.owner_type,
+                    owner_id=attachment.owner_id,
+                    file_name=attachment.file_name,
+                    content_type=attachment.content_type,
+                    size_bytes=attachment.size_bytes,
+                    download_url=f"/api/attachments/{attachment.id}",
+                    created_at=attachment.created_at,
+                )
+                for attachment in attachments
+            ],
             planned_tasks=project.planned_tasks,
             updated_at=project.updated_at,
         )

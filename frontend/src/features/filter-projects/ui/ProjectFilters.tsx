@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+
+import { getCompetencies } from "../../../entities/competency/api/competencyApi";
+import type { Competency } from "../../../entities/competency/model/types";
 import type { ProjectFiltersState } from "../model/types";
 import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
@@ -9,6 +13,23 @@ type Props = {
 };
 
 export function ProjectFilters({ value, onChange, includeArchived = false }: Props) {
+  const [competencySearch, setCompetencySearch] = useState("");
+  const [competencies, setCompetencies] = useState<Competency[]>([]);
+
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      const response = await getCompetencies(competencySearch);
+      if (!ignore) {
+        setCompetencies(response);
+      }
+    }
+    void load();
+    return () => {
+      ignore = true;
+    };
+  }, [competencySearch]);
+
   return (
     <div className="filters">
       <Input
@@ -53,6 +74,36 @@ export function ProjectFilters({ value, onChange, includeArchived = false }: Pro
         <option value="priority_desc">Высокий приоритет</option>
         <option value="priority_asc">Низкий приоритет</option>
       </Select>
+      <Input
+        label="Компетенция"
+        name="competency"
+        value={competencySearch}
+        onChange={(event) => {
+          setCompetencySearch(event.target.value);
+          onChange({ ...value, competency: event.target.value });
+        }}
+        placeholder="SQL, интервью..."
+      />
+      <div className="filter-chips" aria-label="Фильтр по компетенциям">
+        {value.competency && (
+          <button type="button" className="chip chip-selected" onClick={() => onChange({ ...value, competency: "" })}>
+            {value.competency}
+          </button>
+        )}
+        {competencies.slice(0, 8).map((competency) => (
+          <button
+            key={competency.name}
+            type="button"
+            className={value.competency === competency.name ? "chip chip-selected" : "chip"}
+            onClick={() => {
+              setCompetencySearch(competency.name);
+              onChange({ ...value, competency: competency.name });
+            }}
+          >
+            {competency.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

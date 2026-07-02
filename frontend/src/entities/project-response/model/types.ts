@@ -1,3 +1,5 @@
+import type { Attachment } from "../../project/model/types";
+
 export type ProjectResponseStatus = "new" | "viewed" | "contacted" | "accepted" | "rejected" | "cancelled";
 
 export type ProjectResponse = {
@@ -8,6 +10,7 @@ export type ProjectResponse = {
   email: string;
   comment: string | null;
   competencies: string | null;
+  attachments: Attachment[];
   status: ProjectResponseStatus;
   created_at: string;
   processed_by?: string | null;

@@ -5,8 +5,9 @@ import {
   normalizeProjectPayload,
   ProjectFormFields
 } from "../../../entities/project/ui/ProjectFormFields";
+import { FileInput } from "../../../entities/attachment/ui/FileInput";
 import { Button } from "../../../shared/ui/Button";
-import { editProject } from "../api/editProject";
+import { editProjectWithFiles } from "../api/editProject";
 
 function projectToForm(project: ProjectDetails): ProjectMutationPayload {
   return {
@@ -35,6 +36,7 @@ export function EditProjectForm({
   onSaved: (project: ProjectDetails) => void;
 }) {
   const [form, setForm] = useState<ProjectMutationPayload>(projectToForm(project));
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,7 +45,8 @@ export function EditProjectForm({
     try {
       setIsSubmitting(true);
       setError(null);
-      const updatedProject = await editProject(project.id, normalizeProjectPayload(form));
+      const updatedProject = await editProjectWithFiles(project.id, normalizeProjectPayload(form), files);
+      setFiles([]);
       onSaved(updatedProject);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось сохранить проект");
@@ -55,6 +58,7 @@ export function EditProjectForm({
   return (
     <form className="form-panel" onSubmit={handleSubmit}>
       <ProjectFormFields form={form} setForm={setForm} />
+      <FileInput files={files} label="Добавить файлы к проекту" onChange={setFiles} />
       {error && <p className="form-error">{error}</p>}
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Сохраняем" : "Сохранить"}

@@ -1,4 +1,6 @@
 import type { ProjectDetails as ProjectDetailsType } from "../../../entities/project/model/types";
+import { AttachmentList } from "../../../entities/attachment/ui/AttachmentList";
+import { splitCompetencies } from "../../../entities/competency/lib/competencies";
 import { ProjectPriorityBadge } from "../../../entities/project/ui/ProjectPriorityBadge";
 import { ProjectStatusBadge } from "../../../entities/project/ui/ProjectStatusBadge";
 import { ProjectResponseForm } from "../../../features/submit-project-response/ui/ProjectResponseForm";
@@ -12,6 +14,8 @@ export function ProjectDetails({
   project: ProjectDetailsType;
   onResponseSubmitted: () => void;
 }) {
+  const competencies = splitCompetencies(project.required_competencies);
+
   return (
     <div className="details-layout">
       <section className="details-main">
@@ -42,7 +46,13 @@ export function ProjectDetails({
             {project.required_competencies && (
               <>
                 <h3>Требуемые компетенции</h3>
-                <p>{project.required_competencies}</p>
+                <div className="competency-inline">
+                  {competencies.map((competency) => (
+                    <span className="chip chip-selected" key={competency}>
+                      {competency}
+                    </span>
+                  ))}
+                </div>
               </>
             )}
             {project.planned_tasks && (
@@ -78,6 +88,10 @@ export function ProjectDetails({
               <dd>{project.responses_count}</dd>
             </div>
           </dl>
+        </Card>
+        <Card>
+          <h3>Файлы проекта</h3>
+          <AttachmentList attachments={project.attachments} />
         </Card>
         <Card>
           <h3>Рабочая группа</h3>

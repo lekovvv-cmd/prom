@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import ProjectResponseStatus
+from app.modules.attachments.schemas import AttachmentRead
 
 
 class ProjectResponseCreate(BaseModel):
@@ -28,6 +29,7 @@ class ProjectResponseRead(BaseModel):
     email: str
     comment: str | None
     competencies: str | None
+    attachments: list[AttachmentRead] = []
     status: ProjectResponseStatus
     created_at: datetime
 

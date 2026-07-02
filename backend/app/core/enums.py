@@ -39,3 +39,8 @@ class ProjectMemberRole(StrEnum):
     MANAGER = "manager"
     WORKING_GROUP_MEMBER = "working_group_member"
     PARTICIPANT = "participant"
+
+
+class AttachmentOwnerType(StrEnum):
+    PROJECT = "project"
+    RESPONSE = "response"

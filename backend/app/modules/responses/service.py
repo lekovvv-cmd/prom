@@ -3,10 +3,12 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import ProjectResponseStatus, ProjectStatus
+from app.core.enums import AttachmentOwnerType, ProjectResponseStatus, ProjectStatus
 from app.core.exceptions import DomainError
 from app.core.schemas.common import PaginatedResponse
 from app.core.security import ensure_utmn_email
+from app.modules.attachments.repository import AttachmentRepository
+from app.modules.attachments.schemas import AttachmentRead
 from app.modules.projects.service import ProjectService
 from app.modules.responses.models import ProjectResponse
 from app.modules.responses.repository import ProjectResponseRepository
@@ -104,8 +106,8 @@ class ProjectResponseService:
         self.db.refresh(response)
         return self._to_admin_read(response)
 
-    @staticmethod
-    def _to_admin_read(response: ProjectResponse) -> AdminProjectResponseRead:
+    def _to_admin_read(self, response: ProjectResponse) -> AdminProjectResponseRead:
+        attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.RESPONSE, response.id)
         return AdminProjectResponseRead(
             id=response.id,
             project_id=response.project_id,
@@ -114,6 +116,19 @@ class ProjectResponseService:
             email=response.email,
             comment=response.comment,
             competencies=response.competencies,
+            attachments=[
+                AttachmentRead(
+                    id=attachment.id,
+                    owner_type=attachment.owner_type,
+                    owner_id=attachment.owner_id,
+                    file_name=attachment.file_name,
+                    content_type=attachment.content_type,
+                    size_bytes=attachment.size_bytes,
+                    download_url=f"/api/attachments/{attachment.id}",
+                    created_at=attachment.created_at,
+                )
+                for attachment in attachments
+            ],
             status=response.status,
             created_at=response.created_at,
             processed_by=response.processed_by,

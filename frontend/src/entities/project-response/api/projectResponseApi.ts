@@ -1,5 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
-import type { Paginated } from "../../project/model/types";
+import type { Attachment, Paginated } from "../../project/model/types";
 import type { ProjectResponse, ProjectResponseStatus } from "../model/types";
 
 type ResponseListParams = {
@@ -29,5 +29,15 @@ export function updateAdminResponseStatus(responseId: string, status: ProjectRes
   return apiClient.request<ProjectResponse>(`/admin/responses/${responseId}`, {
     method: "PATCH",
     body: JSON.stringify({ status })
+  });
+}
+
+export function uploadProjectResponseAttachment(projectId: string, responseId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiClient.request<Attachment>(`/projects/${projectId}/responses/${responseId}/attachments`, {
+    method: "POST",
+    auth: false,
+    body: formData
   });
 }

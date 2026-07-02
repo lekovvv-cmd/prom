@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectStatus, ProjectType
+from app.modules.attachments.schemas import AttachmentRead
 from app.modules.users.schemas import UserShort
 
 
@@ -83,6 +84,7 @@ class ProjectSummary(BaseModel):
     start_date: date | None
     end_date: date | None
     responsible: UserShort | None
+    required_competencies: str | None
     responses_count: int
     created_at: datetime
 
@@ -94,6 +96,7 @@ class ProjectDetails(ProjectSummary):
     expected_result: str | None
     contact_email: str | None
     members: list[ProjectMemberRead]
+    attachments: list[AttachmentRead]
     required_competencies: str | None
     planned_tasks: str | None
     updated_at: datetime

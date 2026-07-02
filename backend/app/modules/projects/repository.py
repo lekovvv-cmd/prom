@@ -21,6 +21,7 @@ class ProjectRepository:
         search: str | None,
         status: ProjectStatus | None,
         project_type: ProjectType | None,
+        competency: str | None,
         sort: str,
         limit: int | None,
         offset: int | None,
@@ -28,7 +29,7 @@ class ProjectRepository:
         safe_limit = clamp_limit(limit)
         safe_offset = clamp_offset(offset)
         base = select(Project)
-        base = self._apply_filters(base, public, search, status, project_type)
+        base = self._apply_filters(base, public, search, status, project_type, competency)
 
         total = self.db.scalar(select(func.count()).select_from(base.subquery())) or 0
 
@@ -51,7 +52,7 @@ class ProjectRepository:
             .outerjoin(response_counts, Project.id == response_counts.c.project_id)
             .options(selectinload(Project.responsible))
         )
-        query = self._apply_filters(query, public, search, status, project_type)
+        query = self._apply_filters(query, public, search, status, project_type, competency)
         if sort == "created_at_asc":
             query = query.order_by(Project.created_at.asc())
         elif sort == "priority_asc":
@@ -112,15 +113,25 @@ class ProjectRepository:
         search: str | None,
         status: ProjectStatus | None,
         project_type: ProjectType | None,
+        competency: str | None,
     ) -> Select:
         if public:
             query = query.where(Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED]))
             query = query.where(Project.archived_at.is_(None))
         if search:
             pattern = f"%{search.strip()}%"
-            query = query.where(or_(Project.title.ilike(pattern), Project.short_description.ilike(pattern)))
+            query = query.where(
+                or_(
+                    Project.title.ilike(pattern),
+                    Project.short_description.ilike(pattern),
+                    Project.goal.ilike(pattern),
+                    Project.required_competencies.ilike(pattern),
+                )
+            )
         if status is not None:
             query = query.where(Project.status == status)
         if project_type is not None:
             query = query.where(Project.project_type == project_type)
+        if competency:
+            query = query.where(Project.required_competencies.ilike(f"%{competency.strip()}%"))
         return query

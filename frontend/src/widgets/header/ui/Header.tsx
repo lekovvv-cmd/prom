@@ -4,6 +4,12 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AppProviders";
 import { Button } from "../../../shared/ui/Button";
 
+const roleLabels = {
+  admin: "Админ",
+  project_manager: "Руководитель",
+  employee: "Сотрудник"
+};
+
 export function Header() {
   const { isAdmin, logout, token, user } = useAuth();
 
@@ -40,7 +46,10 @@ export function Header() {
       <div className="header-auth">
         {token ? (
           <>
-            <span className="user-chip">{user?.email}</span>
+            <span className="user-chip">
+              {user ? roleLabels[user.role] : "Пользователь"}
+              <small>{user?.email}</small>
+            </span>
             <Button variant="ghost" onClick={logout}>
               <LogOut size={16} />
               Выйти

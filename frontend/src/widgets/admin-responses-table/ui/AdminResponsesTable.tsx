@@ -1,3 +1,5 @@
+import { AttachmentList } from "../../../entities/attachment/ui/AttachmentList";
+import { splitCompetencies } from "../../../entities/competency/lib/competencies";
 import type { ProjectResponse } from "../../../entities/project-response/model/types";
 import { ResponseStatusBadge } from "../../../entities/project-response/ui/ResponseStatusBadge";
 import { ResponseStatusSelect } from "../../../features/update-response-status/ui/ResponseStatusSelect";
@@ -25,6 +27,7 @@ export function AdminResponsesTable({
             <th>Сотрудник</th>
             <th>Комментарий</th>
             <th>Компетенции</th>
+            <th>Файлы</th>
             <th>Статус</th>
             <th>Изменить</th>
             <th>Дата</th>
@@ -39,7 +42,18 @@ export function AdminResponsesTable({
                 <span>{response.email}</span>
               </td>
               <td>{response.comment ?? "Без комментария"}</td>
-              <td>{response.competencies ?? "Не указаны"}</td>
+              <td>
+                <div className="competency-inline">
+                  {splitCompetencies(response.competencies).map((competency) => (
+                    <span className="chip" key={competency}>
+                      {competency}
+                    </span>
+                  ))}
+                </div>
+              </td>
+              <td>
+                <AttachmentList attachments={response.attachments} />
+              </td>
               <td>
                 <ResponseStatusBadge status={response.status} />
               </td>

@@ -1,10 +1,13 @@
 import { Send } from "lucide-react";
 import { FormEvent, useState } from "react";
 
+import { useAuth } from "../../../app/providers/AppProviders";
+import { FileInput } from "../../../entities/attachment/ui/FileInput";
+import { CompetencyPicker } from "../../../entities/competency/ui/CompetencyPicker";
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import { Textarea } from "../../../shared/ui/Textarea";
-import { submitProjectResponse } from "../api/submitProjectResponse";
+import { submitProjectResponseWithFiles } from "../api/submitProjectResponse";
 import type { ResponseFormState } from "../model/types";
 
 const initialState: ResponseFormState = {
@@ -21,7 +24,13 @@ export function ProjectResponseForm({
   projectId: string;
   onSubmitted: () => void;
 }) {
-  const [form, setForm] = useState(initialState);
+  const { user } = useAuth();
+  const [form, setForm] = useState({
+    ...initialState,
+    full_name: user?.full_name ?? "",
+    email: user?.email ?? initialState.email
+  });
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,13 +40,18 @@ export function ProjectResponseForm({
     try {
       setIsSubmitting(true);
       setError(null);
-      await submitProjectResponse(projectId, {
+      await submitProjectResponseWithFiles(projectId, {
         full_name: form.full_name,
         email: form.email,
         comment: form.comment || null,
         competencies: form.competencies || null
+      }, files);
+      setForm({
+        ...initialState,
+        full_name: user?.full_name ?? "",
+        email: user?.email ?? initialState.email
       });
-      setForm(initialState);
+      setFiles([]);
       setSuccess(true);
       onSubmitted();
     } catch (err) {
@@ -74,13 +88,12 @@ export function ProjectResponseForm({
         onChange={(event) => setForm({ ...form, comment: event.target.value })}
         rows={4}
       />
-      <Textarea
-        label="Компетенции"
-        name="competencies"
+      <CompetencyPicker
+        label="Мои компетенции"
         value={form.competencies}
-        onChange={(event) => setForm({ ...form, competencies: event.target.value })}
-        rows={3}
+        onChange={(competencies) => setForm({ ...form, competencies })}
       />
+      <FileInput files={files} label="Прикрепить файлы к отклику" onChange={setFiles} />
       {error && <p className="form-error">{error}</p>}
       {success && <p className="form-success">Отклик отправлен. Администратор увидит его в панели.</p>}
       <Button type="submit" disabled={isSubmitting}>

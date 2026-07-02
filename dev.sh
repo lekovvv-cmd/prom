@@ -305,6 +305,7 @@ Application is running:
 
 Demo users:
   admin@utmn.ru
+  manager@utmn.ru
   employee@utmn.ru
   code: 000000
 

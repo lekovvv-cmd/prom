@@ -73,11 +73,28 @@ function Find-Node {
     throw "node is not installed or not in PATH. Install Node.js LTS/current first."
 }
 
+function Get-WindowsBackendVenvDir {
+    $baseDir = $env:LOCALAPPDATA
+    if (-not $baseDir) {
+        $baseDir = $env:TEMP
+    }
+    if (-not $baseDir) {
+        $baseDir = Join-Path $RootDir ".cache"
+    }
+
+    return Join-Path $baseDir "shpiu_project_showcase\backend-venv-py314"
+}
+
 function Test-Python314 {
     param([string]$PythonExe)
 
-    & $PythonExe -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)" *> $null
-    return $LASTEXITCODE -eq 0
+    try {
+        & $PythonExe -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)" *> $null
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
 }
 
 function Ensure-Python314 {
@@ -98,13 +115,72 @@ modules = ('alembic', 'fastapi', 'psycopg', 'pydantic', 'sqlalchemy', 'uvicorn')
 raise SystemExit(0 if all(importlib.util.find_spec(module) for module in modules) else 1)
 "@
 
-    & $PythonExe -c $code
-    return $LASTEXITCODE -eq 0
+    try {
+        & $PythonExe -c $code
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
+}
+
+function Find-Python314Exe {
+    $candidates = @()
+    foreach ($name in @("python", "python3.14", "python3")) {
+        $command = Get-Command $name -ErrorAction SilentlyContinue
+        if ($command) {
+            $candidates += $command.Source
+        }
+    }
+
+    if ($env:LOCALAPPDATA) {
+        $candidates += Join-Path $env:LOCALAPPDATA "Programs\Python\Python314\python.exe"
+    }
+    $candidates += "C:\Program Files\Python314\python.exe"
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        if ((Test-Path -LiteralPath $candidate) -and (Test-Python314 $candidate)) {
+            return $candidate
+        }
+    }
+
+    throw "Python 3.14 is required. Install Python 3.14 or make it available in PATH."
+}
+
+function New-BackendVenv {
+    param([string]$VenvDir)
+
+    $parentDir = Split-Path -Parent $VenvDir
+    New-Item -ItemType Directory -Force -Path $parentDir | Out-Null
+
+    $created = $false
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        try {
+            & py -3.14 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)" *> $null
+            if ($LASTEXITCODE -eq 0) {
+                & py -3.14 -m venv $VenvDir
+                $created = $LASTEXITCODE -eq 0
+            }
+        }
+        catch {
+            $created = $false
+        }
+    }
+
+    if (-not $created) {
+        $pythonExe = Find-Python314Exe
+        & $pythonExe -m venv $VenvDir
+        $created = $LASTEXITCODE -eq 0
+    }
+
+    if (-not $created) {
+        throw "Could not create backend virtualenv."
+    }
 }
 
 function Ensure-BackendVenv {
     $defaultVenv = Join-Path $BackendDir ".venv"
-    $py314Venv = Join-Path $BackendDir ".venv-py314"
+    $py314Venv = Get-WindowsBackendVenvDir
     $venvDir = $defaultVenv
     $venvPython = Join-Path $venvDir "Scripts\python.exe"
 
@@ -123,29 +199,8 @@ function Ensure-BackendVenv {
         return $venvPython
     }
 
-    Write-Step "Creating backend virtualenv"
-    Push-Location $BackendDir
-    try {
-        if (Get-Command py -ErrorAction SilentlyContinue) {
-            & py -3.14 -m venv $venvDir
-            if ($LASTEXITCODE -ne 0) {
-                throw "Python 3.14 is required. Install Python 3.14 or make it available as py -3.14."
-            }
-        }
-        else {
-            & python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)"
-            if ($LASTEXITCODE -ne 0) {
-                throw "Python 3.14 is required. Install Python 3.14 or make it available in PATH."
-            }
-            & python -m venv $venvDir
-            if ($LASTEXITCODE -ne 0) {
-                throw "Could not create backend virtualenv."
-            }
-        }
-    }
-    finally {
-        Pop-Location
-    }
+    Write-Step "Creating backend virtualenv at $venvDir"
+    New-BackendVenv $venvDir
 
     if (-not (Test-Path -LiteralPath $venvPython)) {
         throw "Could not create backend virtualenv. Install Python 3.14 and try again."
@@ -390,6 +445,7 @@ try {
     Write-Host ""
     Write-Host "Demo users:"
     Write-Host "  admin@utmn.ru"
+    Write-Host "  manager@utmn.ru"
     Write-Host "  employee@utmn.ru"
     Write-Host "  code: 000000"
     Write-Host ""

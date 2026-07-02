@@ -1,6 +1,7 @@
 import { MessageSquare, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { splitCompetencies } from "../../competency/lib/competencies";
 import type { Project } from "../model/types";
 import { ProjectPriorityBadge } from "./ProjectPriorityBadge";
 import { ProjectStatusBadge } from "./ProjectStatusBadge";
@@ -16,6 +17,8 @@ export function ProjectCard({
   isSelected?: boolean;
   onSelect?: (projectId: string) => void;
 }) {
+  const competencies = splitCompetencies(project.required_competencies).slice(0, 4);
+
   return (
     <Card className={`project-card ${isSelected ? "project-card-selected" : ""}`}>
       <button
@@ -30,6 +33,15 @@ export function ProjectCard({
         </span>
         <span className="project-card-title">{project.title}</span>
         <span className="project-card-description">{project.short_description}</span>
+        {competencies.length > 0 && (
+          <span className="competency-inline">
+            {competencies.map((competency) => (
+              <span className="chip" key={competency}>
+                {competency}
+              </span>
+            ))}
+          </span>
+        )}
         <span className="project-card-goal">{project.goal}</span>
       </button>
 

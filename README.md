@@ -1,56 +1,44 @@
 # Витрина проектов ШПИУ
 
-MVP внутренней витрины проектов: администратор создает проекты и обрабатывает отклики, сотрудник смотрит витрину и отправляет заявку на участие. Статистика обновляется по проектам и откликам.
+MVP для внутренней витрины проектов: админ или руководитель проекта создаёт проекты, сотрудник ищет проект по статусу, компетенциям и тексту, отправляет отклик и прикладывает файлы, админ меняет статус отклика и видит обновлённую статистику.
 
 ## Стек
 
 - Backend: Python 3.14, FastAPI, Pydantic 2, SQLAlchemy 2, Alembic, PostgreSQL.
-- Frontend: React 19, TypeScript, React Router, Feature-Sliced Design.
+- Frontend: React, TypeScript, Feature-Sliced Design.
 - Инфраструктура: Docker Compose для PostgreSQL, GitHub Actions для CI/CD.
 
-## Запуск одной командой
+## Быстрый запуск
 
-Скрипты запускают PostgreSQL, backend и frontend, создают `.env`, ставят зависимости при первом запуске, применяют миграции и заполняют demo data.
+Нужны Docker, Node.js/npm и Python 3.14.
 
-### Windows
-
-Требования: Docker Desktop, Node.js, Python 3.14.
+Windows:
 
 ```powershell
 .\dev.cmd
 ```
 
-### Linux
-
-Требования: Docker Engine с `docker compose`, Node.js/npm, Python 3.14, `curl`.
+Linux:
 
 ```bash
 chmod +x ./dev.sh
 ./dev.sh
 ```
 
-Если PostgreSQL уже запущен отдельно, можно не поднимать Docker:
+Скрипты сами создают `.env`, ставят зависимости, поднимают PostgreSQL, применяют миграции, запускают seed data, backend и frontend. На Windows backend-venv создаётся в `%LOCALAPPDATA%\shpiu_project_showcase\backend-venv-py314`, чтобы Python не ломался из-за кириллицы в пути проекта.
 
-```bash
-./dev.sh --no-docker
-```
-
-Если проект запускается в одной папке и на Windows, и на Linux: Windows-скрипт использует `backend/.venv`, а Linux-скрипт создаст `backend/.venv-linux`, если увидит Windows-venv без `bin/python`.
-
-Если `backend/.venv` уже существует, но создан старым Python, скрипты автоматически используют `backend/.venv-py314`. Удалять старый venv руками не нужно.
-
-## Адреса
+После запуска:
 
 - приложение: `http://localhost:5173`
 - Swagger: `http://localhost:8000/docs`
 
-Демо-вход:
+Демо-вход, код всегда `000000`:
 
 - админ: `admin@utmn.ru`
+- руководитель проекта: `manager@utmn.ru`
 - сотрудник: `employee@utmn.ru`
-- dev-код: `000000`
 
-Чтобы остановить backend и frontend, нажми `Ctrl+C` в терминале со скриптом. PostgreSQL останется запущенным в Docker; остановить его можно отдельно:
+Остановить backend/frontend: `Ctrl+C` в терминале со скриптом. Остановить PostgreSQL:
 
 ```bash
 docker compose -p shpiu_project_showcase down
@@ -72,12 +60,6 @@ Linux:
 ./dev.sh --skip-install
 ./dev.sh --no-docker
 ./dev.sh --backend-port 8001 --frontend-port 5174
-```
-
-Для проверки Linux-скрипта без долгого запуска:
-
-```bash
-./dev.sh --help
 ```
 
 ## Проверки
