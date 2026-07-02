@@ -27,6 +27,8 @@ chmod +x ./dev.sh
 
 Скрипты сами создают `.env`, ставят зависимости, поднимают PostgreSQL, применяют миграции, запускают seed data, backend и frontend. На Windows backend-venv создаётся в `%LOCALAPPDATA%\shpiu_project_showcase\backend-venv-py314`, чтобы Python не ломался из-за кириллицы в пути проекта.
 
+Если проект уже запускался раньше и backend падает на отсутствующей зависимости, запустите скрипт без `--skip-install` / `-SkipInstall`: он проверит текущий `.venv` и доустановит недостающие пакеты.
+
 После запуска:
 
 - приложение: `http://localhost:5173`

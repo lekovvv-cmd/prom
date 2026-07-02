@@ -111,8 +111,10 @@ function Test-BackendDependencies {
     $code = @"
 import importlib.util
 
-modules = ('alembic', 'fastapi', 'psycopg', 'pydantic', 'sqlalchemy', 'uvicorn')
-raise SystemExit(0 if all(importlib.util.find_spec(module) for module in modules) else 1)
+required = ('alembic', 'fastapi', 'psycopg', 'pydantic', 'sqlalchemy', 'uvicorn')
+has_required = all(importlib.util.find_spec(module) for module in required)
+has_multipart = any(importlib.util.find_spec(module) for module in ('python_multipart', 'multipart'))
+raise SystemExit(0 if has_required and has_multipart else 1)
 "@
 
     try {

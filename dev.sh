@@ -157,7 +157,11 @@ ensure_backend_venv() {
 ensure_backend_dependencies() {
   [[ "$SKIP_INSTALL" == "1" ]] && return
 
-  if "$BACKEND_PYTHON" -c 'import alembic, fastapi, psycopg, pydantic, sqlalchemy, uvicorn' >/dev/null 2>&1; then
+  if "$BACKEND_PYTHON" -c 'import importlib.util
+required = ("alembic", "fastapi", "psycopg", "pydantic", "sqlalchemy", "uvicorn")
+has_required = all(importlib.util.find_spec(module) for module in required)
+has_multipart = any(importlib.util.find_spec(module) for module in ("python_multipart", "multipart"))
+raise SystemExit(0 if has_required and has_multipart else 1)' >/dev/null 2>&1; then
     log "Backend dependencies already installed"
     return
   fi
