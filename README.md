@@ -10,19 +10,26 @@ MVP внутренней витрины проектов: администрат
 
 ## Быстрый запуск
 
-Нужны Docker Desktop, Node.js и Python 3.14.
+Нужны Docker, Node.js и Python 3.14.
 
-В корне проекта запусти:
+Windows:
 
 ```powershell
 .\dev.cmd
+```
+
+Linux:
+
+```bash
+chmod +x ./dev.sh
+./dev.sh
 ```
 
 Скрипт сам:
 
 - поднимет PostgreSQL через Docker Compose;
 - создаст `backend/.env` и `frontend/.env`, если их нет;
-- создаст `backend/.venv`, если его нет;
+- создаст backend virtualenv;
 - установит backend/frontend зависимости при первом запуске;
 - применит Alembic-миграции;
 - заполнит демо-данные;
@@ -41,42 +48,40 @@ MVP внутренней витрины проектов: администрат
 
 Чтобы остановить backend и frontend, нажми `Ctrl+C` в терминале со скриптом. PostgreSQL останется запущенным в Docker; остановить его можно командой:
 
-```powershell
+```bash
 docker compose -p shpiu_project_showcase down
 ```
 
 ## Полезные опции
 
-Пропустить установку зависимостей:
+Windows:
 
 ```powershell
 .\dev.cmd -SkipInstall
-```
-
-Не поднимать Docker, если PostgreSQL уже запущен отдельно:
-
-```powershell
 .\dev.cmd -NoDocker
+.\dev.cmd -BackendPort 8001 -FrontendPort 5174
 ```
 
-Изменить порты:
+Linux:
 
-```powershell
-.\dev.cmd -BackendPort 8001 -FrontendPort 5174
+```bash
+./dev.sh --skip-install
+./dev.sh --no-docker
+./dev.sh --backend-port 8001 --frontend-port 5174
 ```
 
 ## Проверки
 
 Backend:
 
-```powershell
+```bash
 cd backend
-.\.venv\Scripts\python.exe -m pytest
+python -m pytest
 ```
 
 Frontend:
 
-```powershell
+```bash
 cd frontend
 npm test
 npm run build
