@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import type { Project, ProjectListParams } from "../../../entities/project/model/types";
 import { getProjects } from "../../../entities/project/api/projectApi";
@@ -12,6 +13,7 @@ export function ProjectsListPage() {
   const [filters, setFilters] = useState<ProjectListParams>({ sort: "created_at_desc", limit: 50 });
   const [projects, setProjects] = useState<Project[]>([]);
   const [total, setTotal] = useState(0);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -42,16 +44,84 @@ export function ProjectsListPage() {
     };
   }, [filters]);
 
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
+
+  useEffect(() => {
+    if (selectedProject && selectedProject.id !== selectedProjectId) {
+      setSelectedProjectId(selectedProject.id);
+    }
+  }, [selectedProject, selectedProjectId]);
+
   return (
     <>
       <Header />
       <PageLayout
-        title="Проекты"
-        subtitle={`Витрина стратегических проектов. Найдено: ${total}`}
+        title="Витрина проектов"
+        subtitle={`Найдено проектов: ${total}. Выберите проект, чтобы быстро проверить цель, ответственного и откликнуться.`}
       >
-        <ProjectFilters value={filters} onChange={setFilters} />
-        {error && <p className="form-error">{error}</p>}
-        {isLoading ? <Spinner /> : <ProjectCardList projects={projects} />}
+        <div className="showcase-layout">
+          <aside className="filter-rail" aria-label="Фильтры проектов">
+            <ProjectFilters value={filters} onChange={setFilters} />
+            <div className="rail-note">
+              <strong>Сценарий сотрудника</strong>
+              <span>Найдите инициативу, откройте детали и отправьте отклик. Статус заявки обновит администратор.</span>
+            </div>
+          </aside>
+
+          <section className="project-stream" aria-label="Список проектов">
+            <div className="stream-toolbar">
+              <div>
+                <strong>{total}</strong>
+                <span>проектов в витрине</span>
+              </div>
+              <span>Фильтры применяются сразу</span>
+            </div>
+            {error && <p className="form-error">{error}</p>}
+            {isLoading ? (
+              <Spinner />
+            ) : (
+              <ProjectCardList
+                projects={projects}
+                selectedProjectId={selectedProject?.id}
+                onSelect={setSelectedProjectId}
+              />
+            )}
+          </section>
+
+          <aside className="showcase-summary" aria-label="Краткая карточка проекта">
+            {selectedProject ? (
+              <>
+                <div className="summary-kicker">Выбранный проект</div>
+                <h2>{selectedProject.title}</h2>
+                <p>{selectedProject.short_description}</p>
+                <dl className="summary-list">
+                  <div>
+                    <dt>Цель</dt>
+                    <dd>{selectedProject.goal}</dd>
+                  </div>
+                  <div>
+                    <dt>Ответственный</dt>
+                    <dd>{selectedProject.responsible?.full_name ?? "Не указан"}</dd>
+                  </div>
+                  <div>
+                    <dt>Отклики</dt>
+                    <dd>{selectedProject.responses_count}</dd>
+                  </div>
+                </dl>
+                <div className="summary-actions">
+                  <Link className="button button-primary" to={`/projects/${selectedProject.id}#response-form`}>
+                    Откликнуться
+                  </Link>
+                  <Link className="button button-secondary" to={`/projects/${selectedProject.id}`}>
+                    Детали
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <p className="muted">Проект не выбран.</p>
+            )}
+          </aside>
+        </div>
       </PageLayout>
     </>
   );

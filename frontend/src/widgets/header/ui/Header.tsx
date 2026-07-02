@@ -1,4 +1,4 @@
-import { BarChart3, FolderKanban, LogIn, LogOut, MessageSquare, Table2 } from "lucide-react";
+import { BarChart3, LogIn, LogOut, MessageSquare, Table2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
@@ -10,23 +10,28 @@ export function Header() {
   return (
     <header className="app-header">
       <NavLink className="brand" to="/projects">
-        <FolderKanban size={24} />
-        <span>Витрина проектов ШПИУ</span>
+        <span className="brand-mark" aria-hidden="true">
+          <span />
+        </span>
+        <span className="brand-copy">
+          <strong>ШПИУ Проекты</strong>
+          <small>Тюменский государственный университет</small>
+        </span>
       </NavLink>
       <nav className="main-nav">
-        <NavLink to="/projects">Проекты</NavLink>
+        <NavLink to="/projects">Витрина</NavLink>
         {isAdmin && (
           <>
             <NavLink to="/admin/projects">
-              <Table2 size={16} />
-              Админка
+              <Table2 size={15} />
+              Управление
             </NavLink>
             <NavLink to="/admin/responses">
-              <MessageSquare size={16} />
+              <MessageSquare size={15} />
               Отклики
             </NavLink>
             <NavLink to="/admin/stats">
-              <BarChart3 size={16} />
+              <BarChart3 size={15} />
               Статистика
             </NavLink>
           </>
@@ -35,7 +40,7 @@ export function Header() {
       <div className="header-auth">
         {token ? (
           <>
-            <span>{user?.email}</span>
+            <span className="user-chip">{user?.email}</span>
             <Button variant="ghost" onClick={logout}>
               <LogOut size={16} />
               Выйти

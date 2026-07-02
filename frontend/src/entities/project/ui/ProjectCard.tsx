@@ -7,20 +7,33 @@ import { ProjectStatusBadge } from "./ProjectStatusBadge";
 import { formatDate } from "../../../shared/lib/date";
 import { Card } from "../../../shared/ui/Card";
 
-export function ProjectCard({ project }: { project: Project }) {
+export function ProjectCard({
+  project,
+  isSelected = false,
+  onSelect
+}: {
+  project: Project;
+  isSelected?: boolean;
+  onSelect?: (projectId: string) => void;
+}) {
   return (
-    <Card className="project-card">
-      <div className="card-topline">
-        <ProjectStatusBadge status={project.status} />
-        <ProjectPriorityBadge priority={project.priority} />
-      </div>
-      <h2>{project.title}</h2>
-      <p>{project.short_description}</p>
-      <dl className="meta-grid">
-        <div>
-          <dt>Цель</dt>
-          <dd>{project.goal}</dd>
-        </div>
+    <Card className={`project-card ${isSelected ? "project-card-selected" : ""}`}>
+      <button
+        className="project-card-main"
+        type="button"
+        aria-pressed={isSelected}
+        onClick={() => onSelect?.(project.id)}
+      >
+        <span className="card-topline">
+          <ProjectStatusBadge status={project.status} />
+          <ProjectPriorityBadge priority={project.priority} />
+        </span>
+        <span className="project-card-title">{project.title}</span>
+        <span className="project-card-description">{project.short_description}</span>
+        <span className="project-card-goal">{project.goal}</span>
+      </button>
+
+      <dl className="project-card-meta">
         <div>
           <dt>Срок</dt>
           <dd>
@@ -28,20 +41,25 @@ export function ProjectCard({ project }: { project: Project }) {
             {project.end_date ? ` - ${formatDate(project.end_date)}` : ""}
           </dd>
         </div>
+        <div>
+          <dt>Ответственный</dt>
+          <dd>
+            <UserRound size={15} />
+            {project.responsible?.full_name ?? "Не указан"}
+          </dd>
+        </div>
+        <div>
+          <dt>Отклики</dt>
+          <dd>
+            <MessageSquare size={15} />
+            {project.responses_count}
+          </dd>
+        </div>
       </dl>
-      <div className="card-footer">
-        <span className="inline-meta">
-          <UserRound size={16} />
-          {project.responsible?.full_name ?? "Ответственный не указан"}
-        </span>
-        <span className="inline-meta">
-          <MessageSquare size={16} />
-          {project.responses_count}
-        </span>
-      </div>
-      <div className="button-row">
+
+      <div className="project-card-actions">
         <Link className="button button-secondary" to={`/projects/${project.id}`}>
-          Подробнее
+          Детали
         </Link>
         <Link className="button button-primary" to={`/projects/${project.id}#response-form`}>
           Откликнуться

@@ -44,7 +44,7 @@ export function AdminResponsesPage() {
   return (
     <>
       <Header />
-      <PageLayout title="Отклики" subtitle="Обработка интереса сотрудников к проектам">
+      <PageLayout title="Очередь откликов" subtitle="Обработка заявок сотрудников на участие в проектах">
         <div className="filters">
           <Input
             label="Поиск"
