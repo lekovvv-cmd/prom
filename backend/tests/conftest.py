@@ -1,0 +1,32 @@
+import os
+import tempfile
+from pathlib import Path
+
+os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mktemp(prefix='shpiu_test_', suffix='.db')}"
+os.environ["JWT_SECRET"] = "test-secret-with-at-least-thirty-two-bytes"
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.core.database import Base, engine
+from app.main import app
+from app.modules.projects import models as project_models  # noqa: F401
+from app.modules.responses import models as response_models  # noqa: F401
+from app.modules.users import models as user_models  # noqa: F401
+from scripts.seed import main as seed_main
+
+
+@pytest.fixture(scope="session", autouse=True)
+def database():
+    Base.metadata.create_all(engine)
+    seed_main()
+    yield
+    engine.dispose()
+    db_path = os.environ["DATABASE_URL"].replace("sqlite:///", "")
+    Path(db_path).unlink(missing_ok=True)
+
+
+@pytest.fixture()
+def client(database):
+    with TestClient(app) as test_client:
+        yield test_client

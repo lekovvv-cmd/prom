@@ -1,0 +1,219 @@
+from datetime import UTC, date, datetime
+
+from app.core.database import SessionLocal
+from app.core.enums import (
+    ProjectMemberRole,
+    ProjectPriority,
+    ProjectResponseStatus,
+    ProjectStatus,
+    ProjectType,
+    UserRole,
+)
+from app.modules.projects.models import Project, ProjectMember
+from app.modules.responses.models import ProjectResponse
+from app.modules.users.models import User
+from app.modules.users.repository import UserRepository
+
+
+def upsert_user(repo: UserRepository, *, email: str, full_name: str, role: UserRole) -> User:
+    user = repo.get_by_email(email)
+    if user is not None:
+        user.full_name = full_name
+        user.role = role
+        return user
+    return repo.create(email=email, full_name=full_name, role=role)
+
+
+def main() -> None:
+    db = SessionLocal()
+    try:
+        repo = UserRepository(db)
+        admin = upsert_user(
+            repo,
+            email="admin@utmn.ru",
+            full_name="Администратор ШПИУ",
+            role=UserRole.ADMIN,
+        )
+        manager = upsert_user(
+            repo,
+            email="manager@utmn.ru",
+            full_name="Руководитель проекта",
+            role=UserRole.PROJECT_MANAGER,
+        )
+        employee = upsert_user(
+            repo,
+            email="employee@utmn.ru",
+            full_name="Сотрудник ШПИУ",
+            role=UserRole.EMPLOYEE,
+        )
+        analyst = upsert_user(
+            repo,
+            email="analyst@utmn.ru",
+            full_name="Аналитик ШПИУ",
+            role=UserRole.EMPLOYEE,
+        )
+
+        if db.query(Project).count() == 0:
+            projects = [
+                Project(
+                    title="Цифровая карта образовательных инициатив",
+                    short_description="Единая карта инициатив для руководителей и проектных команд.",
+                    description="Проект собирает образовательные инициативы ШПИУ в единую витрину с ответственными, сроками и ожидаемыми результатами.",
+                    goal="Повысить прозрачность проектной деятельности и упростить приоритизацию инициатив.",
+                    expected_result="Руководство видит актуальный портфель инициатив и точки перегрузки.",
+                    project_type=ProjectType.STRATEGIC,
+                    priority=ProjectPriority.CRITICAL,
+                    status=ProjectStatus.ACTIVE,
+                    start_date=date(2026, 9, 1),
+                    responsible_user_id=manager.id,
+                    contact_email="manager@utmn.ru",
+                    required_competencies="Аналитика, интервью, визуализация данных",
+                    planned_tasks="Собрать требования, описать данные, подготовить витрину",
+                    created_by=admin.id,
+                ),
+                Project(
+                    title="Наставничество для новых преподавателей",
+                    short_description="Программа сопровождения новых преподавателей в первые месяцы работы.",
+                    description="Команда проектирует маршрут адаптации, материалы и точки обратной связи для новых преподавателей.",
+                    goal="Снизить время адаптации и повысить качество включения в образовательные процессы.",
+                    expected_result="Готовый маршрут наставничества и пилотная группа участников.",
+                    project_type=ProjectType.STRATEGIC,
+                    priority=ProjectPriority.HIGH,
+                    status=ProjectStatus.ACTIVE,
+                    responsible_user_id=manager.id,
+                    contact_email="manager@utmn.ru",
+                    required_competencies="Методология, коммуникации, фасилитация",
+                    planned_tasks="Описать маршрут, собрать наставников, провести пилот",
+                    created_by=admin.id,
+                ),
+                Project(
+                    title="Исследование вовлечённости сотрудников",
+                    short_description="Быстрое исследование барьеров участия сотрудников в проектах.",
+                    description="Проект проверяет, почему сотрудники редко откликаются на инициативы и какие форматы вовлечения работают лучше.",
+                    goal="Найти практические меры для роста вовлечённости в проектную деятельность.",
+                    expected_result="Отчёт с гипотезами, сегментами и рекомендациями.",
+                    project_type=ProjectType.STRATEGIC,
+                    priority=ProjectPriority.HIGH,
+                    status=ProjectStatus.ACTIVE,
+                    start_date=date(2026, 10, 1),
+                    end_date=date(2026, 12, 15),
+                    responsible_user_id=analyst.id,
+                    contact_email="analyst@utmn.ru",
+                    required_competencies="Опросы, интервью, анализ данных",
+                    planned_tasks="Подготовить анкету, провести интервью, собрать выводы",
+                    created_by=admin.id,
+                ),
+                Project(
+                    title="Календарь проектных событий",
+                    short_description="Общий календарь встреч, защит и рабочих сессий.",
+                    description="Проект временно приостановлен до согласования формата календаря и владельца процесса.",
+                    goal="Сделать проектные события предсказуемыми и доступными для сотрудников.",
+                    expected_result="Пилот календаря с ответственными и регулярными обновлениями.",
+                    project_type=ProjectType.STRATEGIC,
+                    priority=ProjectPriority.MEDIUM,
+                    status=ProjectStatus.PAUSED,
+                    created_by=admin.id,
+                ),
+                Project(
+                    title="Архив проектных практик 2025",
+                    short_description="Собранные кейсы завершённых проектных практик.",
+                    description="Команда собрала и структурировала практики, которые можно переиспользовать в новых инициативах.",
+                    goal="Сохранить проектную память и ускорить запуск похожих инициатив.",
+                    expected_result="Каталог практик и краткие карточки кейсов.",
+                    project_type=ProjectType.STRATEGIC,
+                    priority=ProjectPriority.LOW,
+                    status=ProjectStatus.COMPLETED,
+                    end_date=date(2026, 5, 30),
+                    created_by=admin.id,
+                ),
+                Project(
+                    title="Старая витрина проектных заявок",
+                    short_description="Архивная версия витрины для проверки soft archive.",
+                    description="Архивный проект не должен отображаться в публичной витрине.",
+                    goal="Проверить работу архивирования.",
+                    project_type=ProjectType.STRATEGIC,
+                    priority=ProjectPriority.LOW,
+                    status=ProjectStatus.ARCHIVED,
+                    archived_at=datetime.now(UTC),
+                    created_by=admin.id,
+                ),
+            ]
+            db.add_all(projects)
+            db.flush()
+            db.add_all(
+                [
+                    ProjectMember(project_id=projects[0].id, user_id=manager.id, member_role=ProjectMemberRole.MANAGER),
+                    ProjectMember(
+                        project_id=projects[0].id,
+                        user_id=analyst.id,
+                        member_role=ProjectMemberRole.WORKING_GROUP_MEMBER,
+                    ),
+                    ProjectMember(
+                        project_id=projects[1].id,
+                        user_id=employee.id,
+                        member_role=ProjectMemberRole.PARTICIPANT,
+                    ),
+                    ProjectResponse(
+                        project_id=projects[0].id,
+                        user_id=employee.id,
+                        full_name=employee.full_name,
+                        email=employee.email,
+                        comment="Хочу помочь с описанием процессов и сбором обратной связи.",
+                        competencies="Коммуникации, организация встреч",
+                        status=ProjectResponseStatus.NEW,
+                    ),
+                    ProjectResponse(
+                        project_id=projects[0].id,
+                        user_id=analyst.id,
+                        full_name=analyst.full_name,
+                        email=analyst.email,
+                        comment="Готов подключиться к аналитике и структуре данных.",
+                        competencies="SQL, аналитика, визуализация",
+                        status=ProjectResponseStatus.CONTACTED,
+                        processed_by=admin.id,
+                        processed_at=datetime.now(UTC),
+                    ),
+                    ProjectResponse(
+                        project_id=projects[1].id,
+                        user_id=employee.id,
+                        full_name=employee.full_name,
+                        email=employee.email,
+                        comment="Интересна методическая часть и сопровождение новичков.",
+                        competencies="Методология, наставничество",
+                        status=ProjectResponseStatus.ACCEPTED,
+                        processed_by=admin.id,
+                        processed_at=datetime.now(UTC),
+                    ),
+                    ProjectResponse(
+                        project_id=projects[2].id,
+                        user_id=analyst.id,
+                        full_name=analyst.full_name,
+                        email=analyst.email,
+                        comment="Могу провести интервью и обработать результаты.",
+                        competencies="Интервью, анализ качественных данных",
+                        status=ProjectResponseStatus.VIEWED,
+                        processed_by=admin.id,
+                        processed_at=datetime.now(UTC),
+                    ),
+                    ProjectResponse(
+                        project_id=projects[3].id,
+                        user_id=employee.id,
+                        full_name=employee.full_name,
+                        email=employee.email,
+                        comment="Сейчас не смогу участвовать регулярно.",
+                        competencies="Координация",
+                        status=ProjectResponseStatus.REJECTED,
+                        processed_by=admin.id,
+                        processed_at=datetime.now(UTC),
+                    ),
+                ]
+            )
+
+        db.commit()
+        print("Seed data is ready")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

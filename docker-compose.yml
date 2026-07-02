@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: project_showcase
+      POSTGRES_USER: project_showcase
+      POSTGRES_PASSWORD: project_showcase
+    ports:
+      - "5432:5432"
+    volumes:
+      - project_showcase_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U project_showcase -d project_showcase"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  project_showcase_pg_data:

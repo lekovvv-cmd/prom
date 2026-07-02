@@ -1,0 +1,70 @@
+import { Edit3 } from "lucide-react";
+
+import type { Project } from "../../../entities/project/model/types";
+import { ProjectPriorityBadge } from "../../../entities/project/ui/ProjectPriorityBadge";
+import { ProjectStatusBadge } from "../../../entities/project/ui/ProjectStatusBadge";
+import { ArchiveProjectButton } from "../../../features/archive-project/ui/ArchiveProjectButton";
+import { formatDateTime } from "../../../shared/lib/date";
+import { Button } from "../../../shared/ui/Button";
+import { EmptyState } from "../../../shared/ui/EmptyState";
+import { Table } from "../../../shared/ui/Table";
+
+export function AdminProjectsTable({
+  projects,
+  onEdit,
+  onArchived
+}: {
+  projects: Project[];
+  onEdit: (project: Project) => void;
+  onArchived: () => void;
+}) {
+  if (projects.length === 0) {
+    return <EmptyState title="Проектов пока нет" text="Создайте первый проект для витрины." />;
+  }
+
+  return (
+    <Table>
+      <table>
+        <thead>
+          <tr>
+            <th>Проект</th>
+            <th>Статус</th>
+            <th>Приоритет</th>
+            <th>Отклики</th>
+            <th>Создан</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {projects.map((project) => (
+            <tr key={project.id}>
+              <td>
+                <strong>{project.title}</strong>
+                <span>{project.short_description}</span>
+              </td>
+              <td>
+                <ProjectStatusBadge status={project.status} />
+              </td>
+              <td>
+                <ProjectPriorityBadge priority={project.priority} />
+              </td>
+              <td>{project.responses_count}</td>
+              <td>{formatDateTime(project.created_at)}</td>
+              <td>
+                <div className="table-actions">
+                  <Button variant="secondary" onClick={() => onEdit(project)}>
+                    <Edit3 size={16} />
+                    Править
+                  </Button>
+                  {project.status !== "archived" && (
+                    <ArchiveProjectButton projectId={project.id} onArchived={onArchived} />
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Table>
+  );
+}
