@@ -16,3 +16,5 @@ vite.config.d.ts
 *.local
 .DS_Store
 project_showcase_pg_data/
+.dev-*.log
+*.db
