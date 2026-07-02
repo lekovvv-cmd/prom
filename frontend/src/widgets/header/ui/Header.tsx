@@ -2,6 +2,7 @@ import { BarChart3, LogIn, LogOut, MessageSquare, Table2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
+import utmnLogo from "../../../shared/assets/utmn-logo.png";
 import { Button } from "../../../shared/ui/Button";
 
 const roleLabels = {
@@ -16,9 +17,7 @@ export function Header() {
   return (
     <header className="app-header">
       <NavLink className="brand" to="/projects">
-        <span className="brand-mark" aria-hidden="true">
-          <span />
-        </span>
+        <img className="brand-logo" src={utmnLogo} alt="UTMN" />
         <span className="brand-copy">
           <strong>ШПИУ Проекты</strong>
           <small>Тюменский государственный университет</small>
