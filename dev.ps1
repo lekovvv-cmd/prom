@@ -73,10 +73,39 @@ function Find-Node {
     throw "node is not installed or not in PATH. Install Node.js LTS/current first."
 }
 
+function Test-Python314 {
+    param([string]$PythonExe)
+
+    & $PythonExe -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)" *> $null
+    return $LASTEXITCODE -eq 0
+}
+
+function Ensure-Python314 {
+    param([string]$PythonExe)
+
+    if (-not (Test-Python314 $PythonExe)) {
+        throw "$PythonExe exists, but it is not Python 3.14+. Remove the venv and rerun .\dev.cmd."
+    }
+}
+
 function Ensure-BackendVenv {
-    $venvPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
+    $defaultVenv = Join-Path $BackendDir ".venv"
+    $py314Venv = Join-Path $BackendDir ".venv-py314"
+    $venvDir = $defaultVenv
+    $venvPython = Join-Path $venvDir "Scripts\python.exe"
 
     if (Test-Path -LiteralPath $venvPython) {
+        if (Test-Python314 $venvPython) {
+            return $venvPython
+        }
+
+        Write-Step "Existing $defaultVenv is not Python 3.14+, using $py314Venv"
+        $venvDir = $py314Venv
+        $venvPython = Join-Path $venvDir "Scripts\python.exe"
+    }
+
+    if (Test-Path -LiteralPath $venvPython) {
+        Ensure-Python314 $venvPython
         return $venvPython
     }
 
@@ -84,7 +113,7 @@ function Ensure-BackendVenv {
     Push-Location $BackendDir
     try {
         if (Get-Command py -ErrorAction SilentlyContinue) {
-            & py -3.14 -m venv .venv
+            & py -3.14 -m venv $venvDir
             if ($LASTEXITCODE -ne 0) {
                 throw "Python 3.14 is required. Install Python 3.14 or make it available as py -3.14."
             }
@@ -94,7 +123,7 @@ function Ensure-BackendVenv {
             if ($LASTEXITCODE -ne 0) {
                 throw "Python 3.14 is required. Install Python 3.14 or make it available in PATH."
             }
-            & python -m venv .venv
+            & python -m venv $venvDir
             if ($LASTEXITCODE -ne 0) {
                 throw "Could not create backend virtualenv."
             }
@@ -108,6 +137,7 @@ function Ensure-BackendVenv {
         throw "Could not create backend virtualenv. Install Python 3.14 and try again."
     }
 
+    Ensure-Python314 $venvPython
     return $venvPython
 }
 

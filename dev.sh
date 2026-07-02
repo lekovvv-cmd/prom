@@ -35,7 +35,9 @@ Options:
   --exit-after-ready, -ExitAfterReady
                                     Stop after backend/frontend readiness checks
   --backend-port PORT               Backend port, default 8000
+  --backend-port=PORT               Same as --backend-port PORT
   --frontend-port PORT              Frontend port, default 5173
+  --frontend-port=PORT              Same as --frontend-port PORT
   -h, --help                        Show help
 EOF
 }
@@ -100,6 +102,13 @@ python_is_314() {
   "$1" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)' >/dev/null 2>&1
 }
 
+ensure_python_314() {
+  local python_path="$1"
+  if ! python_is_314 "$python_path"; then
+    fail "$python_path exists, but it is not Python 3.14+. Remove the venv and rerun ./dev.sh."
+  fi
+}
+
 find_python_314() {
   local candidate
   for candidate in python3.14 python3 python; do
@@ -114,11 +123,16 @@ find_python_314() {
 ensure_backend_venv() {
   local default_venv="$BACKEND_DIR/.venv"
   local linux_venv="$BACKEND_DIR/.venv-linux"
+  local py314_venv="$BACKEND_DIR/.venv-py314"
   local venv_dir="$default_venv"
 
   if [[ -x "$default_venv/bin/python" ]]; then
     BACKEND_PYTHON="$default_venv/bin/python"
-    return
+    if python_is_314 "$BACKEND_PYTHON"; then
+      return
+    fi
+    log "Existing $default_venv is not Python 3.14+, using $py314_venv"
+    venv_dir="$py314_venv"
   fi
 
   if [[ -d "$default_venv" && ! -x "$default_venv/bin/python" ]]; then
@@ -127,6 +141,7 @@ ensure_backend_venv() {
 
   BACKEND_PYTHON="$venv_dir/bin/python"
   if [[ -x "$BACKEND_PYTHON" ]]; then
+    ensure_python_314 "$BACKEND_PYTHON"
     return
   fi
 

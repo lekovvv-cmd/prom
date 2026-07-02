@@ -8,34 +8,38 @@ MVP внутренней витрины проектов: администрат
 - Frontend: React 19, TypeScript, React Router, Feature-Sliced Design.
 - Инфраструктура: Docker Compose для PostgreSQL, GitHub Actions для CI/CD.
 
-## Быстрый запуск
+## Запуск одной командой
 
-Нужны Docker, Node.js и Python 3.14.
+Скрипты запускают PostgreSQL, backend и frontend, создают `.env`, ставят зависимости при первом запуске, применяют миграции и заполняют demo data.
 
-Windows:
+### Windows
+
+Требования: Docker Desktop, Node.js, Python 3.14.
 
 ```powershell
 .\dev.cmd
 ```
 
-Linux:
+### Linux
+
+Требования: Docker Engine с `docker compose`, Node.js/npm, Python 3.14, `curl`.
 
 ```bash
 chmod +x ./dev.sh
 ./dev.sh
 ```
 
-Скрипт сам:
+Если PostgreSQL уже запущен отдельно, можно не поднимать Docker:
 
-- поднимет PostgreSQL через Docker Compose;
-- создаст `backend/.env` и `frontend/.env`, если их нет;
-- создаст backend virtualenv;
-- установит backend/frontend зависимости при первом запуске;
-- применит Alembic-миграции;
-- заполнит демо-данные;
-- запустит backend и frontend.
+```bash
+./dev.sh --no-docker
+```
 
-После запуска открой:
+Если проект запускается в одной папке и на Windows, и на Linux: Windows-скрипт использует `backend/.venv`, а Linux-скрипт создаст `backend/.venv-linux`, если увидит Windows-venv без `bin/python`.
+
+Если `backend/.venv` уже существует, но создан старым Python, скрипты автоматически используют `backend/.venv-py314`. Удалять старый venv руками не нужно.
+
+## Адреса
 
 - приложение: `http://localhost:5173`
 - Swagger: `http://localhost:8000/docs`
@@ -46,13 +50,13 @@ chmod +x ./dev.sh
 - сотрудник: `employee@utmn.ru`
 - dev-код: `000000`
 
-Чтобы остановить backend и frontend, нажми `Ctrl+C` в терминале со скриптом. PostgreSQL останется запущенным в Docker; остановить его можно командой:
+Чтобы остановить backend и frontend, нажми `Ctrl+C` в терминале со скриптом. PostgreSQL останется запущенным в Docker; остановить его можно отдельно:
 
 ```bash
 docker compose -p shpiu_project_showcase down
 ```
 
-## Полезные опции
+## Опции запуска
 
 Windows:
 
@@ -68,6 +72,12 @@ Linux:
 ./dev.sh --skip-install
 ./dev.sh --no-docker
 ./dev.sh --backend-port 8001 --frontend-port 5174
+```
+
+Для проверки Linux-скрипта без долгого запуска:
+
+```bash
+./dev.sh --help
 ```
 
 ## Проверки
