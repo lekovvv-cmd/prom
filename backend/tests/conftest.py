@@ -1,6 +1,11 @@
 import os
+import sys
 import tempfile
 from pathlib import Path
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mktemp(prefix='shpiu_test_', suffix='.db')}"
 os.environ["JWT_SECRET"] = "test-secret-with-at-least-thirty-two-bytes"
