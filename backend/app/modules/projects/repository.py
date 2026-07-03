@@ -100,6 +100,7 @@ class ProjectRepository:
             project.archived_at = datetime.now(UTC)
         if project.status != ProjectStatus.ARCHIVED:
             project.archived_at = None
+            project.deleted_at = None
         self.db.flush()
         return project
 
@@ -122,6 +123,13 @@ class ProjectRepository:
         project.archived_at = datetime.now(UTC)
         self.db.flush()
 
+    def soft_delete(self, project: Project) -> None:
+        project.status = ProjectStatus.ARCHIVED
+        if project.archived_at is None:
+            project.archived_at = datetime.now(UTC)
+        project.deleted_at = datetime.now(UTC)
+        self.db.flush()
+
     @staticmethod
     def _apply_filters(
         query: Select,
@@ -132,8 +140,12 @@ class ProjectRepository:
         competency: str | None,
         manager_user_id: UUID | None,
     ) -> Select:
+        query = query.where(Project.deleted_at.is_(None))
         if public:
             query = query.where(Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED]))
+            query = query.where(Project.archived_at.is_(None))
+        elif status is None:
+            query = query.where(Project.status != ProjectStatus.ARCHIVED)
             query = query.where(Project.archived_at.is_(None))
         if manager_user_id is not None:
             query = ProjectRepository._apply_manager_project_scope(query, manager_user_id)

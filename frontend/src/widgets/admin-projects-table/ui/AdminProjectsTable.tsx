@@ -4,6 +4,7 @@ import type { Project } from "../../../entities/project/model/types";
 import { ProjectPriorityBadge } from "../../../entities/project/ui/ProjectPriorityBadge";
 import { ProjectStatusBadge } from "../../../entities/project/ui/ProjectStatusBadge";
 import { ArchiveProjectButton } from "../../../features/archive-project/ui/ArchiveProjectButton";
+import { DeleteArchivedProjectButton } from "../../../features/delete-archived-project/ui/DeleteArchivedProjectButton";
 import { formatDateTime } from "../../../shared/lib/date";
 import { Button } from "../../../shared/ui/Button";
 import { EmptyState } from "../../../shared/ui/EmptyState";
@@ -12,14 +13,20 @@ import { Table } from "../../../shared/ui/Table";
 export function AdminProjectsTable({
   projects,
   onEdit,
-  onArchived
+  onArchived,
+  isArchiveView = false,
+  emptyTitle = "Проектов пока нет",
+  emptyText = "Создайте первый проект для витрины."
 }: {
   projects: Project[];
   onEdit: (project: Project) => void;
   onArchived: () => void;
+  isArchiveView?: boolean;
+  emptyTitle?: string;
+  emptyText?: string;
 }) {
   if (projects.length === 0) {
-    return <EmptyState title="Проектов пока нет" text="Создайте первый проект для витрины." />;
+    return <EmptyState title={emptyTitle} text={emptyText} />;
   }
 
   return (
@@ -56,9 +63,11 @@ export function AdminProjectsTable({
                     <Edit3 size={16} />
                     Править
                   </Button>
-                  {project.status !== "archived" && (
+                  {isArchiveView ? (
+                    <DeleteArchivedProjectButton projectId={project.id} onDeleted={onArchived} />
+                  ) : project.status !== "archived" ? (
                     <ArchiveProjectButton projectId={project.id} onArchived={onArchived} />
-                  )}
+                  ) : null}
                 </div>
               </td>
             </tr>

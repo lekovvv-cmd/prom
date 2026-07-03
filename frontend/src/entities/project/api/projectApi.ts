@@ -48,6 +48,12 @@ export function archiveAdminProject(projectId: string) {
   });
 }
 
+export function deleteArchivedAdminProject(projectId: string) {
+  return apiClient.request<{ ok: boolean }>(`/admin/projects/${projectId}`, {
+    method: "DELETE"
+  });
+}
+
 export function uploadAdminProjectAttachment(projectId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);

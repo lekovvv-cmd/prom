@@ -76,7 +76,11 @@ class ProjectService:
 
     def get_public_details(self, project_id: UUID) -> ProjectDetails:
         project, count = self._get_existing_with_count(project_id)
-        if project.status in {ProjectStatus.DRAFT, ProjectStatus.ARCHIVED} or project.archived_at is not None:
+        if (
+            project.status in {ProjectStatus.DRAFT, ProjectStatus.ARCHIVED}
+            or project.archived_at is not None
+            or project.deleted_at is not None
+        ):
             raise DomainError("Проект не найден", status_code=404)
         return self._to_details(project, count)
 
@@ -86,7 +90,7 @@ class ProjectService:
 
     def get_existing_project(self, project_id: UUID) -> Project:
         project = self.repo.get_by_id(project_id)
-        if project is None:
+        if project is None or project.deleted_at is not None:
             raise DomainError("Проект не найден", status_code=404)
         return project
 
@@ -115,7 +119,10 @@ class ProjectService:
 
     def archive(self, project_id: UUID) -> None:
         project = self.get_existing_project(project_id)
-        self.repo.archive(project)
+        if project.status == ProjectStatus.ARCHIVED or project.archived_at is not None:
+            self.repo.soft_delete(project)
+        else:
+            self.repo.archive(project)
         self.db.commit()
 
     def _list(
@@ -157,7 +164,7 @@ class ProjectService:
 
     def _get_existing_with_count(self, project_id: UUID) -> tuple[Project, int]:
         row = self.repo.get_with_counts(project_id)
-        if row is None:
+        if row is None or row[0].deleted_at is not None:
             raise DomainError("Проект не найден", status_code=404)
         return row
 

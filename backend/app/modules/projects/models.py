@@ -53,6 +53,7 @@ class Project(Base):
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     creator: Mapped["User"] = relationship(
         "User", back_populates="created_projects", foreign_keys=[created_by]

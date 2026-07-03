@@ -316,6 +316,20 @@ button {
   align-items: start;
 }
 
+.view-tabs {
+  display: inline-flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.view-tabs .button {
+  min-height: 34px;
+}
+
 .filter-rail .filters {
   grid-template-columns: 1fr;
   gap: 12px;

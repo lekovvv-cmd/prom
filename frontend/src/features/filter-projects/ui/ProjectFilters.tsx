@@ -10,7 +10,9 @@ import { Select } from "../../../shared/ui/Select";
 type Props = {
   value: ProjectFiltersState;
   onChange: (nextValue: ProjectFiltersState) => void;
+  includeDraft?: boolean;
   includeArchived?: boolean;
+  hideStatus?: boolean;
 };
 
 export function getVisibleCompetencySuggestions(competencies: Competency[], selected: string[] = []) {
@@ -18,7 +20,7 @@ export function getVisibleCompetencySuggestions(competencies: Competency[], sele
   return competencies.filter((competency) => !selectedSet.has(competency.name)).slice(0, 8);
 }
 
-export function ProjectFilters({ value, onChange, includeArchived = false }: Props) {
+export function ProjectFilters({ value, onChange, includeDraft = false, includeArchived = false, hideStatus = false }: Props) {
   const [competencySearch, setCompetencySearch] = useState("");
   const [competencies, setCompetencies] = useState<Competency[]>([]);
   const selectedCompetencies = splitCompetencies(value.competency);
@@ -64,19 +66,21 @@ export function ProjectFilters({ value, onChange, includeArchived = false }: Pro
         onChange={(event) => onChange({ ...value, search: event.target.value })}
         placeholder="Название проекта"
       />
-      <Select
-        label="Статус"
-        name="status"
-        value={value.status ?? ""}
-        onChange={(event) => onChange({ ...value, status: event.target.value as ProjectFiltersState["status"] })}
-      >
-        <option value="">Все статусы</option>
-        {includeArchived && <option value="draft">Черновик</option>}
-        <option value="active">Активен</option>
-        <option value="paused">Пауза</option>
-        <option value="completed">Завершён</option>
-        {includeArchived && <option value="archived">Архив</option>}
-      </Select>
+      {!hideStatus && (
+        <Select
+          label="Статус"
+          name="status"
+          value={value.status ?? ""}
+          onChange={(event) => onChange({ ...value, status: event.target.value as ProjectFiltersState["status"] })}
+        >
+          <option value="">Все статусы</option>
+          {includeDraft && <option value="draft">Черновик</option>}
+          <option value="active">Активен</option>
+          <option value="paused">Пауза</option>
+          <option value="completed">Завершён</option>
+          {includeArchived && <option value="archived">Архив</option>}
+        </Select>
+      )}
       <Select
         label="Тип"
         name="project_type"

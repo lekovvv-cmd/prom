@@ -76,7 +76,7 @@ class ProjectResponseRepository:
         )
 
     def user_can_manage_project(self, project_id: UUID, user_id: UUID) -> bool:
-        query = select(Project.id).where(Project.id == project_id)
+        query = select(Project.id).where(Project.id == project_id, Project.deleted_at.is_(None))
         query = self._apply_manager_project_scope(query, user_id)
         return self.db.scalar(query) is not None
 
@@ -88,6 +88,7 @@ class ProjectResponseRepository:
         search: str | None,
         manager_user_id: UUID | None,
     ) -> Select:
+        query = query.where(Project.deleted_at.is_(None))
         if project_id is not None:
             query = query.where(ProjectResponse.project_id == project_id)
         if manager_user_id is not None:

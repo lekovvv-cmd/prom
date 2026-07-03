@@ -64,6 +64,70 @@ def test_public_projects_hide_archived_seed_project(client):
     assert stats.json()["projects_total"] == payload["total"]
 
 
+def test_admin_projects_keep_archive_separate(client):
+    headers = admin_headers(client)
+
+    current = client.get("/api/admin/projects", params={"limit": 100}, headers=headers)
+    assert current.status_code == 200
+    current_payload = current.json()
+    current_statuses = {item["status"] for item in current_payload["items"]}
+    current_titles = {item["title"] for item in current_payload["items"]}
+    assert "archived" not in current_statuses
+    assert "Старая витрина проектных заявок" not in current_titles
+
+    archive = client.get(
+        "/api/admin/projects",
+        params={"status": "archived", "limit": 100},
+        headers=headers,
+    )
+    assert archive.status_code == 200
+    archive_payload = archive.json()
+    archive_statuses = {item["status"] for item in archive_payload["items"]}
+    archive_titles = {item["title"] for item in archive_payload["items"]}
+    assert archive_payload["total"] >= 1
+    assert archive_statuses == {"archived"}
+    assert "Старая витрина проектных заявок" in archive_titles
+
+    created = client.post(
+        "/api/admin/projects",
+        json=project_payload("Pytest project for archive deletion", "active"),
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    project_id = created.json()["id"]
+
+    archived = client.delete(f"/api/admin/projects/{project_id}", headers=headers)
+    assert archived.status_code == 200
+
+    archive_after_archive = client.get(
+        "/api/admin/projects",
+        params={"status": "archived", "search": "Pytest project for archive deletion", "limit": 100},
+        headers=headers,
+    )
+    assert archive_after_archive.status_code == 200
+    assert archive_after_archive.json()["total"] == 1
+
+    deleted = client.delete(f"/api/admin/projects/{project_id}", headers=headers)
+    assert deleted.status_code == 200
+
+    archive_after_delete = client.get(
+        "/api/admin/projects",
+        params={"status": "archived", "search": "Pytest project for archive deletion", "limit": 100},
+        headers=headers,
+    )
+    assert archive_after_delete.status_code == 200
+    assert archive_after_delete.json()["total"] == 0
+
+    from app.core.database import SessionLocal
+    from app.modules.projects.models import Project
+    from uuid import UUID
+
+    with SessionLocal() as db:
+        project = db.get(Project, UUID(project_id))
+        assert project is not None
+        assert project.deleted_at is not None
+
+
 def test_competencies_catalog_and_role_access(client):
     catalog = client.get("/api/competencies", params={"search": "SQL"})
     assert catalog.status_code == 200
