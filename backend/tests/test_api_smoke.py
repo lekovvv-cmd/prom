@@ -64,6 +64,19 @@ def test_public_projects_hide_archived_seed_project(client):
     assert stats.json()["projects_total"] == payload["total"]
 
 
+def test_project_search_matches_separate_title_words(client):
+    response = client.get("/api/projects", params={"search": "Архив пра", "limit": 100})
+
+    assert response.status_code == 200
+    titles = {item["title"] for item in response.json()["items"]}
+    assert "Архив проектных практик 2025" in titles
+
+    reversed_response = client.get("/api/projects", params={"search": "пра Архив", "limit": 100})
+    assert reversed_response.status_code == 200
+    reversed_titles = {item["title"] for item in reversed_response.json()["items"]}
+    assert "Архив проектных практик 2025" in reversed_titles
+
+
 def test_admin_projects_keep_archive_separate(client):
     headers = admin_headers(client)
 

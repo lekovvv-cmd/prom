@@ -149,8 +149,9 @@ class ProjectRepository:
             query = query.where(Project.archived_at.is_(None))
         if manager_user_id is not None:
             query = ProjectRepository._apply_manager_project_scope(query, manager_user_id)
-        if search:
-            pattern = f"%{search.strip()}%"
+        search_terms = ProjectRepository._split_search_terms(search)
+        for term in search_terms:
+            pattern = f"%{term}%"
             query = query.where(
                 or_(
                     Project.title.ilike(pattern),
@@ -196,3 +197,9 @@ class ProjectRepository:
     @staticmethod
     def _split_competency_filter(value: str) -> list[str]:
         return [item.strip() for item in re.split(r"[,;\n]", value) if item.strip()]
+
+    @staticmethod
+    def _split_search_terms(value: str | None) -> list[str]:
+        if not value:
+            return []
+        return [item.strip() for item in re.split(r"\s+", value) if item.strip()]
