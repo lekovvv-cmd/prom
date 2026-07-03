@@ -787,6 +787,39 @@ button {
 .form-success {
   color: var(--success);
   background: #e9f7ef;
+  border: 1px solid #bfe7cf;
+}
+
+.form-success-card {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 13px 14px;
+  border-left: 4px solid var(--success);
+}
+
+.form-success-card svg {
+  margin-top: 1px;
+  color: var(--success);
+}
+
+.form-success-card div {
+  display: grid;
+  gap: 3px;
+}
+
+.form-success-card strong {
+  color: #0f663b;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.form-success-card span {
+  color: #315b43;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 650;
 }
 
 .login-page {

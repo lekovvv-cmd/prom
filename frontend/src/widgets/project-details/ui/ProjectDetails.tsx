@@ -74,6 +74,14 @@ export function ProjectDetails({
         )}
       </section>
       <aside className="details-side">
+        {canRespond ? (
+          <ProjectResponseForm projectId={project.id} onSubmitted={onResponseSubmitted} />
+        ) : (
+          <Card>
+            <h3>Отклики закрыты</h3>
+            <p className="muted">Новые отклики доступны только для активных и приостановленных проектов.</p>
+          </Card>
+        )}
         <Card>
           <h3>Параметры</h3>
           <dl className="side-list">
@@ -117,14 +125,6 @@ export function ProjectDetails({
             </ul>
           )}
         </Card>
-        {canRespond ? (
-          <ProjectResponseForm projectId={project.id} onSubmitted={onResponseSubmitted} />
-        ) : (
-          <Card>
-            <h3>Отклики закрыты</h3>
-            <p className="muted">Новые отклики доступны только для активных и приостановленных проектов.</p>
-          </Card>
-        )}
       </aside>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Send } from "lucide-react";
+import { FileCheck2, Send } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -160,7 +160,15 @@ export function ProjectResponseForm({
       />
       <FileInput files={files} label="Прикрепить файлы к отклику" onChange={setFiles} />
       {error && <p className="form-error">{error}</p>}
-      {success && <p className="form-success">Отклик отправлен. Администратор увидит его в панели.</p>}
+      {success && (
+        <div className="form-success form-success-card" role="status" aria-live="polite">
+          <FileCheck2 size={22} />
+          <div>
+            <strong>Отклик отправлен</strong>
+            <span>Заявка уже в очереди обработки. Администратор увидит её в панели откликов.</span>
+          </div>
+        </div>
+      )}
       <Button type="submit" disabled={isSubmitting}>
         <Send size={18} />
         {isSubmitting ? "Отправляем" : "Отправить отклик"}
