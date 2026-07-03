@@ -14,13 +14,16 @@ class StatsService:
     def get_admin_stats(self) -> AdminStats:
         projects_total = self.db.scalar(
             select(func.count(Project.id)).where(
-                Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED]),
-                Project.archived_at.is_(None),
+                Project.status != ProjectStatus.DRAFT,
                 Project.deleted_at.is_(None),
             )
         ) or 0
         projects_active = self.db.scalar(
-            select(func.count(Project.id)).where(Project.status == ProjectStatus.ACTIVE, Project.deleted_at.is_(None))
+            select(func.count(Project.id)).where(
+                Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED]),
+                Project.archived_at.is_(None),
+                Project.deleted_at.is_(None),
+            )
         ) or 0
         projects_archived = self.db.scalar(
             select(func.count(Project.id)).where(
@@ -29,7 +32,9 @@ class StatsService:
             )
         ) or 0
         responses_total = self.db.scalar(
-            select(func.count(ProjectResponse.id)).join(Project).where(Project.deleted_at.is_(None))
+            select(func.count(ProjectResponse.id))
+            .join(Project)
+            .where(Project.deleted_at.is_(None), ProjectResponse.deleted_at.is_(None))
         ) or 0
         responses_new = self._count_response_status(ProjectResponseStatus.NEW)
         responses_accepted = self._count_response_status(ProjectResponseStatus.ACCEPTED)
@@ -37,7 +42,10 @@ class StatsService:
 
         rows = self.db.execute(
             select(Project.id, Project.title, func.count(ProjectResponse.id))
-            .outerjoin(ProjectResponse, Project.id == ProjectResponse.project_id)
+            .outerjoin(
+                ProjectResponse,
+                (Project.id == ProjectResponse.project_id) & (ProjectResponse.deleted_at.is_(None)),
+            )
             .where(Project.deleted_at.is_(None))
             .group_by(Project.id, Project.title)
             .order_by(func.count(ProjectResponse.id).desc(), Project.title.asc())
@@ -61,5 +69,5 @@ class StatsService:
         return self.db.scalar(
             select(func.count(ProjectResponse.id))
             .join(Project)
-            .where(ProjectResponse.status == status, Project.deleted_at.is_(None))
+            .where(ProjectResponse.status == status, Project.deleted_at.is_(None), ProjectResponse.deleted_at.is_(None))
         ) or 0

@@ -54,6 +54,12 @@ export function deleteArchivedAdminProject(projectId: string) {
   });
 }
 
+export function restoreArchivedAdminProject(projectId: string) {
+  return apiClient.request<ProjectDetails>(`/admin/projects/${projectId}/restore`, {
+    method: "PATCH"
+  });
+}
+
 export function uploadAdminProjectAttachment(projectId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);

@@ -51,5 +51,9 @@ class AdminProjectResponseRead(ProjectResponseRead):
     processed_at: datetime | None
 
 
+class UserProjectResponseRead(ProjectResponseRead):
+    project_title: str
+
+
 class ProjectResponseStatusUpdate(BaseModel):
     status: ProjectResponseStatus

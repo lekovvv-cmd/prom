@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
 from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectStatus, ProjectType
+
+if TYPE_CHECKING:
+    from app.modules.responses.models import ProjectResponse
+    from app.modules.users.models import User
 
 
 def enum_values(enum_class: type) -> list[str]:

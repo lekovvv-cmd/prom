@@ -330,6 +330,37 @@ button {
   min-height: 34px;
 }
 
+.project-counter-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 150px));
+  gap: 8px;
+  margin: -4px 0 16px;
+}
+
+.project-counter-strip div {
+  display: grid;
+  gap: 4px;
+  min-height: 64px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.project-counter-strip span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.project-counter-strip strong {
+  color: #000000;
+  font-size: 26px;
+  line-height: 1;
+}
+
 .filter-rail .filters {
   grid-template-columns: 1fr;
   gap: 12px;
@@ -392,6 +423,38 @@ button {
   background: #ffffff;
   outline: none;
   text-transform: none;
+}
+
+.select-control {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.select-control select {
+  padding-right: 38px;
+}
+
+.select-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted-strong);
+  background: transparent;
+  transform: translateY(-50%);
+}
+
+.select-clear:hover,
+.select-clear:focus-visible {
+  color: #000000;
+  background: var(--surface-alt);
+  border-color: var(--border);
 }
 
 .field textarea {
@@ -840,6 +903,19 @@ button {
 .table-wrap {
   width: 100%;
   overflow: auto;
+}
+
+.table-link {
+  color: #004d69;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.table-link:hover,
+.table-link:focus-visible {
+  color: #000000;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 table {

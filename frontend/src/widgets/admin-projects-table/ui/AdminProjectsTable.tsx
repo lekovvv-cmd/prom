@@ -5,6 +5,7 @@ import { ProjectPriorityBadge } from "../../../entities/project/ui/ProjectPriori
 import { ProjectStatusBadge } from "../../../entities/project/ui/ProjectStatusBadge";
 import { ArchiveProjectButton } from "../../../features/archive-project/ui/ArchiveProjectButton";
 import { DeleteArchivedProjectButton } from "../../../features/delete-archived-project/ui/DeleteArchivedProjectButton";
+import { RestoreArchivedProjectButton } from "../../../features/restore-archived-project/ui/RestoreArchivedProjectButton";
 import { formatDateTime } from "../../../shared/lib/date";
 import { Button } from "../../../shared/ui/Button";
 import { EmptyState } from "../../../shared/ui/EmptyState";
@@ -64,7 +65,10 @@ export function AdminProjectsTable({
                     Править
                   </Button>
                   {isArchiveView ? (
-                    <DeleteArchivedProjectButton projectId={project.id} onDeleted={onArchived} />
+                    <>
+                      <RestoreArchivedProjectButton projectId={project.id} onRestored={onArchived} />
+                      <DeleteArchivedProjectButton projectId={project.id} onDeleted={onArchived} />
+                    </>
                   ) : project.status !== "archived" ? (
                     <ArchiveProjectButton projectId={project.id} onArchived={onArchived} />
                   ) : null}

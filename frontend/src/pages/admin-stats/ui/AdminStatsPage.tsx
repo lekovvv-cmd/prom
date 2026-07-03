@@ -9,9 +9,9 @@ import { Spinner } from "../../../shared/ui/Spinner";
 import { Table } from "../../../shared/ui/Table";
 
 const metricLabels: Array<[keyof AdminStats, string]> = [
-  ["projects_total", "Проектов в витрине"],
-  ["projects_active", "Активных"],
-  ["projects_archived", "Архивных"],
+  ["projects_total", "Всего проектов"],
+  ["projects_active", "Текущих проектов"],
+  ["projects_archived", "Архивных проектов"],
   ["responses_total", "Всего откликов"],
   ["responses_new", "Новых откликов"],
   ["responses_accepted", "Принятых"],

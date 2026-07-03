@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.api.deps import AdminUser, DbSession
 from app.core.enums import ProjectResponseStatus
 from app.core.schemas.common import PaginatedResponse
+from app.modules.projects.schemas import OkResponse
 from app.modules.responses.schemas import (
     AdminProjectResponseRead,
     ProjectResponseStatusUpdate,
@@ -46,3 +47,13 @@ def update_response_status(
         status=payload.status,
         current_user=current_user,
     )
+
+
+@router.delete("/{response_id}", response_model=OkResponse)
+def delete_response(
+    response_id: UUID,
+    current_user: AdminUser,
+    db: DbSession,
+) -> OkResponse:
+    ProjectResponseService(db).delete_admin(response_id=response_id, current_user=current_user)
+    return OkResponse(ok=True)

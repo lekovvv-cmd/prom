@@ -31,6 +31,7 @@ export function AdminProjectsPage() {
   const [filters, setFilters] = useState<ProjectListParams>({ sort: "created_at_desc", limit: 100 });
   const [view, setView] = useState<AdminProjectsView>("current");
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectTotals, setProjectTotals] = useState({ current: 0, archive: 0 });
   const [editingProject, setEditingProject] = useState<ProjectDetails | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,8 +41,13 @@ export function AdminProjectsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await getAdminProjects(getAdminProjectListParams(view, filters));
+      const [response, currentCounter, archiveCounter] = await Promise.all([
+        getAdminProjects(getAdminProjectListParams(view, filters)),
+        getAdminProjects(getAdminProjectListParams("current", filters)),
+        getAdminProjects(getAdminProjectListParams("archive", filters))
+      ]);
       setProjects(response.items);
+      setProjectTotals({ current: currentCounter.total, archive: archiveCounter.total });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось загрузить проекты");
     } finally {
@@ -94,6 +100,20 @@ export function AdminProjectsPage() {
           >
             Архив
           </Button>
+        </div>
+        <div className="project-counter-strip" aria-label="Счётчики проектов">
+          <div>
+            <span>Текущие</span>
+            <strong>{projectTotals.current}</strong>
+          </div>
+          <div>
+            <span>Архив</span>
+            <strong>{projectTotals.archive}</strong>
+          </div>
+          <div>
+            <span>Всего</span>
+            <strong>{projectTotals.current + projectTotals.archive}</strong>
+          </div>
         </div>
         <ProjectFilters value={filters} onChange={setFilters} includeDraft hideStatus={view === "archive"} />
         {error && <p className="form-error">{error}</p>}

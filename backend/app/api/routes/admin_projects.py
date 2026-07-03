@@ -68,6 +68,11 @@ def archive_admin_project(project_id: UUID, _: AdminUser, db: DbSession) -> OkRe
     return OkResponse(ok=True)
 
 
+@router.patch("/{project_id}/restore", response_model=ProjectDetails)
+def restore_admin_project(project_id: UUID, _: AdminUser, db: DbSession) -> ProjectDetails:
+    return ProjectService(db).restore(project_id)
+
+
 @router.get("/{project_id}/responses", response_model=PaginatedResponse[AdminProjectResponseRead])
 def list_project_responses(
     project_id: UUID,

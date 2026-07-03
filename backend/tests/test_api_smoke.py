@@ -61,7 +61,8 @@ def test_public_projects_hide_archived_seed_project(client):
 
     stats = client.get("/api/admin/stats", headers=admin_headers(client))
     assert stats.status_code == 200
-    assert stats.json()["projects_total"] == payload["total"]
+    assert stats.json()["projects_active"] == payload["total"]
+    assert stats.json()["projects_total"] == stats.json()["projects_active"] + stats.json()["projects_archived"]
 
 
 def test_project_search_matches_separate_title_words(client):
@@ -119,6 +120,29 @@ def test_admin_projects_keep_archive_separate(client):
     )
     assert archive_after_archive.status_code == 200
     assert archive_after_archive.json()["total"] == 1
+
+    restored = client.patch(f"/api/admin/projects/{project_id}/restore", headers=headers)
+    assert restored.status_code == 200
+    assert restored.json()["status"] == "active"
+
+    current_after_restore = client.get(
+        "/api/admin/projects",
+        params={"search": "Pytest project for archive deletion", "limit": 100},
+        headers=headers,
+    )
+    assert current_after_restore.status_code == 200
+    assert current_after_restore.json()["total"] == 1
+
+    archive_after_restore = client.get(
+        "/api/admin/projects",
+        params={"status": "archived", "search": "Pytest project for archive deletion", "limit": 100},
+        headers=headers,
+    )
+    assert archive_after_restore.status_code == 200
+    assert archive_after_restore.json()["total"] == 0
+
+    archived_again = client.delete(f"/api/admin/projects/{project_id}", headers=headers)
+    assert archived_again.status_code == 200
 
     deleted = client.delete(f"/api/admin/projects/{project_id}", headers=headers)
     assert deleted.status_code == 200
@@ -323,6 +347,87 @@ def test_manager_sees_only_own_project_responses(client):
         headers=manager_headers,
     )
     assert forbidden_patch.status_code == 403
+
+    forbidden_delete = client.delete(
+        f"/api/admin/responses/{hidden_response.json()['id']}",
+        headers=manager_headers,
+    )
+    assert forbidden_delete.status_code == 403
+
+
+def test_user_response_list_withdraw_and_admin_delete(client):
+    headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+    analyst_headers = auth_headers(client, "analyst@utmn.ru")
+
+    created = client.post(
+        "/api/admin/projects",
+        json=project_payload("Pytest response self service project", "active"),
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    project_id = created.json()["id"]
+
+    employee_payload = employee_response_payload("Self Service Employee")
+    employee_response = client.post(
+        f"/api/projects/{project_id}/responses",
+        json=employee_payload,
+        headers=employee_headers,
+    )
+    assert employee_response.status_code == 201, employee_response.text
+    employee_response_id = employee_response.json()["id"]
+
+    my_responses = client.get("/api/me/responses", params={"limit": 100}, headers=employee_headers)
+    assert my_responses.status_code == 200
+    assert any(item["id"] == employee_response_id for item in my_responses.json()["items"])
+    assert my_responses.json()["items"][0]["project_title"]
+
+    analyst_responses = client.get("/api/me/responses", params={"limit": 100}, headers=analyst_headers)
+    assert analyst_responses.status_code == 200
+    assert all(item["id"] != employee_response_id for item in analyst_responses.json()["items"])
+
+    withdrawn = client.delete(f"/api/me/responses/{employee_response_id}", headers=employee_headers)
+    assert withdrawn.status_code == 200
+    assert withdrawn.json()["status"] == "cancelled"
+
+    duplicate_after_withdraw = client.post(
+        f"/api/projects/{project_id}/responses",
+        json=employee_payload,
+        headers=employee_headers,
+    )
+    assert duplicate_after_withdraw.status_code == 201, duplicate_after_withdraw.text
+
+    analyst_payload = {
+        **employee_response_payload("Self Service Analyst"),
+        "email": "analyst@utmn.ru",
+    }
+    analyst_response = client.post(
+        f"/api/projects/{project_id}/responses",
+        json=analyst_payload,
+        headers=analyst_headers,
+    )
+    assert analyst_response.status_code == 201, analyst_response.text
+    analyst_response_id = analyst_response.json()["id"]
+
+    deleted = client.delete(f"/api/admin/responses/{analyst_response_id}", headers=headers)
+    assert deleted.status_code == 200
+
+    hidden_from_queue = client.get(
+        "/api/admin/responses",
+        params={"search": "Self Service Analyst", "limit": 100},
+        headers=headers,
+    )
+    assert hidden_from_queue.status_code == 200
+    assert hidden_from_queue.json()["total"] == 0
+
+    from app.core.database import SessionLocal
+    from app.modules.responses.models import ProjectResponse
+    from uuid import UUID
+
+    with SessionLocal() as db:
+        response = db.get(ProjectResponse, UUID(analyst_response_id))
+        assert response is not None
+        assert response.deleted_at is not None
 
 
 def test_full_mvp_flow(client):

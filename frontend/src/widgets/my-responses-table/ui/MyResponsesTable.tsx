@@ -1,14 +1,15 @@
+import { Link } from "react-router-dom";
+
 import { AttachmentList } from "../../../entities/attachment/ui/AttachmentList";
 import { splitCompetencies } from "../../../entities/competency/lib/competencies";
 import type { ProjectResponse } from "../../../entities/project-response/model/types";
 import { ResponseStatusBadge } from "../../../entities/project-response/ui/ResponseStatusBadge";
-import { DeleteProjectResponseButton } from "../../../features/delete-project-response/ui/DeleteProjectResponseButton";
-import { ResponseStatusSelect } from "../../../features/update-response-status/ui/ResponseStatusSelect";
+import { WithdrawProjectResponseButton } from "../../../features/withdraw-project-response/ui/WithdrawProjectResponseButton";
 import { formatDateTime } from "../../../shared/lib/date";
 import { EmptyState } from "../../../shared/ui/EmptyState";
 import { Table } from "../../../shared/ui/Table";
 
-export function AdminResponsesTable({
+export function MyResponsesTable({
   responses,
   onUpdated
 }: {
@@ -16,7 +17,12 @@ export function AdminResponsesTable({
   onUpdated: () => void;
 }) {
   if (responses.length === 0) {
-    return <EmptyState title="Откликов нет" text="Новые отклики появятся после отправки формы сотрудником." />;
+    return (
+      <EmptyState
+        title="Откликов пока нет"
+        text="Откройте проект в витрине и отправьте заявку, чтобы отслеживать её статус здесь."
+      />
+    );
   }
 
   return (
@@ -25,22 +31,21 @@ export function AdminResponsesTable({
         <thead>
           <tr>
             <th>Проект</th>
-            <th>Сотрудник</th>
             <th>Комментарий</th>
             <th>Компетенции</th>
             <th>Файлы</th>
             <th>Статус</th>
-            <th>Действия</th>
             <th>Дата</th>
+            <th>Действие</th>
           </tr>
         </thead>
         <tbody>
           {responses.map((response) => (
             <tr key={response.id}>
-              <td>{response.project_title}</td>
               <td>
-                <strong>{response.full_name}</strong>
-                <span>{response.email}</span>
+                <Link className="table-link" to={`/projects/${response.project_id}`}>
+                  {response.project_title ?? "Проект"}
+                </Link>
               </td>
               <td>{response.comment ?? "Без комментария"}</td>
               <td>
@@ -58,13 +63,14 @@ export function AdminResponsesTable({
               <td>
                 <ResponseStatusBadge status={response.status} />
               </td>
-              <td>
-                <div className="table-actions">
-                  <ResponseStatusSelect responseId={response.id} value={response.status} onUpdated={onUpdated} />
-                  <DeleteProjectResponseButton responseId={response.id} onDeleted={onUpdated} />
-                </div>
-              </td>
               <td>{formatDateTime(response.created_at)}</td>
+              <td>
+                <WithdrawProjectResponseButton
+                  responseId={response.id}
+                  status={response.status}
+                  onWithdrawn={onUpdated}
+                />
+              </td>
             </tr>
           ))}
         </tbody>

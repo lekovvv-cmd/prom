@@ -25,6 +25,12 @@ export function Header() {
       </NavLink>
       <nav className="main-nav">
         <NavLink to="/projects">Витрина</NavLink>
+        {token && user?.role !== "admin" && (
+          <NavLink to="/my/responses">
+            <MessageSquare size={15} />
+            Мои отклики
+          </NavLink>
+        )}
         {isAdmin && (
           <>
             <NavLink to="/admin/projects">

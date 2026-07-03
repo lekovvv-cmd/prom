@@ -16,6 +16,7 @@ from app.modules.responses.schemas import (
     AdminProjectResponseRead,
     ProjectResponseCreate,
     ProjectResponseRead,
+    UserProjectResponseRead,
 )
 from app.modules.users.models import User
 
@@ -81,6 +82,25 @@ class ProjectResponseService:
             offset=safe_offset,
         )
 
+    def list_current_user(
+        self,
+        *,
+        current_user: User,
+        limit: int | None,
+        offset: int | None,
+    ) -> PaginatedResponse[UserProjectResponseRead]:
+        items, total, safe_limit, safe_offset = self.repo.list_user_responses(
+            user_id=current_user.id,
+            limit=limit,
+            offset=offset,
+        )
+        return PaginatedResponse(
+            items=[self._to_user_read(item) for item in items],
+            total=total,
+            limit=safe_limit,
+            offset=safe_offset,
+        )
+
     def list_for_project(
         self,
         *,
@@ -113,7 +133,7 @@ class ProjectResponseService:
         current_user: User,
     ) -> AdminProjectResponseRead:
         response = self.repo.get_by_id(response_id)
-        if response is None:
+        if response is None or response.deleted_at is not None:
             raise DomainError("Отклик не найден", status_code=404)
         self._ensure_can_manage_project(response.project_id, current_user)
         response.status = status
@@ -122,6 +142,25 @@ class ProjectResponseService:
         self.db.commit()
         self.db.refresh(response)
         return self._to_admin_read(response)
+
+    def withdraw_current_user(self, response_id: UUID, current_user: User) -> UserProjectResponseRead:
+        response = self.repo.get_user_response(response_id, current_user.id)
+        if response is None:
+            raise DomainError("Отклик не найден", status_code=404)
+        if response.status in {ProjectResponseStatus.ACCEPTED, ProjectResponseStatus.REJECTED}:
+            raise DomainError("Нельзя отозвать отклик после финального решения", status_code=400)
+        response.status = ProjectResponseStatus.CANCELLED
+        self.db.commit()
+        self.db.refresh(response)
+        return self._to_user_read(response)
+
+    def delete_admin(self, response_id: UUID, current_user: User) -> None:
+        response = self.repo.get_by_id(response_id)
+        if response is None or response.deleted_at is not None:
+            raise DomainError("Отклик не найден", status_code=404)
+        self._ensure_can_manage_project(response.project_id, current_user)
+        self.repo.soft_delete(response)
+        self.db.commit()
 
     @staticmethod
     def _manager_scope_user_id(current_user: User) -> UUID | None:
@@ -162,4 +201,31 @@ class ProjectResponseService:
             created_at=response.created_at,
             processed_by=response.processed_by,
             processed_at=response.processed_at,
+        )
+
+    def _to_user_read(self, response: ProjectResponse) -> UserProjectResponseRead:
+        attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.RESPONSE, response.id)
+        return UserProjectResponseRead(
+            id=response.id,
+            project_id=response.project_id,
+            project_title=response.project.title,
+            full_name=response.full_name,
+            email=response.email,
+            comment=response.comment,
+            competencies=response.competencies,
+            attachments=[
+                AttachmentRead(
+                    id=attachment.id,
+                    owner_type=attachment.owner_type,
+                    owner_id=attachment.owner_id,
+                    file_name=attachment.file_name,
+                    content_type=attachment.content_type,
+                    size_bytes=attachment.size_bytes,
+                    download_url=f"/api/attachments/{attachment.id}",
+                    created_at=attachment.created_at,
+                )
+                for attachment in attachments
+            ],
+            status=response.status,
+            created_at=response.created_at,
         )

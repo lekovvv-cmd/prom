@@ -53,8 +53,18 @@ export function AdminResponsesPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="ФИО или email"
           />
-          <Select label="Проект" name="project_id" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-            <option value="">Все проекты</option>
+          <Select
+            label="Проект"
+            name="project_id"
+            value={projectId}
+            isClearable
+            clearLabel="Сбросить фильтр по проекту"
+            onClear={() => setProjectId("")}
+            onChange={(event) => setProjectId(event.target.value)}
+          >
+            <option value="" disabled hidden>
+              Проект не выбран
+            </option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.title}
@@ -65,9 +75,14 @@ export function AdminResponsesPage() {
             label="Статус"
             name="status"
             value={status}
+            isClearable
+            clearLabel="Сбросить фильтр по статусу"
+            onClear={() => setStatus("")}
             onChange={(event) => setStatus(event.target.value as ProjectResponseStatus | "")}
           >
-            <option value="">Все статусы</option>
+            <option value="" disabled hidden>
+              Статус не выбран
+            </option>
             <option value="new">Новый</option>
             <option value="viewed">Просмотрен</option>
             <option value="contacted">Связались</option>

@@ -6,6 +6,7 @@ declare module "lucide-react" {
   type Icon = FC<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
   export const Archive: Icon;
+  export const ArchiveRestore: Icon;
   export const BarChart3: Icon;
   export const Edit3: Icon;
   export const FileCheck2: Icon;

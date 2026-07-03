@@ -125,6 +125,15 @@ class ProjectService:
             self.repo.archive(project)
         self.db.commit()
 
+    def restore(self, project_id: UUID) -> ProjectDetails:
+        project = self.get_existing_project(project_id)
+        if project.status != ProjectStatus.ARCHIVED and project.archived_at is None:
+            raise DomainError("Проект не находится в архиве")
+        self.repo.restore_from_archive(project)
+        self.db.commit()
+        project, count = self._get_existing_with_count(project.id)
+        return self._to_details(project, count)
+
     def _list(
         self,
         *,

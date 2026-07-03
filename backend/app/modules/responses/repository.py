@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import Select, func, or_, select
@@ -27,9 +28,63 @@ class ProjectResponseRepository:
             select(ProjectResponse.id)
             .where(ProjectResponse.project_id == project_id)
             .where(func.lower(ProjectResponse.email) == email.lower())
+            .where(ProjectResponse.status != ProjectResponseStatus.CANCELLED)
+            .where(ProjectResponse.deleted_at.is_(None))
             .limit(1)
         )
         return self.db.scalar(query) is not None
+
+    def list_user_responses(
+        self,
+        *,
+        user_id: UUID,
+        limit: int | None,
+        offset: int | None,
+    ) -> tuple[list[ProjectResponse], int, int, int]:
+        safe_limit = clamp_limit(limit)
+        safe_offset = clamp_offset(offset)
+        base = (
+            select(ProjectResponse)
+            .join(Project)
+            .where(
+                ProjectResponse.user_id == user_id,
+                ProjectResponse.deleted_at.is_(None),
+                Project.deleted_at.is_(None),
+            )
+        )
+        total = self.db.scalar(select(func.count()).select_from(base.subquery())) or 0
+
+        query = (
+            select(ProjectResponse)
+            .join(Project)
+            .options(selectinload(ProjectResponse.project))
+            .where(
+                ProjectResponse.user_id == user_id,
+                ProjectResponse.deleted_at.is_(None),
+                Project.deleted_at.is_(None),
+            )
+            .order_by(ProjectResponse.created_at.desc())
+        )
+        items = list(self.db.scalars(query.limit(safe_limit).offset(safe_offset)))
+        return items, total, safe_limit, safe_offset
+
+    def get_user_response(self, response_id: UUID, user_id: UUID) -> ProjectResponse | None:
+        query = (
+            select(ProjectResponse)
+            .join(Project)
+            .options(selectinload(ProjectResponse.project))
+            .where(
+                ProjectResponse.id == response_id,
+                ProjectResponse.user_id == user_id,
+                ProjectResponse.deleted_at.is_(None),
+                Project.deleted_at.is_(None),
+            )
+        )
+        return self.db.scalar(query)
+
+    def soft_delete(self, response: ProjectResponse) -> None:
+        response.deleted_at = datetime.now(UTC)
+        self.db.flush()
 
     def list_responses(
         self,
@@ -88,7 +143,7 @@ class ProjectResponseRepository:
         search: str | None,
         manager_user_id: UUID | None,
     ) -> Select:
-        query = query.where(Project.deleted_at.is_(None))
+        query = query.where(Project.deleted_at.is_(None), ProjectResponse.deleted_at.is_(None))
         if project_id is not None:
             query = query.where(ProjectResponse.project_id == project_id)
         if manager_user_id is not None:

@@ -5,6 +5,7 @@ import { AdminProjectsPage } from "../../pages/admin-projects/ui/AdminProjectsPa
 import { AdminResponsesPage } from "../../pages/admin-responses/ui/AdminResponsesPage";
 import { AdminStatsPage } from "../../pages/admin-stats/ui/AdminStatsPage";
 import { LoginPage } from "../../pages/login/ui/LoginPage";
+import { MyResponsesPage } from "../../pages/my-responses/ui/MyResponsesPage";
 import { ProjectDetailsPage } from "../../pages/project-details/ui/ProjectDetailsPage";
 import { ProjectsListPage } from "../../pages/projects-list/ui/ProjectsListPage";
 import { Spinner } from "../../shared/ui/Spinner";
@@ -27,6 +28,20 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return children;
 }
 
+function UserRoute({ children }: { children: React.ReactNode }) {
+  const { isLoading, token } = useAuth();
+
+  if (isLoading) {
+    return <Spinner label="Проверяем авторизацию" />;
+  }
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
 export function AppRouter() {
   return (
     <Routes>
@@ -34,6 +49,14 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
+      <Route
+        path="/my/responses"
+        element={
+          <UserRoute>
+            <MyResponsesPage />
+          </UserRoute>
+        }
+      />
       <Route path="/admin" element={<Navigate to="/admin/projects" replace />} />
       <Route
         path="/admin/projects"

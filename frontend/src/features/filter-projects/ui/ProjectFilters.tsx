@@ -71,9 +71,14 @@ export function ProjectFilters({ value, onChange, includeDraft = false, includeA
           label="Статус"
           name="status"
           value={value.status ?? ""}
+          isClearable
+          clearLabel="Сбросить фильтр по статусу"
+          onClear={() => onChange({ ...value, status: "" })}
           onChange={(event) => onChange({ ...value, status: event.target.value as ProjectFiltersState["status"] })}
         >
-          <option value="">Все статусы</option>
+          <option value="" disabled hidden>
+            Статус не выбран
+          </option>
           {includeDraft && <option value="draft">Черновик</option>}
           <option value="active">Активен</option>
           <option value="paused">Пауза</option>
@@ -85,11 +90,16 @@ export function ProjectFilters({ value, onChange, includeDraft = false, includeA
         label="Тип"
         name="project_type"
         value={value.project_type ?? ""}
+        isClearable
+        clearLabel="Сбросить фильтр по типу"
+        onClear={() => onChange({ ...value, project_type: "" })}
         onChange={(event) =>
           onChange({ ...value, project_type: event.target.value as ProjectFiltersState["project_type"] })
         }
       >
-        <option value="">Все типы</option>
+        <option value="" disabled hidden>
+          Тип не выбран
+        </option>
         <option value="strategic">Стратегический</option>
       </Select>
       <Select

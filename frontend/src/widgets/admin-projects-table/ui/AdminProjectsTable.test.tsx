@@ -31,6 +31,7 @@ describe("AdminProjectsTable", () => {
       />
     );
 
+    expect(html).toContain("Вернуть");
     expect(html).toContain("Удалить");
   });
 });

@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
 from app.core.enums import ProjectResponseStatus
+
+if TYPE_CHECKING:
+    from app.modules.projects.models import Project
+    from app.modules.users.models import User
 
 
 def enum_values(enum_class: type) -> list[str]:
@@ -36,6 +41,7 @@ class ProjectResponse(Base):
     )
     processed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     project: Mapped["Project"] = relationship("Project", back_populates="responses")
     user: Mapped["User | None"] = relationship("User", foreign_keys=[user_id])

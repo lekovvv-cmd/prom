@@ -40,6 +40,7 @@ class ProjectRepository:
                 ProjectResponse.project_id.label("project_id"),
                 func.count(ProjectResponse.id).label("responses_count"),
             )
+            .where(ProjectResponse.deleted_at.is_(None))
             .group_by(ProjectResponse.project_id)
             .subquery()
         )
@@ -70,7 +71,7 @@ class ProjectRepository:
     def get_with_counts(self, project_id: UUID) -> tuple[Project, int] | None:
         response_count = (
             select(func.count(ProjectResponse.id))
-            .where(ProjectResponse.project_id == project_id)
+            .where(ProjectResponse.project_id == project_id, ProjectResponse.deleted_at.is_(None))
             .scalar_subquery()
         )
         query = (
@@ -128,6 +129,12 @@ class ProjectRepository:
         if project.archived_at is None:
             project.archived_at = datetime.now(UTC)
         project.deleted_at = datetime.now(UTC)
+        self.db.flush()
+
+    def restore_from_archive(self, project: Project) -> None:
+        project.status = ProjectStatus.ACTIVE
+        project.archived_at = None
+        project.deleted_at = None
         self.db.flush()
 
     @staticmethod

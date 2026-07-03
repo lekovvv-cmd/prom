@@ -25,10 +25,26 @@ export function getAdminResponses(params?: ResponseListParams) {
   return apiClient.request<Paginated<ProjectResponse>>(`/admin/responses${toQuery(params)}`);
 }
 
+export function getMyResponses(params?: Pick<ResponseListParams, "limit" | "offset">) {
+  return apiClient.request<Paginated<ProjectResponse>>(`/me/responses${toQuery(params)}`);
+}
+
 export function updateAdminResponseStatus(responseId: string, status: ProjectResponseStatus) {
   return apiClient.request<ProjectResponse>(`/admin/responses/${responseId}`, {
     method: "PATCH",
     body: JSON.stringify({ status })
+  });
+}
+
+export function deleteAdminResponse(responseId: string) {
+  return apiClient.request<{ ok: boolean }>(`/admin/responses/${responseId}`, {
+    method: "DELETE"
+  });
+}
+
+export function withdrawMyResponse(responseId: string) {
+  return apiClient.request<ProjectResponse>(`/me/responses/${responseId}`, {
+    method: "DELETE"
   });
 }
 
