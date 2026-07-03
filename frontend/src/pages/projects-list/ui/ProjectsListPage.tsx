@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { useAuth } from "../../../app/providers/AppProviders";
+import { canAcceptProjectResponses } from "../../../entities/project/lib/responseAvailability";
 import type { Project, ProjectListParams } from "../../../entities/project/model/types";
 import { getProjects } from "../../../entities/project/api/projectApi";
 import { ProjectFilters } from "../../../features/filter-projects/ui/ProjectFilters";
@@ -10,6 +12,7 @@ import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Spinner } from "../../../shared/ui/Spinner";
 
 export function ProjectsListPage() {
+  const { user } = useAuth();
   const [filters, setFilters] = useState<ProjectListParams>({ sort: "created_at_desc", limit: 50 });
   const [projects, setProjects] = useState<Project[]>([]);
   const [total, setTotal] = useState(0);
@@ -45,6 +48,9 @@ export function ProjectsListPage() {
   }, [filters]);
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
+  const currentUserCanRespond = user?.role !== "admin";
+  const selectedProjectCanRespond =
+    selectedProject && currentUserCanRespond ? canAcceptProjectResponses(selectedProject.status) : false;
 
   useEffect(() => {
     if (selectedProject && selectedProject.id !== selectedProjectId) {
@@ -57,7 +63,12 @@ export function ProjectsListPage() {
       <Header />
       <PageLayout
         title="Витрина проектов"
-        subtitle={`Найдено проектов: ${total}. Выберите проект, чтобы быстро проверить цель, ответственного и откликнуться.`}
+        subtitle={
+          <span className="subtitle-lines">
+            <span>Найдено проектов: {total}.</span>
+            <span>Выберите проект, чтобы быстро проверить цель, ответственного и&nbsp;откликнуться.</span>
+          </span>
+        }
       >
         <div className="showcase-layout">
           <aside className="filter-rail" aria-label="Фильтры проектов">
@@ -109,12 +120,15 @@ export function ProjectsListPage() {
                   </div>
                 </dl>
                 <div className="summary-actions">
-                  <Link className="button button-primary" to={`/projects/${selectedProject.id}#response-form`}>
-                    Откликнуться
-                  </Link>
-                  <Link className="button button-secondary" to={`/projects/${selectedProject.id}`}>
-                    Детали
-                  </Link>
+                  {selectedProjectCanRespond ? (
+                    <Link className="button button-primary" to={`/projects/${selectedProject.id}#response-form`}>
+                      Перейти к отклику
+                    </Link>
+                  ) : (
+                    <Link className="button button-secondary" to={`/projects/${selectedProject.id}`}>
+                      Открыть проект
+                    </Link>
+                  )}
                 </div>
               </>
             ) : (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { canAcceptProjectResponses } from "../../../entities/project/lib/responseAvailability";
 import type { ProjectDetails as ProjectDetailsType } from "../../../entities/project/model/types";
 import { getProject } from "../../../entities/project/api/projectApi";
 import { Header } from "../../../widgets/header/ui/Header";
@@ -39,12 +40,17 @@ export function ProjectDetailsPage() {
     void loadProject(true);
   }, [loadProject]);
 
+  const subtitle =
+    project && !canAcceptProjectResponses(project.status)
+      ? "Детали проекта. Новые отклики на этот статус закрыты"
+      : "Детали проекта и форма отклика";
+
   return (
     <>
       <Header />
       <PageLayout
         title={project?.title ?? "Проект"}
-        subtitle="Детали проекта и форма отклика"
+        subtitle={subtitle}
         actions={
           <Link to="/projects" className="button button-secondary">
             Назад

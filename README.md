@@ -80,3 +80,14 @@ cd frontend
 npm test
 npm run build
 ```
+
+E2E:
+
+```bash
+# backend должен быть доступен на http://localhost:8000,
+# frontend должен быть доступен на http://localhost:5173
+cd frontend
+npm run test:e2e
+```
+
+В CI запускаются три проверки: backend `pytest`, frontend `vitest` + `build`, browser e2e на основном MVP-сценарии.

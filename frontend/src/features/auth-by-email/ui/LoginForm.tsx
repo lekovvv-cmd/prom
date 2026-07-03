@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AppProviders";
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
+import { isUtmnEmail, normalizeEmail } from "../../../shared/lib/email";
 import { requestCode, verifyCode } from "../api/authApi";
 
 const demoUsers = [
@@ -22,9 +23,9 @@ export function LoginForm() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail.endsWith("@utmn.ru")) {
-      setError("Введите email на домене @utmn.ru");
+    const normalizedEmail = normalizeEmail(email);
+    if (!isUtmnEmail(normalizedEmail)) {
+      setError("Введите корректный email на домене @utmn.ru");
       return;
     }
 

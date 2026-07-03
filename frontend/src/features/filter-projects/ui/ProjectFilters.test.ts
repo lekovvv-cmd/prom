@@ -10,10 +10,9 @@ const competencies: Competency[] = [
 ];
 
 describe("getVisibleCompetencySuggestions", () => {
-  it("does not duplicate the selected competency in suggestions", () => {
-    expect(getVisibleCompetencySuggestions(competencies, "SQL").map((item) => item.name)).toEqual([
-      "Аналитика данных",
-      "Интервью"
+  it("does not duplicate selected competencies in suggestions", () => {
+    expect(getVisibleCompetencySuggestions(competencies, ["SQL", "Интервью"]).map((item) => item.name)).toEqual([
+      "Аналитика данных"
     ]);
   });
 

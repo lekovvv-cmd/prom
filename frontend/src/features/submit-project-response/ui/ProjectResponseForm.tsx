@@ -7,6 +7,7 @@ import { CompetencyPicker } from "../../../entities/competency/ui/CompetencyPick
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import { Textarea } from "../../../shared/ui/Textarea";
+import { isUtmnEmail, normalizeEmail } from "../../../shared/lib/email";
 import { submitProjectResponseWithFiles } from "../api/submitProjectResponse";
 import type { ResponseFormState } from "../model/types";
 
@@ -35,14 +36,43 @@ export function ProjectResponseForm({
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function validateForm() {
+    if (form.full_name.trim().length < 2) {
+      return "Укажите ФИО не короче 2 символов";
+    }
+    if (!form.email.trim()) {
+      return "Укажите email";
+    }
+    if (!isUtmnEmail(form.email)) {
+      return "Email: введите корректный адрес на домене @utmn.ru";
+    }
+    return null;
+  }
+
+  if (user?.role === "admin") {
+    return (
+      <section className="form-panel" id="response-form" aria-live="polite">
+        <h2>Отклики недоступны</h2>
+        <p className="muted">Администратор обрабатывает отклики и не может отправлять заявки на проекты.</p>
+      </section>
+    );
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    const validationError = validateForm();
+    if (validationError) {
+      setSuccess(false);
+      setError(validationError);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
       await submitProjectResponseWithFiles(projectId, {
-        full_name: form.full_name,
-        email: form.email,
+        full_name: form.full_name.trim(),
+        email: normalizeEmail(form.email),
         comment: form.comment || null,
         competencies: form.competencies || null
       }, files);

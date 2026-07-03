@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import AttachmentOwnerType, ProjectResponseStatus, ProjectStatus
+from app.core.enums import AttachmentOwnerType, ProjectResponseStatus, ProjectStatus, UserRole
 from app.core.exceptions import DomainError
 from app.core.schemas.common import PaginatedResponse
 from app.core.security import ensure_utmn_email
@@ -17,6 +17,7 @@ from app.modules.responses.schemas import (
     ProjectResponseCreate,
     ProjectResponseRead,
 )
+from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 
 
@@ -27,11 +28,13 @@ class ProjectResponseService:
 
     def create_for_project(self, project_id: UUID, payload: ProjectResponseCreate) -> ProjectResponseRead:
         project = ProjectService(self.db).get_existing_project(project_id)
-        if project.status in {ProjectStatus.DRAFT, ProjectStatus.ARCHIVED} or project.archived_at is not None:
-            raise DomainError("Нельзя откликнуться на черновик или архивный проект")
+        if project.status not in {ProjectStatus.ACTIVE, ProjectStatus.PAUSED} or project.archived_at is not None:
+            raise DomainError("Отклики доступны только для активных и приостановленных проектов")
 
         email = ensure_utmn_email(payload.email)
         user = UserRepository(self.db).get_by_email(email)
+        if user and user.role == UserRole.ADMIN:
+            raise DomainError("Администратор не может отправлять отклики на проекты", status_code=403)
         response = self.repo.create(
             {
                 **payload.model_dump(),
@@ -51,6 +54,7 @@ class ProjectResponseService:
         project_id: UUID | None,
         status: ProjectResponseStatus | None,
         search: str | None,
+        current_user: User,
         limit: int | None,
         offset: int | None,
     ) -> PaginatedResponse[AdminProjectResponseRead]:
@@ -58,6 +62,7 @@ class ProjectResponseService:
             project_id=project_id,
             status=status,
             search=search,
+            manager_user_id=self._manager_scope_user_id(current_user),
             limit=limit,
             offset=offset,
         )
@@ -73,13 +78,16 @@ class ProjectResponseService:
         *,
         project_id: UUID,
         status: ProjectResponseStatus | None,
+        current_user: User,
         limit: int | None,
         offset: int | None,
     ) -> PaginatedResponse[AdminProjectResponseRead]:
         ProjectService(self.db).get_existing_project(project_id)
+        self._ensure_can_manage_project(project_id, current_user)
         items, total, safe_limit, safe_offset = self.repo.list_project_responses(
             project_id=project_id,
             status=status,
+            manager_user_id=self._manager_scope_user_id(current_user),
             limit=limit,
             offset=offset,
         )
@@ -94,17 +102,30 @@ class ProjectResponseService:
         self,
         response_id: UUID,
         status: ProjectResponseStatus,
-        processed_by: UUID,
+        current_user: User,
     ) -> AdminProjectResponseRead:
         response = self.repo.get_by_id(response_id)
         if response is None:
             raise DomainError("Отклик не найден", status_code=404)
+        self._ensure_can_manage_project(response.project_id, current_user)
         response.status = status
-        response.processed_by = processed_by
+        response.processed_by = current_user.id
         response.processed_at = datetime.now(UTC)
         self.db.commit()
         self.db.refresh(response)
         return self._to_admin_read(response)
+
+    @staticmethod
+    def _manager_scope_user_id(current_user: User) -> UUID | None:
+        if current_user.role == UserRole.ADMIN:
+            return None
+        return current_user.id
+
+    def _ensure_can_manage_project(self, project_id: UUID, current_user: User) -> None:
+        if current_user.role == UserRole.ADMIN:
+            return
+        if not self.repo.user_can_manage_project(project_id, current_user.id):
+            raise DomainError("Недостаточно прав для работы с откликами этого проекта", status_code=403)
 
     def _to_admin_read(self, response: ProjectResponse) -> AdminProjectResponseRead:
         attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.RESPONSE, response.id)

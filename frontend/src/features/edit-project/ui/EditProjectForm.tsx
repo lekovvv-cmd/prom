@@ -1,9 +1,12 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import type { ProjectDetails, ProjectMutationPayload } from "../../../entities/project/model/types";
+import type { User } from "../../../entities/user/model/types";
+import { getAdminUsers } from "../../../entities/user/api/userApi";
 import {
   normalizeProjectPayload,
-  ProjectFormFields
+  ProjectFormFields,
+  validateProjectForm
 } from "../../../entities/project/ui/ProjectFormFields";
 import { FileInput } from "../../../entities/attachment/ui/FileInput";
 import { Button } from "../../../shared/ui/Button";
@@ -21,7 +24,10 @@ function projectToForm(project: ProjectDetails): ProjectMutationPayload {
     status: project.status,
     start_date: project.start_date,
     end_date: project.end_date,
-    responsible_user_id: null,
+    responsible_user_id: project.responsible?.id ?? null,
+    working_group_member_ids: project.members
+      .filter((member) => member.member_role === "working_group_member")
+      .map((member) => member.id),
     contact_email: project.contact_email,
     required_competencies: project.required_competencies,
     planned_tasks: project.planned_tasks
@@ -37,11 +43,44 @@ export function EditProjectForm({
 }) {
   const [form, setForm] = useState<ProjectMutationPayload>(projectToForm(project));
   const [files, setFiles] = useState<File[]>([]);
+  const [responsibleUsers, setResponsibleUsers] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isUsersLoading, setIsUsersLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadUsers() {
+      try {
+        setIsUsersLoading(true);
+        const users = await getAdminUsers();
+        if (!ignore) {
+          setResponsibleUsers(users);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Не удалось загрузить список ответственных");
+        }
+      } finally {
+        if (!ignore) {
+          setIsUsersLoading(false);
+        }
+      }
+    }
+    void loadUsers();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    const validationError = validateProjectForm(form);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
@@ -57,7 +96,12 @@ export function EditProjectForm({
 
   return (
     <form className="form-panel" onSubmit={handleSubmit}>
-      <ProjectFormFields form={form} setForm={setForm} />
+      <ProjectFormFields
+        form={form}
+        setForm={setForm}
+        responsibleUsers={responsibleUsers}
+        isResponsibleUsersLoading={isUsersLoading}
+      />
       <FileInput files={files} label="Добавить файлы к проекту" onChange={setFiles} />
       {error && <p className="form-error">{error}</p>}
       <Button type="submit" disabled={isSubmitting}>

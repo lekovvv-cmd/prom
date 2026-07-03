@@ -70,7 +70,7 @@ def archive_admin_project(project_id: UUID, _: AdminUser, db: DbSession) -> OkRe
 @router.get("/{project_id}/responses", response_model=PaginatedResponse[AdminProjectResponseRead])
 def list_project_responses(
     project_id: UUID,
-    _: AdminUser,
+    current_user: AdminUser,
     db: DbSession,
     status: ProjectResponseStatus | None = None,
     limit: int | None = None,
@@ -79,6 +79,7 @@ def list_project_responses(
     return ProjectResponseService(db).list_for_project(
         project_id=project_id,
         status=status,
+        current_user=current_user,
         limit=limit,
         offset=offset,
     )

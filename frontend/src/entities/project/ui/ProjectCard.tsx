@@ -1,4 +1,4 @@
-import { MessageSquare, UserRound } from "lucide-react";
+import { FileCheck2, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { splitCompetencies } from "../../competency/lib/competencies";
@@ -21,11 +21,12 @@ export function ProjectCard({
 
   return (
     <Card className={`project-card ${isSelected ? "project-card-selected" : ""}`}>
-      <button
+      <Link
         className="project-card-main"
-        type="button"
-        aria-pressed={isSelected}
-        onClick={() => onSelect?.(project.id)}
+        to={`/projects/${project.id}`}
+        aria-current={isSelected ? "true" : undefined}
+        onMouseEnter={() => onSelect?.(project.id)}
+        onFocus={() => onSelect?.(project.id)}
       >
         <span className="card-topline">
           <ProjectStatusBadge status={project.status} />
@@ -43,7 +44,7 @@ export function ProjectCard({
           </span>
         )}
         <span className="project-card-goal">{project.goal}</span>
-      </button>
+      </Link>
 
       <dl className="project-card-meta">
         <div>
@@ -63,20 +64,11 @@ export function ProjectCard({
         <div>
           <dt>Отклики</dt>
           <dd>
-            <MessageSquare size={15} />
+            <FileCheck2 size={15} />
             {project.responses_count}
           </dd>
         </div>
       </dl>
-
-      <div className="project-card-actions">
-        <Link className="button button-secondary" to={`/projects/${project.id}`}>
-          Детали
-        </Link>
-        <Link className="button button-primary" to={`/projects/${project.id}#response-form`}>
-          Откликнуться
-        </Link>
-      </div>
     </Card>
   );
 }

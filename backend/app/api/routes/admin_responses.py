@@ -16,7 +16,7 @@ router = APIRouter(prefix="/admin/responses", tags=["admin-responses"])
 
 @router.get("", response_model=PaginatedResponse[AdminProjectResponseRead])
 def list_admin_responses(
-    _: AdminUser,
+    current_user: AdminUser,
     db: DbSession,
     project_id: UUID | None = None,
     status: ProjectResponseStatus | None = None,
@@ -28,6 +28,7 @@ def list_admin_responses(
         project_id=project_id,
         status=status,
         search=search,
+        current_user=current_user,
         limit=limit,
         offset=offset,
     )
@@ -43,5 +44,5 @@ def update_response_status(
     return ProjectResponseService(db).update_status(
         response_id=response_id,
         status=payload.status,
-        processed_by=current_user.id,
+        current_user=current_user,
     )

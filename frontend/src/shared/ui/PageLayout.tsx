@@ -1,3 +1,5 @@
+import { keepShortRussianWords } from "../lib/typography";
+
 export function PageLayout({
   title,
   subtitle,
@@ -5,7 +7,7 @@ export function PageLayout({
   children
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -14,7 +16,7 @@ export function PageLayout({
       <div className="page-title-row">
         <div>
           <h1>{title}</h1>
-          {subtitle && <p>{subtitle}</p>}
+          {subtitle && <p>{typeof subtitle === "string" ? keepShortRussianWords(subtitle) : subtitle}</p>}
         </div>
         {actions && <div className="page-actions">{actions}</div>}
       </div>

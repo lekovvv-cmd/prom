@@ -15,6 +15,9 @@ class UserRepository:
     def get_by_id(self, user_id: object) -> User | None:
         return self.db.get(User, user_id)
 
+    def list_all(self) -> list[User]:
+        return list(self.db.scalars(select(User).order_by(User.full_name.asc(), User.email.asc())))
+
     def create(
         self,
         *,

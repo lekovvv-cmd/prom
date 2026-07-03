@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
+import re
 from uuid import UUID
 
 from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.enums import ProjectPriority, ProjectStatus, ProjectType
+from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectStatus, ProjectType
 from app.core.pagination import clamp_limit, clamp_offset
 from app.modules.projects.models import Project, ProjectMember
 from app.modules.responses.models import ProjectResponse
@@ -101,6 +102,20 @@ class ProjectRepository:
         self.db.flush()
         return project
 
+    def replace_working_group(self, project: Project, user_ids: list[UUID]) -> None:
+        project.members[:] = [
+            member for member in project.members if member.member_role != ProjectMemberRole.WORKING_GROUP_MEMBER
+        ]
+        self.db.flush()
+        project.members.extend(
+            ProjectMember(
+                user_id=user_id,
+                member_role=ProjectMemberRole.WORKING_GROUP_MEMBER,
+            )
+            for user_id in user_ids
+        )
+        self.db.flush()
+
     def archive(self, project: Project) -> None:
         project.status = ProjectStatus.ARCHIVED
         project.archived_at = datetime.now(UTC)
@@ -133,5 +148,18 @@ class ProjectRepository:
         if project_type is not None:
             query = query.where(Project.project_type == project_type)
         if competency:
-            query = query.where(Project.required_competencies.ilike(f"%{competency.strip()}%"))
+            competencies = ProjectRepository._split_competency_filter(competency)
+            if competencies:
+                query = query.where(
+                    or_(
+                        *(
+                            Project.required_competencies.ilike(f"%{item}%")
+                            for item in competencies
+                        )
+                    )
+                )
         return query
+
+    @staticmethod
+    def _split_competency_filter(value: str) -> list[str]:
+        return [item.strip() for item in re.split(r"[,;\n]", value) if item.strip()]

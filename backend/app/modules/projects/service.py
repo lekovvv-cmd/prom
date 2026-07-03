@@ -16,7 +16,10 @@ from app.modules.projects.schemas import (
     ProjectSummary,
     ProjectUpdate,
 )
+from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserShort
+
+UNSET = object()
 
 
 class ProjectService:
@@ -85,7 +88,11 @@ class ProjectService:
         return project
 
     def create(self, payload: ProjectCreate, created_by: UUID) -> ProjectDetails:
-        project = self.repo.create(data=payload.model_dump(), created_by=created_by)
+        data = payload.model_dump()
+        member_ids = self._ensure_users_exist(data.pop("working_group_member_ids", []))
+        self._ensure_responsible_exists(payload.responsible_user_id)
+        project = self.repo.create(data=data, created_by=created_by)
+        self.repo.replace_working_group(project, member_ids)
         self.db.commit()
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
@@ -93,6 +100,11 @@ class ProjectService:
     def update(self, project_id: UUID, payload: ProjectUpdate) -> ProjectDetails:
         project = self.get_existing_project(project_id)
         data = payload.model_dump(exclude_unset=True)
+        member_ids = data.pop("working_group_member_ids", UNSET)
+        self._ensure_responsible_exists(data.get("responsible_user_id"))
+        if member_ids is not UNSET:
+            normalized_member_ids = self._ensure_users_exist(member_ids or [])
+            self.repo.replace_working_group(project, normalized_member_ids)
         self.repo.update(project, data)
         self.db.commit()
         project, count = self._get_existing_with_count(project.id)
@@ -137,6 +149,25 @@ class ProjectService:
         if row is None:
             raise DomainError("Проект не найден", status_code=404)
         return row
+
+    def _ensure_responsible_exists(self, responsible_user_id: UUID | None) -> None:
+        if responsible_user_id is None:
+            return
+        if UserRepository(self.db).get_by_id(responsible_user_id) is None:
+            raise DomainError("Ответственный не найден")
+
+    def _ensure_users_exist(self, user_ids: list[UUID]) -> list[UUID]:
+        repo = UserRepository(self.db)
+        unique_user_ids: list[UUID] = []
+        seen: set[UUID] = set()
+        for user_id in user_ids:
+            if user_id in seen:
+                continue
+            if repo.get_by_id(user_id) is None:
+                raise DomainError("Участник рабочей группы не найден")
+            seen.add(user_id)
+            unique_user_ids.append(user_id)
+        return unique_user_ids
 
     @staticmethod
     def _to_summary(project: Project, responses_count: int) -> ProjectSummary:

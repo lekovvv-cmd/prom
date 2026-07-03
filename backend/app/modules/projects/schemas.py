@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectStatus, ProjectType
+from app.core.security import is_utmn_email
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.users.schemas import UserShort
 
@@ -27,6 +28,7 @@ class ProjectBase(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     responsible_user_id: UUID | None = None
+    working_group_member_ids: list[UUID] = Field(default_factory=list)
     contact_email: str | None = None
     required_competencies: str | None = None
     planned_tasks: str | None = None
@@ -37,7 +39,7 @@ class ProjectBase(BaseModel):
         if value in (None, ""):
             return None
         normalized = value.strip().lower()
-        if not normalized.endswith("@utmn.ru"):
+        if not is_utmn_email(normalized):
             raise ValueError("Разрешены только email на домене @utmn.ru")
         return normalized
 
@@ -58,6 +60,7 @@ class ProjectUpdate(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     responsible_user_id: UUID | None = None
+    working_group_member_ids: list[UUID] | None = None
     contact_email: str | None = None
     required_competencies: str | None = None
     planned_tasks: str | None = None
@@ -68,7 +71,7 @@ class ProjectUpdate(BaseModel):
         if value in (None, ""):
             return None
         normalized = value.strip().lower()
-        if not normalized.endswith("@utmn.ru"):
+        if not is_utmn_email(normalized):
             raise ValueError("Разрешены только email на домене @utmn.ru")
         return normalized
 

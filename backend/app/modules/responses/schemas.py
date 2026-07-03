@@ -4,20 +4,29 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import ProjectResponseStatus
+from app.core.security import is_utmn_email
 from app.modules.attachments.schemas import AttachmentRead
 
 
 class ProjectResponseCreate(BaseModel):
-    full_name: str = Field(min_length=2, max_length=255)
+    full_name: str = Field(max_length=255)
     email: str
     comment: str | None = None
     competencies: str | None = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) < 2:
+            raise ValueError("Укажите ФИО не короче 2 символов")
+        return normalized
 
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str) -> str:
         normalized = value.strip().lower()
-        if not normalized.endswith("@utmn.ru"):
+        if not is_utmn_email(normalized):
             raise ValueError("Разрешены только email на домене @utmn.ru")
         return normalized
 

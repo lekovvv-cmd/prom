@@ -15,9 +15,12 @@ build/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+playwright-report/
+test-results/
 *.local
 .DS_Store
 project_showcase_pg_data/
+backend/storage/
 storage/uploads/
 .dev-*.log
 *.db

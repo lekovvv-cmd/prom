@@ -12,7 +12,12 @@ class StatsService:
         self.db = db
 
     def get_admin_stats(self) -> AdminStats:
-        projects_total = self.db.scalar(select(func.count(Project.id))) or 0
+        projects_total = self.db.scalar(
+            select(func.count(Project.id)).where(
+                Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED]),
+                Project.archived_at.is_(None),
+            )
+        ) or 0
         projects_active = self.db.scalar(
             select(func.count(Project.id)).where(Project.status == ProjectStatus.ACTIVE)
         ) or 0

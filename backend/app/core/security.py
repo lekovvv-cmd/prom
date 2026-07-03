@@ -1,10 +1,13 @@
 from datetime import UTC, datetime, timedelta
+import re
 from typing import Any
 
 import jwt
 
 from app.core.config import settings
 from app.core.exceptions import DomainError
+
+UTMN_EMAIL_PATTERN = re.compile(r"^[^\s@]+@utmn\.ru$")
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
@@ -27,8 +30,12 @@ def decode_access_token(token: str) -> str:
     return subject
 
 
+def is_utmn_email(email: str) -> bool:
+    return bool(UTMN_EMAIL_PATTERN.fullmatch(email.strip().lower()))
+
+
 def ensure_utmn_email(email: str) -> str:
     normalized = email.strip().lower()
-    if not normalized.endswith("@utmn.ru"):
+    if not is_utmn_email(normalized):
         raise DomainError("Разрешены только email на домене @utmn.ru")
     return normalized

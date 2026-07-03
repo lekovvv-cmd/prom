@@ -1,8 +1,10 @@
 import type { ProjectMutationPayload } from "../model/types";
+import type { User } from "../../user/model/types";
 import { CompetencyPicker } from "../../competency/ui/CompetencyPicker";
 import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { Textarea } from "../../../shared/ui/Textarea";
+import { isUtmnEmail, normalizeEmail } from "../../../shared/lib/email";
 
 export const emptyProjectForm: ProjectMutationPayload = {
   title: "",
@@ -16,31 +18,86 @@ export const emptyProjectForm: ProjectMutationPayload = {
   start_date: null,
   end_date: null,
   responsible_user_id: null,
+  working_group_member_ids: [],
   contact_email: "manager@utmn.ru",
   required_competencies: "",
   planned_tasks: ""
 };
 
+const REQUIRED_TEXT_FIELDS: Array<{ field: keyof ProjectMutationPayload; label: string }> = [
+  { field: "title", label: "Название" },
+  { field: "short_description", label: "Краткое описание" },
+  { field: "description", label: "Полное описание" },
+  { field: "goal", label: "Цель" }
+];
+
+function normalizeRequiredText(value: ProjectMutationPayload[keyof ProjectMutationPayload]) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeOptionalText(value: string | null | undefined) {
+  return value?.trim() || null;
+}
+
 export function normalizeProjectPayload(form: ProjectMutationPayload): ProjectMutationPayload {
   return {
     ...form,
-    expected_result: form.expected_result || null,
+    title: form.title.trim(),
+    short_description: form.short_description.trim(),
+    description: form.description.trim(),
+    goal: form.goal.trim(),
+    expected_result: normalizeOptionalText(form.expected_result),
     start_date: form.start_date || null,
     end_date: form.end_date || null,
     responsible_user_id: form.responsible_user_id || null,
-    contact_email: form.contact_email || null,
-    required_competencies: form.required_competencies || null,
-    planned_tasks: form.planned_tasks || null
+    working_group_member_ids: form.working_group_member_ids ?? [],
+    contact_email: normalizeOptionalText(form.contact_email ? normalizeEmail(form.contact_email) : null),
+    required_competencies: normalizeOptionalText(form.required_competencies),
+    planned_tasks: normalizeOptionalText(form.planned_tasks)
   };
 }
 
+export function validateProjectForm(form: ProjectMutationPayload) {
+  for (const field of REQUIRED_TEXT_FIELDS) {
+    if (normalizeRequiredText(form[field.field]).length < 3) {
+      return `${field.label}: заполните поле минимум 3 символами`;
+    }
+  }
+
+  const contactEmail = normalizeOptionalText(form.contact_email);
+  if (contactEmail && !isUtmnEmail(contactEmail)) {
+    return "Контактный email: введите корректный адрес на домене @utmn.ru";
+  }
+
+  return null;
+}
+
+const ROLE_LABELS: Record<User["role"], string> = {
+  admin: "Админ",
+  project_manager: "Руководитель",
+  employee: "Сотрудник"
+};
+
 export function ProjectFormFields({
   form,
-  setForm
+  setForm,
+  responsibleUsers = [],
+  isResponsibleUsersLoading = false
 }: {
   form: ProjectMutationPayload;
   setForm: (form: ProjectMutationPayload) => void;
+  responsibleUsers?: User[];
+  isResponsibleUsersLoading?: boolean;
 }) {
+  const selectedMemberIds = new Set(form.working_group_member_ids ?? []);
+
+  function toggleWorkingGroupMember(userId: string) {
+    const nextMemberIds = selectedMemberIds.has(userId)
+      ? (form.working_group_member_ids ?? []).filter((id) => id !== userId)
+      : [...(form.working_group_member_ids ?? []), userId];
+    setForm({ ...form, working_group_member_ids: nextMemberIds });
+  }
+
   return (
     <>
       <div className="form-grid">
@@ -114,6 +171,22 @@ export function ProjectFormFields({
           <option value="completed">Завершён</option>
           <option value="archived">Архив</option>
         </Select>
+        <Select
+          label="Ответственный"
+          name="responsible_user_id"
+          value={form.responsible_user_id ?? ""}
+          onChange={(event) => setForm({ ...form, responsible_user_id: event.target.value || null })}
+          disabled={isResponsibleUsersLoading}
+        >
+          <option value="">{isResponsibleUsersLoading ? "Загрузка..." : "Не указан"}</option>
+          {responsibleUsers.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.full_name} - {ROLE_LABELS[user.role]}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="form-grid">
         <Input
           label="Контактный email"
           name="contact_email"
@@ -121,8 +194,6 @@ export function ProjectFormFields({
           value={form.contact_email ?? ""}
           onChange={(event) => setForm({ ...form, contact_email: event.target.value })}
         />
-      </div>
-      <div className="form-grid">
         <Input
           label="Дата начала"
           name="start_date"
@@ -143,6 +214,35 @@ export function ProjectFormFields({
         value={form.required_competencies}
         onChange={(required_competencies) => setForm({ ...form, required_competencies })}
       />
+      <div className="member-picker">
+        <span className="field-label">Рабочая группа</span>
+        {isResponsibleUsersLoading ? (
+          <span className="muted">Загружаем пользователей...</span>
+        ) : responsibleUsers.length === 0 ? (
+          <span className="muted">Пользователи не найдены.</span>
+        ) : (
+          <div className="member-picker-grid">
+            {responsibleUsers.map((user) => (
+              <label
+                className={selectedMemberIds.has(user.id) ? "member-option member-option-active" : "member-option"}
+                key={user.id}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedMemberIds.has(user.id)}
+                  onChange={() => toggleWorkingGroupMember(user.id)}
+                />
+                <span>
+                  <strong>{user.full_name}</strong>
+                  <small>
+                    {user.email} - {ROLE_LABELS[user.role]}
+                  </small>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
       <Textarea
         label="Планируемые задачи"
         name="planned_tasks"

@@ -50,6 +50,9 @@ class UserService:
             raise DomainError("Пользователь не найден", status_code=404)
         return user
 
+    def list_all(self) -> list[User]:
+        return self.repo.list_all()
+
     @staticmethod
     def _role_for_email(email: str) -> UserRole:
         if email == "admin@utmn.ru":

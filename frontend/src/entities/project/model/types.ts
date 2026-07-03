@@ -75,6 +75,7 @@ export type ProjectMutationPayload = {
   start_date?: string | null;
   end_date?: string | null;
   responsible_user_id?: string | null;
+  working_group_member_ids?: string[];
   contact_email?: string | null;
   required_competencies?: string | null;
   planned_tasks?: string | null;

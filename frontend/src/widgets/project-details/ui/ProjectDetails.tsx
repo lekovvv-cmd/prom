@@ -1,6 +1,8 @@
 import type { ProjectDetails as ProjectDetailsType } from "../../../entities/project/model/types";
 import { AttachmentList } from "../../../entities/attachment/ui/AttachmentList";
 import { splitCompetencies } from "../../../entities/competency/lib/competencies";
+import { splitProjectTasks } from "../../../entities/project/lib/projectTasks";
+import { canAcceptProjectResponses } from "../../../entities/project/lib/responseAvailability";
 import { ProjectPriorityBadge } from "../../../entities/project/ui/ProjectPriorityBadge";
 import { ProjectStatusBadge } from "../../../entities/project/ui/ProjectStatusBadge";
 import { ProjectResponseForm } from "../../../features/submit-project-response/ui/ProjectResponseForm";
@@ -15,6 +17,9 @@ export function ProjectDetails({
   onResponseSubmitted: () => void;
 }) {
   const competencies = splitCompetencies(project.required_competencies);
+  const plannedTasks = splitProjectTasks(project.planned_tasks);
+  const canRespond = canAcceptProjectResponses(project.status);
+  const workingGroup = project.members.filter((member) => member.member_role === "working_group_member");
 
   return (
     <div className="details-layout">
@@ -41,10 +46,10 @@ export function ProjectDetails({
             <p>{project.expected_result}</p>
           </Card>
         )}
-        {(project.required_competencies || project.planned_tasks) && (
+        {(competencies.length > 0 || plannedTasks.length > 0) && (
           <Card>
-            {project.required_competencies && (
-              <>
+            {competencies.length > 0 && (
+              <div className="details-section">
                 <h3>Требуемые компетенции</h3>
                 <div className="competency-inline">
                   {competencies.map((competency) => (
@@ -53,13 +58,17 @@ export function ProjectDetails({
                     </span>
                   ))}
                 </div>
-              </>
+              </div>
             )}
-            {project.planned_tasks && (
-              <>
+            {plannedTasks.length > 0 && (
+              <div className="details-section">
                 <h3>Планируемые задачи</h3>
-                <p>{project.planned_tasks}</p>
-              </>
+                <ol className="task-list">
+                  {plannedTasks.map((task, index) => (
+                    <li key={`${task}-${index}`}>{task}</li>
+                  ))}
+                </ol>
+              </div>
             )}
           </Card>
         )}
@@ -95,11 +104,11 @@ export function ProjectDetails({
         </Card>
         <Card>
           <h3>Рабочая группа</h3>
-          {project.members.length === 0 ? (
+          {workingGroup.length === 0 ? (
             <p className="muted">Пока не указана.</p>
           ) : (
             <ul className="member-list">
-              {project.members.map((member) => (
+              {workingGroup.map((member) => (
                 <li key={member.id}>
                   <strong>{member.full_name}</strong>
                   <span>{member.email}</span>
@@ -108,7 +117,14 @@ export function ProjectDetails({
             </ul>
           )}
         </Card>
-        <ProjectResponseForm projectId={project.id} onSubmitted={onResponseSubmitted} />
+        {canRespond ? (
+          <ProjectResponseForm projectId={project.id} onSubmitted={onResponseSubmitted} />
+        ) : (
+          <Card>
+            <h3>Отклики закрыты</h3>
+            <p className="muted">Новые отклики доступны только для активных и приостановленных проектов.</p>
+          </Card>
+        )}
       </aside>
     </div>
   );
