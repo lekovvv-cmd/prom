@@ -6,13 +6,14 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.enums import AttachmentOwnerType
+from app.core.enums import AttachmentOwnerType, UserRole
 from app.core.exceptions import DomainError
 from app.modules.attachments.models import Attachment
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.projects.service import ProjectService
 from app.modules.responses.repository import ProjectResponseRepository
+from app.modules.users.models import User
 
 
 class AttachmentService:
@@ -29,15 +30,24 @@ class AttachmentService:
             uploaded_by=uploaded_by,
         )
 
-    def upload_response_file(self, project_id: UUID, response_id: UUID, file: UploadFile) -> AttachmentRead:
+    def upload_response_file(
+        self,
+        project_id: UUID,
+        response_id: UUID,
+        file: UploadFile,
+        *,
+        current_user: User,
+    ) -> AttachmentRead:
         response = ProjectResponseRepository(self.db).get_by_id(response_id)
         if response is None or response.project_id != project_id:
             raise DomainError("Отклик не найден", status_code=404)
+        if current_user.role != UserRole.ADMIN and response.user_id != current_user.id:
+            raise DomainError("Недостаточно прав для загрузки файла к этому отклику", status_code=403)
         return self._upload(
             owner_type=AttachmentOwnerType.RESPONSE,
             owner_id=response_id,
             file=file,
-            uploaded_by=response.user_id,
+            uploaded_by=current_user.id,
         )
 
     def list_project_files(self, project_id: UUID) -> list[AttachmentRead]:

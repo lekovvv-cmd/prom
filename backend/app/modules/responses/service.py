@@ -18,7 +18,6 @@ from app.modules.responses.schemas import (
     ProjectResponseRead,
 )
 from app.modules.users.models import User
-from app.modules.users.repository import UserRepository
 
 
 class ProjectResponseService:
@@ -26,21 +25,30 @@ class ProjectResponseService:
         self.db = db
         self.repo = ProjectResponseRepository(db)
 
-    def create_for_project(self, project_id: UUID, payload: ProjectResponseCreate) -> ProjectResponseRead:
+    def create_for_project(
+        self,
+        project_id: UUID,
+        payload: ProjectResponseCreate,
+        *,
+        current_user: User,
+    ) -> ProjectResponseRead:
         project = ProjectService(self.db).get_existing_project(project_id)
         if project.status not in {ProjectStatus.ACTIVE, ProjectStatus.PAUSED} or project.archived_at is not None:
             raise DomainError("Отклики доступны только для активных и приостановленных проектов")
 
         email = ensure_utmn_email(payload.email)
-        user = UserRepository(self.db).get_by_email(email)
-        if user and user.role == UserRole.ADMIN:
+        if current_user.role == UserRole.ADMIN:
             raise DomainError("Администратор не может отправлять отклики на проекты", status_code=403)
+        if email != current_user.email:
+            raise DomainError("Отклик можно отправить только от своего email", status_code=403)
+        if self.repo.exists_for_project_email(project_id, email):
+            raise DomainError("Вы уже откликнулись на этот проект", status_code=409)
         response = self.repo.create(
             {
                 **payload.model_dump(),
                 "email": email,
                 "project_id": project_id,
-                "user_id": user.id if user else None,
+                "user_id": current_user.id,
                 "status": ProjectResponseStatus.NEW,
             }
         )

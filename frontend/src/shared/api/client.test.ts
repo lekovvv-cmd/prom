@@ -53,4 +53,33 @@ describe("normalizeApiErrorMessage", () => {
 
     expect(message).toBe("Контактный email: Разрешены только email на домене @utmn.ru");
   });
+
+  it("localizes enum validation errors from project select fields", () => {
+    const message = normalizeApiErrorMessage({
+      detail: [
+        {
+          loc: ["body", "priority"],
+          msg: "Input should be 'low', 'medium', 'high' or 'critical'",
+          type: "enum",
+          ctx: { expected: "'low', 'medium', 'high' or 'critical'" }
+        }
+      ]
+    });
+
+    expect(message).toBe("Приоритет: выберите значение из списка: Низкий, Средний, Высокий, Критичный");
+  });
+
+  it("does not expose unknown English validation messages", () => {
+    const message = normalizeApiErrorMessage({
+      detail: [
+        {
+          loc: ["query", "status"],
+          msg: "Input should be a valid string",
+          type: "string_type"
+        }
+      ]
+    });
+
+    expect(message).toBe("Статус: некорректное значение");
+  });
 });

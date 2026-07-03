@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import FileResponse
 
-from app.api.deps import AdminUser, DbSession
+from app.api.deps import AdminUser, CurrentUser, DbSession
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.attachments.service import AttachmentService
 
@@ -24,10 +24,11 @@ def upload_project_attachment(
 def upload_response_attachment(
     project_id: UUID,
     response_id: UUID,
+    current_user: CurrentUser,
     db: DbSession,
     file: UploadFile = File(...),
 ) -> AttachmentRead:
-    return AttachmentService(db).upload_response_file(project_id, response_id, file)
+    return AttachmentService(db).upload_response_file(project_id, response_id, file, current_user=current_user)
 
 
 @router.get("/attachments/{attachment_id}", response_class=FileResponse)

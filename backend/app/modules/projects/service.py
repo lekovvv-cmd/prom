@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import AttachmentOwnerType, ProjectStatus, ProjectType
+from app.core.enums import AttachmentOwnerType, ProjectStatus, ProjectType, UserRole
 from app.core.exceptions import DomainError
 from app.core.schemas.common import PaginatedResponse
 from app.modules.attachments.repository import AttachmentRepository
@@ -17,6 +17,7 @@ from app.modules.projects.schemas import (
     ProjectUpdate,
 )
 from app.modules.users.repository import UserRepository
+from app.modules.users.models import User
 from app.modules.users.schemas import UserShort
 
 UNSET = object()
@@ -59,6 +60,7 @@ class ProjectService:
         sort: str,
         limit: int | None,
         offset: int | None,
+        current_user: User | None = None,
     ) -> PaginatedResponse[ProjectSummary]:
         return self._list(
             public=False,
@@ -66,6 +68,7 @@ class ProjectService:
             status=status,
             project_type=project_type,
             competency=competency,
+            manager_user_id=self._manager_scope_user_id(current_user),
             sort=sort,
             limit=limit,
             offset=offset,
@@ -123,6 +126,7 @@ class ProjectService:
         status: ProjectStatus | None,
         project_type: ProjectType | None,
         competency: str | None,
+        manager_user_id: UUID | None = None,
         sort: str,
         limit: int | None,
         offset: int | None,
@@ -133,6 +137,7 @@ class ProjectService:
             status=status,
             project_type=project_type,
             competency=competency,
+            manager_user_id=manager_user_id,
             sort=sort,
             limit=limit,
             offset=offset,
@@ -143,6 +148,12 @@ class ProjectService:
             limit=safe_limit,
             offset=safe_offset,
         )
+
+    @staticmethod
+    def _manager_scope_user_id(current_user: User | None) -> UUID | None:
+        if current_user is None or current_user.role == UserRole.ADMIN:
+            return None
+        return current_user.id
 
     def _get_existing_with_count(self, project_id: UUID) -> tuple[Project, int]:
         row = self.repo.get_with_counts(project_id)

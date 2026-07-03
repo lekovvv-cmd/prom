@@ -16,7 +16,7 @@ router = APIRouter(prefix="/admin/projects", tags=["admin-projects"])
 
 @router.get("", response_model=PaginatedResponse[ProjectSummary])
 def list_admin_projects(
-    _: AdminUser,
+    current_user: AdminUser,
     db: DbSession,
     search: str | None = None,
     status: ProjectStatus | None = None,
@@ -34,6 +34,7 @@ def list_admin_projects(
         sort=sort,
         limit=limit,
         offset=offset,
+        current_user=current_user,
     )
 
 

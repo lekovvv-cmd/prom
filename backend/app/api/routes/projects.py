@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.api.deps import DbSession
+from app.api.deps import CurrentUser, DbSession
 from app.core.enums import ProjectStatus, ProjectType
 from app.core.schemas.common import PaginatedResponse
 from app.modules.projects.schemas import ProjectDetails, ProjectSummary
@@ -45,6 +45,7 @@ def get_project(project_id: UUID, db: DbSession) -> ProjectDetails:
 def create_project_response(
     project_id: UUID,
     payload: ProjectResponseCreate,
+    current_user: CurrentUser,
     db: DbSession,
 ) -> ProjectResponseRead:
-    return ProjectResponseService(db).create_for_project(project_id, payload)
+    return ProjectResponseService(db).create_for_project(project_id, payload, current_user=current_user)

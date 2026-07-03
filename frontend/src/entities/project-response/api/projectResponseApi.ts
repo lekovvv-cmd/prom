@@ -37,7 +37,6 @@ export function uploadProjectResponseAttachment(projectId: string, responseId: s
   formData.append("file", file);
   return apiClient.request<Attachment>(`/projects/${projectId}/responses/${responseId}/attachments`, {
     method: "POST",
-    auth: false,
     body: formData
   });
 }

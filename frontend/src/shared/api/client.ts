@@ -25,7 +25,38 @@ const VALIDATION_FIELD_LABELS: Record<string, string> = {
   short_description: "Краткое описание",
   description: "Описание",
   goal: "Цель",
-  expected_result: "Ожидаемый результат"
+  expected_result: "Ожидаемый результат",
+  project_type: "Тип проекта",
+  priority: "Приоритет",
+  status: "Статус",
+  sort: "Сортировка",
+  responsible_user_id: "Ответственный",
+  working_group_member_ids: "Рабочая группа",
+  start_date: "Дата начала",
+  end_date: "Дата окончания"
+};
+
+const VALIDATION_VALUE_LABELS: Record<string, string> = {
+  strategic: "Стратегический",
+  low: "Низкий",
+  medium: "Средний",
+  high: "Высокий",
+  critical: "Критичный",
+  draft: "Черновик",
+  active: "Активен",
+  paused: "Пауза",
+  completed: "Завершен",
+  archived: "Архив",
+  created_at_desc: "Сначала новые",
+  created_at_asc: "Сначала старые",
+  priority_desc: "Высокий приоритет",
+  priority_asc: "Низкий приоритет",
+  new: "Новый",
+  viewed: "Просмотрен",
+  contacted: "Связались",
+  accepted: "Принят",
+  rejected: "Отклонен",
+  cancelled: "Отозван"
 };
 
 type ApiValidationError = {
@@ -34,6 +65,7 @@ type ApiValidationError = {
   type?: unknown;
   ctx?: {
     min_length?: unknown;
+    expected?: unknown;
   };
 };
 
@@ -45,17 +77,34 @@ function getValidationField(error: ApiValidationError) {
   return typeof field === "string" ? field : null;
 }
 
+function getFieldLabel(field: string | null) {
+  return field && VALIDATION_FIELD_LABELS[field] ? VALIDATION_FIELD_LABELS[field] : "Поле";
+}
+
+function getExpectedValues(error: ApiValidationError, rawMessage: string) {
+  const expected = typeof error.ctx?.expected === "string" ? error.ctx.expected : rawMessage;
+  return Array.from(expected.matchAll(/'([^']+)'/g), (match) => match[1]);
+}
+
+function formatExpectedValues(values: string[]) {
+  return values.map((value) => VALIDATION_VALUE_LABELS[value] ?? value).join(", ");
+}
+
+function looksLikeEnglishValidationMessage(message: string) {
+  return /[a-z]/i.test(message) && !/[а-яё]/i.test(message);
+}
+
 function normalizeValidationMessage(error: ApiValidationError) {
   const field = getValidationField(error);
   const type = typeof error.type === "string" ? error.type : "";
   const rawMessage = typeof error.msg === "string" ? error.msg.replace(/^Value error,\s*/i, "") : "";
+  const label = getFieldLabel(field);
 
   if (field === "full_name" && (type.includes("too_short") || rawMessage.includes("at least 2"))) {
     return "ФИО: укажите ФИО не короче 2 символов";
   }
 
   if (type.includes("too_short")) {
-    const label = field && VALIDATION_FIELD_LABELS[field] ? VALIDATION_FIELD_LABELS[field] : "Поле";
     const minLength = typeof error.ctx?.min_length === "number" ? error.ctx.min_length : null;
     return minLength ? `${label}: заполните поле минимум ${minLength} символами` : `${label}: значение слишком короткое`;
   }
@@ -66,7 +115,24 @@ function normalizeValidationMessage(error: ApiValidationError) {
       : "Заполните обязательные поля";
   }
 
+  const expectedValues = getExpectedValues(error, rawMessage);
+  if (type.includes("enum") || type.includes("literal") || expectedValues.length > 0) {
+    const expectedText = expectedValues.length > 0 ? `: ${formatExpectedValues(expectedValues)}` : "";
+    return `${label}: выберите значение из списка${expectedText}`;
+  }
+
+  if (type.includes("uuid")) {
+    return `${label}: некорректный идентификатор`;
+  }
+
+  if (type.includes("date")) {
+    return `${label}: укажите дату в формате ГГГГ-ММ-ДД`;
+  }
+
   if (rawMessage) {
+    if (looksLikeEnglishValidationMessage(rawMessage)) {
+      return `${label}: некорректное значение`;
+    }
     return field && VALIDATION_FIELD_LABELS[field] ? `${VALIDATION_FIELD_LABELS[field]}: ${rawMessage}` : rawMessage;
   }
 

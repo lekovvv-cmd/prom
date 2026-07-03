@@ -23,6 +23,7 @@ class ProjectRepository:
         status: ProjectStatus | None,
         project_type: ProjectType | None,
         competency: str | None,
+        manager_user_id: UUID | None,
         sort: str,
         limit: int | None,
         offset: int | None,
@@ -30,7 +31,7 @@ class ProjectRepository:
         safe_limit = clamp_limit(limit)
         safe_offset = clamp_offset(offset)
         base = select(Project)
-        base = self._apply_filters(base, public, search, status, project_type, competency)
+        base = self._apply_filters(base, public, search, status, project_type, competency, manager_user_id)
 
         total = self.db.scalar(select(func.count()).select_from(base.subquery())) or 0
 
@@ -53,7 +54,7 @@ class ProjectRepository:
             .outerjoin(response_counts, Project.id == response_counts.c.project_id)
             .options(selectinload(Project.responsible))
         )
-        query = self._apply_filters(query, public, search, status, project_type, competency)
+        query = self._apply_filters(query, public, search, status, project_type, competency, manager_user_id)
         if sort == "created_at_asc":
             query = query.order_by(Project.created_at.asc())
         elif sort == "priority_asc":
@@ -129,10 +130,13 @@ class ProjectRepository:
         status: ProjectStatus | None,
         project_type: ProjectType | None,
         competency: str | None,
+        manager_user_id: UUID | None,
     ) -> Select:
         if public:
             query = query.where(Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED]))
             query = query.where(Project.archived_at.is_(None))
+        if manager_user_id is not None:
+            query = ProjectRepository._apply_manager_project_scope(query, manager_user_id)
         if search:
             pattern = f"%{search.strip()}%"
             query = query.where(
@@ -159,6 +163,23 @@ class ProjectRepository:
                     )
                 )
         return query
+
+    @staticmethod
+    def _apply_manager_project_scope(query: Select, manager_user_id: UUID) -> Select:
+        manager_member_exists = (
+            select(ProjectMember.id).where(
+                ProjectMember.project_id == Project.id,
+                ProjectMember.user_id == manager_user_id,
+                ProjectMember.member_role == ProjectMemberRole.MANAGER,
+            )
+        ).exists()
+        return query.where(
+            or_(
+                Project.responsible_user_id == manager_user_id,
+                Project.created_by == manager_user_id,
+                manager_member_exists,
+            )
+        )
 
     @staticmethod
     def _split_competency_filter(value: str) -> list[str]:

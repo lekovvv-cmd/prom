@@ -22,6 +22,15 @@ class ProjectResponseRepository:
     def get_by_id(self, response_id: UUID) -> ProjectResponse | None:
         return self.db.get(ProjectResponse, response_id)
 
+    def exists_for_project_email(self, project_id: UUID, email: str) -> bool:
+        query = (
+            select(ProjectResponse.id)
+            .where(ProjectResponse.project_id == project_id)
+            .where(func.lower(ProjectResponse.email) == email.lower())
+            .limit(1)
+        )
+        return self.db.scalar(query) is not None
+
     def list_responses(
         self,
         *,

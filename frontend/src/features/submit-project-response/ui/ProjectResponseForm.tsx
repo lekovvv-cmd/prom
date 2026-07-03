@@ -1,5 +1,6 @@
 import { Send } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
 import { FileInput } from "../../../entities/attachment/ui/FileInput";
@@ -25,7 +26,7 @@ export function ProjectResponseForm({
   projectId: string;
   onSubmitted: () => void;
 }) {
-  const { user } = useAuth();
+  const { isLoading, user } = useAuth();
   const [form, setForm] = useState({
     ...initialState,
     full_name: user?.full_name ?? "",
@@ -35,6 +36,16 @@ export function ProjectResponseForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setForm((current) => ({
+        ...current,
+        full_name: user.full_name,
+        email: user.email
+      }));
+    }
+  }, [user]);
 
   function validateForm() {
     if (form.full_name.trim().length < 2) {
@@ -46,7 +57,31 @@ export function ProjectResponseForm({
     if (!isUtmnEmail(form.email)) {
       return "Email: введите корректный адрес на домене @utmn.ru";
     }
+    if (user && normalizeEmail(form.email) !== user.email) {
+      return "Email должен совпадать с авторизованным пользователем";
+    }
     return null;
+  }
+
+  if (isLoading) {
+    return (
+      <section className="form-panel" id="response-form" aria-live="polite">
+        <h2>Проверяем авторизацию</h2>
+        <p className="muted">Форма отклика будет доступна после проверки пользователя.</p>
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="form-panel" id="response-form" aria-live="polite">
+        <h2>Войдите, чтобы откликнуться</h2>
+        <p className="muted">Отклик можно отправить только от авторизованного пользователя ТюмГУ.</p>
+        <Link className="button button-primary" to="/login">
+          Войти
+        </Link>
+      </section>
+    );
   }
 
   if (user?.role === "admin") {

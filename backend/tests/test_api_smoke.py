@@ -92,6 +92,7 @@ def test_competencies_catalog_and_role_access(client):
 
 def test_response_availability_depends_on_project_status(client):
     headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
 
     invalid_contact_payload = project_payload("Pytest invalid contact email project", "active")
     invalid_contact_payload["contact_email"] = "manager@example.com"
@@ -112,12 +113,24 @@ def test_response_availability_depends_on_project_status(client):
     paused_response = client.post(
         f"/api/projects/{paused.json()['id']}/responses",
         json=employee_response_payload("Pytest Paused Response Employee"),
+        headers=employee_headers,
     )
     assert paused_response.status_code == 201, paused_response.text
+
+    anonymous_response = client.post(
+        f"/api/projects/{paused.json()['id']}/responses",
+        json={
+            **employee_response_payload("Pytest Anonymous Response Employee"),
+            "email": "analyst@utmn.ru",
+        },
+    )
+    assert anonymous_response.status_code == 401
+    assert "авторизация" in anonymous_response.json()["detail"].lower()
 
     empty_name_response = client.post(
         f"/api/projects/{paused.json()['id']}/responses",
         json=employee_response_payload(" "),
+        headers=employee_headers,
     )
     assert empty_name_response.status_code == 422
     assert "Укажите ФИО" in empty_name_response.text
@@ -129,6 +142,7 @@ def test_response_availability_depends_on_project_status(client):
     invalid_email_response = client.post(
         f"/api/projects/{paused.json()['id']}/responses",
         json=invalid_email_payload,
+        headers=employee_headers,
     )
     assert invalid_email_response.status_code == 422
     assert "Разрешены только email" in invalid_email_response.text
@@ -140,6 +154,7 @@ def test_response_availability_depends_on_project_status(client):
     admin_response = client.post(
         f"/api/projects/{paused.json()['id']}/responses",
         json=admin_response_payload,
+        headers=headers,
     )
     assert admin_response.status_code == 403
     assert "Администратор" in admin_response.json()["detail"]
@@ -155,6 +170,7 @@ def test_response_availability_depends_on_project_status(client):
         response = client.post(
             f"/api/projects/{created.json()['id']}/responses",
             json=employee_response_payload(f"Pytest {status} Response Employee"),
+            headers=employee_headers,
         )
         assert response.status_code == 400
         assert "Отклики доступны только" in response.json()["detail"]
@@ -162,6 +178,8 @@ def test_response_availability_depends_on_project_status(client):
 
 def test_manager_sees_only_own_project_responses(client):
     headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+    analyst_headers = auth_headers(client, "analyst@utmn.ru")
     manager_headers = auth_headers(client, "manager@utmn.ru")
     manager = client.get("/api/me", headers=manager_headers)
     assert manager.status_code == 200
@@ -182,12 +200,17 @@ def test_manager_sees_only_own_project_responses(client):
     visible_response = client.post(
         f"/api/projects/{owned_project.json()['id']}/responses",
         json=employee_response_payload("Scoped Visible Employee"),
+        headers=employee_headers,
     )
     assert visible_response.status_code == 201, visible_response.text
 
     hidden_response = client.post(
         f"/api/projects/{other_project.json()['id']}/responses",
-        json=employee_response_payload("Scoped Hidden Employee"),
+        json={
+            **employee_response_payload("Scoped Hidden Employee"),
+            "email": "analyst@utmn.ru",
+        },
+        headers=analyst_headers,
     )
     assert hidden_response.status_code == 201, hidden_response.text
 
@@ -199,6 +222,17 @@ def test_manager_sees_only_own_project_responses(client):
     assert manager_queue.status_code == 200
     assert manager_queue.json()["total"] == 1
     assert manager_queue.json()["items"][0]["id"] == visible_response.json()["id"]
+
+    manager_projects = client.get(
+        "/api/admin/projects",
+        params={"limit": 100},
+        headers=manager_headers,
+    )
+    assert manager_projects.status_code == 200
+    manager_project_titles = {project["title"] for project in manager_projects.json()["items"]}
+    assert "Pytest manager owned response project" in manager_project_titles
+    assert "Pytest hidden response project" not in manager_project_titles
+    assert "Архив проектных практик 2025" not in manager_project_titles
 
     hidden_project_queue = client.get(
         f"/api/admin/projects/{other_project.json()['id']}/responses",
@@ -225,6 +259,7 @@ def test_full_mvp_flow(client):
     manager = next(user for user in users.json() if user["email"] == "manager@utmn.ru")
     employee = next(user for user in users.json() if user["email"] == "employee@utmn.ru")
     analyst = next(user for user in users.json() if user["email"] == "analyst@utmn.ru")
+    employee_headers = auth_headers(client, "employee@utmn.ru")
 
     project_payload = {
         "title": "Pytest MVP project",
@@ -294,19 +329,29 @@ def test_full_mvp_flow(client):
         "comment": "Хочу участвовать.",
         "competencies": "Коммуникации, тестирование",
     }
-    response = client.post(f"/api/projects/{project_id}/responses", json=response_payload)
+    response = client.post(f"/api/projects/{project_id}/responses", json=response_payload, headers=employee_headers)
     assert response.status_code == 201, response.text
     response_id = response.json()["id"]
+
+    duplicate_response = client.post(
+        f"/api/projects/{project_id}/responses",
+        json=response_payload,
+        headers=employee_headers,
+    )
+    assert duplicate_response.status_code == 409
+    assert "уже откликнулись" in duplicate_response.json()["detail"]
 
     response_file = client.post(
         f"/api/projects/{project_id}/responses/{response_id}/attachments",
         files={"file": ("portfolio.txt", b"portfolio", "text/plain")},
+        headers=employee_headers,
     )
     assert response_file.status_code == 201, response_file.text
 
     response_pdf_file = client.post(
         f"/api/projects/{project_id}/responses/{response_id}/attachments",
         files={"file": ("portfolio.pdf", b"%PDF-1.4 portfolio", "application/pdf")},
+        headers=employee_headers,
     )
     assert response_pdf_file.status_code == 201, response_pdf_file.text
 

@@ -48,7 +48,7 @@ export function ProjectsListPage() {
   }, [filters]);
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
-  const currentUserCanRespond = user?.role !== "admin";
+  const currentUserCanRespond = Boolean(user && user.role !== "admin");
   const selectedProjectCanRespond =
     selectedProject && currentUserCanRespond ? canAcceptProjectResponses(selectedProject.status) : false;
 
