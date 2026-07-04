@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "../providers/AppProviders";
+import { AdminProjectManagePage } from "../../pages/admin-project-manage/ui/AdminProjectManagePage";
 import { AdminProjectsPage } from "../../pages/admin-projects/ui/AdminProjectsPage";
 import { AdminResponsesPage } from "../../pages/admin-responses/ui/AdminResponsesPage";
 import { AdminStatsPage } from "../../pages/admin-stats/ui/AdminStatsPage";
@@ -63,6 +64,14 @@ export function AppRouter() {
         element={
           <AdminRoute>
             <AdminProjectsPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/projects/:projectId"
+        element={
+          <AdminRoute>
+            <AdminProjectManagePage />
           </AdminRoute>
         }
       />

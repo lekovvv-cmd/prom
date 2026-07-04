@@ -335,6 +335,32 @@ def test_manager_sees_only_own_project_responses(client):
     assert "Pytest hidden response project" not in manager_project_titles
     assert "Архив проектных практик 2025" not in manager_project_titles
 
+    visible_project_details = client.get(
+        f"/api/admin/projects/{owned_project.json()['id']}",
+        headers=manager_headers,
+    )
+    assert visible_project_details.status_code == 200
+    assert visible_project_details.json()["id"] == owned_project.json()["id"]
+
+    hidden_project_details = client.get(
+        f"/api/admin/projects/{other_project.json()['id']}",
+        headers=manager_headers,
+    )
+    assert hidden_project_details.status_code == 403
+
+    hidden_project_update = client.patch(
+        f"/api/admin/projects/{other_project.json()['id']}",
+        json={"short_description": "Manager must not update this project."},
+        headers=manager_headers,
+    )
+    assert hidden_project_update.status_code == 403
+
+    hidden_project_archive = client.delete(
+        f"/api/admin/projects/{other_project.json()['id']}",
+        headers=manager_headers,
+    )
+    assert hidden_project_archive.status_code == 403
+
     hidden_project_queue = client.get(
         f"/api/admin/projects/{other_project.json()['id']}/responses",
         headers=manager_headers,

@@ -88,6 +88,11 @@ class ProjectRepository:
     def get_by_id(self, project_id: UUID) -> Project | None:
         return self.db.get(Project, project_id)
 
+    def user_can_manage_project(self, project_id: UUID, user_id: UUID) -> bool:
+        query = select(Project.id).where(Project.id == project_id, Project.deleted_at.is_(None))
+        query = self._apply_manager_project_scope(query, user_id)
+        return self.db.scalar(query) is not None
+
     def create(self, *, data: dict, created_by: UUID) -> Project:
         project = Project(**data, created_by=created_by)
         self.db.add(project)

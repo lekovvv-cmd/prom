@@ -48,29 +48,29 @@ def create_admin_project(
 
 
 @router.get("/{project_id}", response_model=ProjectDetails)
-def get_admin_project(project_id: UUID, _: AdminUser, db: DbSession) -> ProjectDetails:
-    return ProjectService(db).get_admin_details(project_id)
+def get_admin_project(project_id: UUID, current_user: AdminUser, db: DbSession) -> ProjectDetails:
+    return ProjectService(db).get_admin_details(project_id, current_user=current_user)
 
 
 @router.patch("/{project_id}", response_model=ProjectDetails)
 def update_admin_project(
     project_id: UUID,
     payload: ProjectUpdate,
-    _: AdminUser,
+    current_user: AdminUser,
     db: DbSession,
 ) -> ProjectDetails:
-    return ProjectService(db).update(project_id, payload)
+    return ProjectService(db).update(project_id, payload, current_user=current_user)
 
 
 @router.delete("/{project_id}", response_model=OkResponse)
-def archive_admin_project(project_id: UUID, _: AdminUser, db: DbSession) -> OkResponse:
-    ProjectService(db).archive(project_id)
+def archive_admin_project(project_id: UUID, current_user: AdminUser, db: DbSession) -> OkResponse:
+    ProjectService(db).archive(project_id, current_user=current_user)
     return OkResponse(ok=True)
 
 
 @router.patch("/{project_id}/restore", response_model=ProjectDetails)
-def restore_admin_project(project_id: UUID, _: AdminUser, db: DbSession) -> ProjectDetails:
-    return ProjectService(db).restore(project_id)
+def restore_admin_project(project_id: UUID, current_user: AdminUser, db: DbSession) -> ProjectDetails:
+    return ProjectService(db).restore(project_id, current_user=current_user)
 
 
 @router.get("/{project_id}/responses", response_model=PaginatedResponse[AdminProjectResponseRead])

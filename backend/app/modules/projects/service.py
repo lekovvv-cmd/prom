@@ -84,7 +84,8 @@ class ProjectService:
             raise DomainError("Проект не найден", status_code=404)
         return self._to_details(project, count)
 
-    def get_admin_details(self, project_id: UUID) -> ProjectDetails:
+    def get_admin_details(self, project_id: UUID, current_user: User | None = None) -> ProjectDetails:
+        self._ensure_can_manage_project(project_id, current_user)
         project, count = self._get_existing_with_count(project_id)
         return self._to_details(project, count)
 
@@ -104,7 +105,8 @@ class ProjectService:
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
 
-    def update(self, project_id: UUID, payload: ProjectUpdate) -> ProjectDetails:
+    def update(self, project_id: UUID, payload: ProjectUpdate, current_user: User | None = None) -> ProjectDetails:
+        self._ensure_can_manage_project(project_id, current_user)
         project = self.get_existing_project(project_id)
         data = payload.model_dump(exclude_unset=True)
         member_ids = data.pop("working_group_member_ids", UNSET)
@@ -117,7 +119,8 @@ class ProjectService:
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
 
-    def archive(self, project_id: UUID) -> None:
+    def archive(self, project_id: UUID, current_user: User | None = None) -> None:
+        self._ensure_can_manage_project(project_id, current_user)
         project = self.get_existing_project(project_id)
         if project.status == ProjectStatus.ARCHIVED or project.archived_at is not None:
             self.repo.soft_delete(project)
@@ -125,7 +128,8 @@ class ProjectService:
             self.repo.archive(project)
         self.db.commit()
 
-    def restore(self, project_id: UUID) -> ProjectDetails:
+    def restore(self, project_id: UUID, current_user: User | None = None) -> ProjectDetails:
+        self._ensure_can_manage_project(project_id, current_user)
         project = self.get_existing_project(project_id)
         if project.status != ProjectStatus.ARCHIVED and project.archived_at is None:
             raise DomainError("Проект не находится в архиве")
@@ -170,6 +174,12 @@ class ProjectService:
         if current_user is None or current_user.role == UserRole.ADMIN:
             return None
         return current_user.id
+
+    def _ensure_can_manage_project(self, project_id: UUID, current_user: User | None) -> None:
+        if current_user is None or current_user.role == UserRole.ADMIN:
+            return
+        if not self.repo.user_can_manage_project(project_id, current_user.id):
+            raise DomainError("Недостаточно прав для управления этим проектом", status_code=403)
 
     def _get_existing_with_count(self, project_id: UUID) -> tuple[Project, int]:
         row = self.repo.get_with_counts(project_id)

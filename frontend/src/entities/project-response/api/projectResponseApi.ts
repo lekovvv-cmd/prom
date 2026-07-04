@@ -25,6 +25,12 @@ export function getAdminResponses(params?: ResponseListParams) {
   return apiClient.request<Paginated<ProjectResponse>>(`/admin/responses${toQuery(params)}`);
 }
 
+export function getAdminProjectResponses(projectId: string, params?: Omit<ResponseListParams, "project_id" | "search">) {
+  return apiClient.request<Paginated<ProjectResponse>>(
+    `/admin/projects/${projectId}/responses${toQuery(params)}`
+  );
+}
+
 export function getMyResponses(params?: Pick<ResponseListParams, "limit" | "offset">) {
   return apiClient.request<Paginated<ProjectResponse>>(`/me/responses${toQuery(params)}`);
 }

@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Project } from "../../../entities/project/model/types";
@@ -23,14 +24,18 @@ const archivedProject: Project = {
 describe("AdminProjectsTable", () => {
   it("shows delete action in archive view", () => {
     const html = renderToStaticMarkup(
-      <AdminProjectsTable
-        projects={[archivedProject]}
-        onEdit={vi.fn()}
-        onArchived={vi.fn()}
-        isArchiveView
-      />
+      <MemoryRouter>
+        <AdminProjectsTable
+          projects={[archivedProject]}
+          onEdit={vi.fn()}
+          onArchived={vi.fn()}
+          isArchiveView
+        />
+      </MemoryRouter>
     );
 
+    expect(html).toContain(`/admin/projects/${archivedProject.id}`);
+    expect(html).toContain("Открыть");
     expect(html).toContain("Вернуть");
     expect(html).toContain("Удалить");
   });

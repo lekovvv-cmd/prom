@@ -1,4 +1,5 @@
-import { Edit3 } from "lucide-react";
+import { Edit3, FolderKanban } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import type { Project } from "../../../entities/project/model/types";
 import { ProjectPriorityBadge } from "../../../entities/project/ui/ProjectPriorityBadge";
@@ -60,6 +61,10 @@ export function AdminProjectsTable({
               <td>{formatDateTime(project.created_at)}</td>
               <td>
                 <div className="table-actions">
+                  <Link className="button button-secondary" to={`/admin/projects/${project.id}`}>
+                    <FolderKanban size={16} />
+                    Открыть
+                  </Link>
                   <Button variant="secondary" onClick={() => onEdit(project)}>
                     <Edit3 size={16} />
                     Править
