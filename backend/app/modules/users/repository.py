@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import UserRole
@@ -18,6 +18,21 @@ class UserRepository:
     def list_all(self) -> list[User]:
         return list(self.db.scalars(select(User).order_by(User.full_name.asc(), User.email.asc())))
 
+    def list_directory(self, search: str | None = None) -> list[User]:
+        query = select(User).where(User.role != UserRole.ADMIN)
+        if search:
+            pattern = f"%{search.strip()}%"
+            query = query.where(
+                or_(
+                    User.full_name.ilike(pattern),
+                    User.email.ilike(pattern),
+                    User.department.ilike(pattern),
+                    User.position.ilike(pattern),
+                    User.competencies.ilike(pattern),
+                )
+            )
+        return list(self.db.scalars(query.order_by(User.full_name.asc(), User.email.asc())))
+
     def create(
         self,
         *,
@@ -26,6 +41,8 @@ class UserRepository:
         role: UserRole = UserRole.EMPLOYEE,
         department: str | None = None,
         position: str | None = None,
+        competencies: str | None = None,
+        about: str | None = None,
     ) -> User:
         user = User(
             email=email,
@@ -33,6 +50,8 @@ class UserRepository:
             role=role,
             department=department,
             position=position,
+            competencies=competencies,
+            about=about,
         )
         self.db.add(user)
         self.db.flush()

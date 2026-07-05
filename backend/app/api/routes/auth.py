@@ -15,6 +15,7 @@ from app.modules.users.schemas import (
     AuthEmailRequest,
     AuthVerifyRequest,
     TokenResponse,
+    UserProfileUpdate,
     UserRead,
 )
 from app.modules.users.service import UserService
@@ -36,6 +37,15 @@ def verify_code(payload: AuthVerifyRequest, db: DbSession) -> TokenResponse:
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: CurrentUser) -> UserRead:
     return UserRead.model_validate(current_user)
+
+
+@router.patch("/me/profile", response_model=UserRead)
+def update_my_profile(
+    payload: UserProfileUpdate,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> UserRead:
+    return UserRead.model_validate(UserService(db).update_profile(current_user, payload))
 
 
 @router.get("/me/projects", response_model=PaginatedResponse[ProjectSummary])

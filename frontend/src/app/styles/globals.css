@@ -918,6 +918,86 @@ button {
   min-width: 0;
 }
 
+.profile-card {
+  max-width: 980px;
+}
+
+.profile-form {
+  display: grid;
+  gap: 14px;
+}
+
+.project-candidates-section {
+  min-width: 0;
+}
+
+.candidate-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) repeat(3, minmax(150px, 0.9fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: start;
+}
+
+.candidate-list {
+  display: grid;
+  gap: 10px;
+}
+
+.candidate-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.candidate-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.candidate-main strong {
+  font-size: 15px;
+}
+
+.candidate-main span,
+.candidate-main p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.candidate-side {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  justify-items: start;
+}
+
+.candidate-side span {
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.candidate-score {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(0, 174, 239, 0.35);
+  border-radius: 999px;
+  color: #00384d !important;
+  background: var(--accent-soft);
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
 .details-section {
   display: grid;
   gap: 8px;
@@ -1976,6 +2056,8 @@ button.chip {
 
   .page-title-row,
   .inline-add,
+  .candidate-filters,
+  .candidate-row,
   .competency-block-editor-head,
   .member-picker-grid,
   .role-switcher,

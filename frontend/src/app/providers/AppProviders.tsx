@@ -9,6 +9,7 @@ type AuthContextValue = {
   token: string | null;
   user: User | null;
   isAdmin: boolean;
+  canManageProjects: boolean;
   isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
@@ -58,7 +59,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     () => ({
       token,
       user,
-      isAdmin: user?.role === "admin" || user?.role === "project_manager",
+      isAdmin: user?.role === "admin",
+      canManageProjects: user?.role === "admin" || user?.role === "project_manager",
       isLoading,
       login,
       logout,

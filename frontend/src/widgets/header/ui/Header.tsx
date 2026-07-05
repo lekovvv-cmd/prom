@@ -1,4 +1,4 @@
-import { BarChart3, FolderKanban, LogIn, LogOut, MessageSquare, Table2 } from "lucide-react";
+import { BarChart3, FolderKanban, LogIn, LogOut, MessageSquare, Table2, UserRound } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
@@ -12,7 +12,7 @@ const roleLabels = {
 };
 
 export function Header() {
-  const { isAdmin, logout, token, user } = useAuth();
+  const { canManageProjects, isAdmin, logout, token, user } = useAuth();
 
   return (
     <header className="app-header">
@@ -37,7 +37,13 @@ export function Header() {
             </NavLink>
           </>
         )}
-        {isAdmin && (
+        {token && (
+          <NavLink to="/profile">
+            <UserRound size={15} />
+            Профиль
+          </NavLink>
+        )}
+        {canManageProjects && (
           <>
             <NavLink to="/admin/projects">
               <Table2 size={15} />
@@ -47,6 +53,10 @@ export function Header() {
               <MessageSquare size={15} />
               Отклики
             </NavLink>
+          </>
+        )}
+        {isAdmin && (
+          <>
             <NavLink to="/admin/stats">
               <BarChart3 size={15} />
               Статистика

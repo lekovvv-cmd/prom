@@ -1,7 +1,16 @@
 import { apiClient } from "../../../shared/api/client";
-import type { Attachment, Paginated, Project, ProjectDetails, ProjectListParams, ProjectMutationPayload } from "../model/types";
+import type {
+  Attachment,
+  Paginated,
+  Project,
+  ProjectCandidate,
+  ProjectCandidateParams,
+  ProjectDetails,
+  ProjectListParams,
+  ProjectMutationPayload
+} from "../model/types";
 
-function toQuery(params: ProjectListParams = {}) {
+function toQuery(params: ProjectListParams | ProjectCandidateParams = {}) {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -65,6 +74,16 @@ export function deleteArchivedAdminProject(projectId: string) {
 export function restoreArchivedAdminProject(projectId: string) {
   return apiClient.request<ProjectDetails>(`/admin/projects/${projectId}/restore`, {
     method: "PATCH"
+  });
+}
+
+export function getAdminProjectCandidates(projectId: string, params?: ProjectCandidateParams) {
+  return apiClient.request<Paginated<ProjectCandidate>>(`/admin/projects/${projectId}/candidates${toQuery(params)}`);
+}
+
+export function addAdminProjectMember(projectId: string, userId: string) {
+  return apiClient.request<ProjectDetails>(`/admin/projects/${projectId}/members/${userId}`, {
+    method: "POST"
   });
 }
 

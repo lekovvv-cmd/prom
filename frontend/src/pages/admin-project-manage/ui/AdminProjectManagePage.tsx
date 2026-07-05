@@ -18,6 +18,7 @@ import { EditProjectForm } from "../../../features/edit-project/ui/EditProjectFo
 import { RestoreArchivedProjectButton } from "../../../features/restore-archived-project/ui/RestoreArchivedProjectButton";
 import { AdminResponsesTable } from "../../../widgets/admin-responses-table/ui/AdminResponsesTable";
 import { Header } from "../../../widgets/header/ui/Header";
+import { ProjectCandidatesPanel } from "../../../widgets/project-candidates/ui/ProjectCandidatesPanel";
 import { formatDate, formatDateTime } from "../../../shared/lib/date";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
@@ -212,6 +213,8 @@ export function AdminProjectManagePage() {
                     )}
                   </Card>
                 )}
+
+                <ProjectCandidatesPanel project={project} onMemberAdded={loadProject} />
 
                 <Card className="project-responses-section">
                   <div className="section-heading">

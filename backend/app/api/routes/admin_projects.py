@@ -6,7 +6,14 @@ from fastapi import APIRouter
 from app.api.deps import AdminUser, DbSession
 from app.core.enums import ProjectResponseStatus, ProjectStatus, ProjectType
 from app.core.schemas.common import PaginatedResponse
-from app.modules.projects.schemas import OkResponse, ProjectCreate, ProjectDetails, ProjectSummary, ProjectUpdate
+from app.modules.projects.schemas import (
+    OkResponse,
+    ProjectCandidateRead,
+    ProjectCreate,
+    ProjectDetails,
+    ProjectSummary,
+    ProjectUpdate,
+)
 from app.modules.projects.service import ProjectService
 from app.modules.responses.schemas import AdminProjectResponseRead
 from app.modules.responses.service import ProjectResponseService
@@ -71,6 +78,44 @@ def archive_admin_project(project_id: UUID, current_user: AdminUser, db: DbSessi
 @router.patch("/{project_id}/restore", response_model=ProjectDetails)
 def restore_admin_project(project_id: UUID, current_user: AdminUser, db: DbSession) -> ProjectDetails:
     return ProjectService(db).restore(project_id, current_user=current_user)
+
+
+@router.get("/{project_id}/candidates", response_model=PaginatedResponse[ProjectCandidateRead])
+def list_project_candidates(
+    project_id: UUID,
+    current_user: AdminUser,
+    db: DbSession,
+    search: str | None = None,
+    block_title: str | None = None,
+    competency: str | None = None,
+    sort: Literal["match_desc", "name_asc", "responses_asc"] = "match_desc",
+    limit: int | None = None,
+    offset: int | None = None,
+) -> PaginatedResponse[ProjectCandidateRead]:
+    return ProjectService(db).list_candidates(
+        project_id=project_id,
+        current_user=current_user,
+        search=search,
+        block_title=block_title,
+        competency=competency,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/{project_id}/members/{user_id}", response_model=ProjectDetails)
+def add_project_member(
+    project_id: UUID,
+    user_id: UUID,
+    current_user: AdminUser,
+    db: DbSession,
+) -> ProjectDetails:
+    return ProjectService(db).add_working_group_member(
+        project_id=project_id,
+        user_id=user_id,
+        current_user=current_user,
+    )
 
 
 @router.get("/{project_id}/responses", response_model=PaginatedResponse[AdminProjectResponseRead])

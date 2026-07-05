@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectStatus, ProjectType
+from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectStatus, ProjectType, UserRole
 from app.core.security import is_utmn_email
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.users.schemas import UserShort
@@ -50,6 +50,22 @@ class ProjectCompetencyCoverage(BaseModel):
     accepted_count: int
     is_covered: bool
     priority: Literal["open", "covered"]
+
+
+class ProjectCandidateRead(BaseModel):
+    id: UUID
+    email: str
+    full_name: str
+    role: UserRole
+    department: str | None = None
+    position: str | None = None
+    competencies: str | None = None
+    about: str | None = None
+    matched_competencies: list[str] = Field(default_factory=list)
+    matched_blocks: list[str] = Field(default_factory=list)
+    match_score: int = 0
+    is_working_group_member: bool = False
+    has_response: bool = False
 
 
 class ProjectBase(BaseModel):

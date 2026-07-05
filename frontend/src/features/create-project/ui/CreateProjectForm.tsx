@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import type { ProjectDetails, ProjectMutationPayload } from "../../../entities/project/model/types";
 import type { User } from "../../../entities/user/model/types";
-import { getAdminUsers } from "../../../entities/user/api/userApi";
+import { getUserDirectory } from "../../../entities/user/api/userApi";
 import {
   emptyProjectForm,
   normalizeProjectPayload,
@@ -26,7 +26,7 @@ export function CreateProjectForm({ onCreated }: { onCreated: (project: ProjectD
     async function loadUsers() {
       try {
         setIsUsersLoading(true);
-        const users = await getAdminUsers();
+        const users = await getUserDirectory();
         if (!ignore) {
           setResponsibleUsers(users);
         }

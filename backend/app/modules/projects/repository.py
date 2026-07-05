@@ -148,6 +148,15 @@ class ProjectRepository:
         )
         return list(self.db.scalars(query))
 
+    def list_project_response_user_ids(self, project_id: UUID) -> set[UUID]:
+        query = select(ProjectResponse.user_id).where(
+            ProjectResponse.project_id == project_id,
+            ProjectResponse.user_id.is_not(None),
+            ProjectResponse.status != ProjectResponseStatus.CANCELLED,
+            ProjectResponse.deleted_at.is_(None),
+        )
+        return {user_id for user_id in self.db.scalars(query) if user_id is not None}
+
     def create(self, *, data: dict, created_by: UUID) -> Project:
         project = Project(**data, created_by=created_by)
         self.db.add(project)
@@ -176,6 +185,17 @@ class ProjectRepository:
                 member_role=ProjectMemberRole.WORKING_GROUP_MEMBER,
             )
             for user_id in user_ids
+        )
+        self.db.flush()
+
+    def add_working_group_member(self, project: Project, user_id: UUID) -> None:
+        if any(member.user_id == user_id for member in project.members):
+            return
+        project.members.append(
+            ProjectMember(
+                user_id=user_id,
+                member_role=ProjectMemberRole.WORKING_GROUP_MEMBER,
+            )
         )
         self.db.flush()
 

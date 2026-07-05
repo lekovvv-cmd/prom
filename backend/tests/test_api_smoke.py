@@ -65,6 +65,29 @@ def test_public_projects_hide_archived_seed_project(client):
     assert stats.json()["projects_total"] == stats.json()["projects_active"] + stats.json()["projects_archived"]
 
 
+def test_user_can_update_profile_competencies(client):
+    headers = auth_headers(client, "employee@utmn.ru")
+
+    updated = client.patch(
+        "/api/me/profile",
+        json={
+            "full_name": "Сотрудник Профиль",
+            "department": "ШПИУ",
+            "position": "Проектный эксперт",
+            "competencies": "SQL, Русский язык",
+            "about": "Готов подключаться к проектам с данными и коммуникациями.",
+        },
+        headers=headers,
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["competencies"] == "SQL, Русский язык"
+    assert updated.json()["about"] == "Готов подключаться к проектам с данными и коммуникациями."
+
+    me = client.get("/api/me", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["full_name"] == "Сотрудник Профиль"
+
+
 def test_project_search_matches_separate_title_words(client):
     response = client.get("/api/projects", params={"search": "Архив пра", "limit": 100})
 
@@ -577,6 +600,67 @@ def test_project_competency_blocks_and_coverage(client):
     assert coverage["Русский язык"]["accepted_count"] == 0
     assert coverage["Русский язык"]["is_covered"] is False
     assert coverage["Русский язык"]["priority"] == "open"
+
+
+def test_manager_scope_admin_only_and_project_hunting(client):
+    headers = admin_headers(client)
+    manager_headers = auth_headers(client, "manager@utmn.ru")
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+
+    users_for_admin = client.get("/api/admin/users", headers=headers)
+    assert users_for_admin.status_code == 200
+    analyst = next(user for user in users_for_admin.json() if user["email"] == "analyst@utmn.ru")
+
+    manager_users = client.get("/api/admin/users", headers=manager_headers)
+    assert manager_users.status_code == 403
+    manager_stats = client.get("/api/admin/stats", headers=manager_headers)
+    assert manager_stats.status_code == 403
+
+    directory = client.get("/api/users/directory", params={"search": "SQL"}, headers=manager_headers)
+    assert directory.status_code == 200
+    assert any(user["email"] == "analyst@utmn.ru" for user in directory.json())
+
+    own_payload = project_payload("Pytest manager hunting project", "active")
+    own_payload["required_competencies"] = None
+    own_payload["competency_blocks"] = [{"title": "Данные", "competencies": ["SQL"]}]
+    own_project = client.post("/api/admin/projects", json=own_payload, headers=manager_headers)
+    assert own_project.status_code == 201, own_project.text
+    own_project_id = own_project.json()["id"]
+
+    candidates = client.get(
+        f"/api/admin/projects/{own_project_id}/candidates",
+        params={"competency": "SQL", "sort": "match_desc"},
+        headers=manager_headers,
+    )
+    assert candidates.status_code == 200, candidates.text
+    analyst_candidate = next(item for item in candidates.json()["items"] if item["email"] == "analyst@utmn.ru")
+    assert analyst_candidate["match_score"] >= 1
+    assert analyst_candidate["matched_competencies"] == ["SQL"]
+
+    add_member = client.post(
+        f"/api/admin/projects/{own_project_id}/members/{analyst['id']}",
+        headers=manager_headers,
+    )
+    assert add_member.status_code == 200, add_member.text
+    assert any(
+        member["email"] == "analyst@utmn.ru" and member["member_role"] == "working_group_member"
+        for member in add_member.json()["members"]
+    )
+
+    foreign_project = client.post(
+        "/api/admin/projects",
+        json=project_payload("Pytest admin owned hunting project", "active"),
+        headers=headers,
+    )
+    assert foreign_project.status_code == 201, foreign_project.text
+    forbidden_candidates = client.get(
+        f"/api/admin/projects/{foreign_project.json()['id']}/candidates",
+        headers=manager_headers,
+    )
+    assert forbidden_candidates.status_code == 403
+
+    employee_directory = client.get("/api/users/directory", headers=employee_headers)
+    assert employee_directory.status_code == 403
 
 
 def test_full_mvp_flow(client):

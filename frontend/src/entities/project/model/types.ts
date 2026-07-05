@@ -32,6 +32,16 @@ export type ProjectCompetencyCoverage = {
   priority: "open" | "covered";
 };
 
+export type ProjectCandidate = Pick<User, "id" | "email" | "full_name" | "role" | "department" | "position"> & {
+  competencies: string | null;
+  about: string | null;
+  matched_competencies: string[];
+  matched_blocks: string[];
+  match_score: number;
+  is_working_group_member: boolean;
+  has_response: boolean;
+};
+
 export type Project = {
   id: string;
   title: string;
@@ -67,6 +77,15 @@ export type ProjectListParams = {
   project_type?: ProjectType | "";
   competency?: string;
   sort?: "created_at_desc" | "created_at_asc" | "priority_desc" | "priority_asc";
+  limit?: number;
+  offset?: number;
+};
+
+export type ProjectCandidateParams = {
+  search?: string;
+  block_title?: string;
+  competency?: string;
+  sort?: "match_desc" | "name_asc" | "responses_asc";
   limit?: number;
   offset?: number;
 };

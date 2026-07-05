@@ -43,4 +43,11 @@ def require_admin_or_manager(current_user: CurrentUser) -> User:
     return current_user
 
 
+def require_admin(current_user: CurrentUser) -> User:
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+    return current_user
+
+
 AdminUser = Annotated[User, Depends(require_admin_or_manager)]
+StrictAdminUser = Annotated[User, Depends(require_admin)]

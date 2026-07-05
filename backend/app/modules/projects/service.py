@@ -10,6 +10,7 @@ from app.modules.attachments.schemas import AttachmentRead
 from app.modules.projects.models import Project
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import (
+    ProjectCandidateRead,
     ProjectCompetencyBlock,
     ProjectCompetencyCoverage,
     ProjectCreate,
@@ -172,6 +173,121 @@ class ProjectService:
         self.db.commit()
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
+
+    def list_candidates(
+        self,
+        *,
+        project_id: UUID,
+        current_user: User,
+        search: str | None,
+        block_title: str | None,
+        competency: str | None,
+        sort: str,
+        limit: int | None,
+        offset: int | None,
+    ) -> PaginatedResponse[ProjectCandidateRead]:
+        self._ensure_can_manage_project(project_id, current_user)
+        project, _ = self._get_existing_with_count(project_id)
+        users = UserRepository(self.db).list_directory(search)
+        response_user_ids = self.repo.list_project_response_user_ids(project_id)
+        member_user_ids = {member.user_id for member in project.members}
+        blocks = self._candidate_blocks(project, block_title)
+        candidates = [
+            self._to_candidate(user, blocks, response_user_ids, member_user_ids)
+            for user in users
+            if user.id != current_user.id or current_user.role == UserRole.ADMIN
+        ]
+        if competency:
+            candidates = [
+                candidate
+                for candidate in candidates
+                if self._candidate_matches_competency(candidate, competency)
+            ]
+
+        if sort == "name_asc":
+            candidates.sort(key=lambda candidate: candidate.full_name.casefold())
+        elif sort == "responses_asc":
+            candidates.sort(key=lambda candidate: (candidate.has_response, -candidate.match_score, candidate.full_name))
+        else:
+            candidates.sort(key=lambda candidate: (-candidate.match_score, candidate.full_name.casefold()))
+
+        safe_limit = min(max(limit or 100, 1), 200)
+        safe_offset = max(offset or 0, 0)
+        return PaginatedResponse(
+            items=candidates[safe_offset : safe_offset + safe_limit],
+            total=len(candidates),
+            limit=safe_limit,
+            offset=safe_offset,
+        )
+
+    def add_working_group_member(
+        self,
+        *,
+        project_id: UUID,
+        user_id: UUID,
+        current_user: User,
+    ) -> ProjectDetails:
+        self._ensure_can_manage_project(project_id, current_user)
+        project, _ = self._get_existing_with_count(project_id)
+        user = UserRepository(self.db).get_by_id(user_id)
+        if user is None or user.role == UserRole.ADMIN:
+            raise DomainError("Сотрудник не найден", status_code=404)
+        self.repo.add_working_group_member(project, user.id)
+        self.db.commit()
+        project, count = self._get_existing_with_count(project.id)
+        return self._to_details(project, count)
+
+    def _candidate_blocks(self, project: Project, block_title: str | None) -> list[ProjectCompetencyBlock]:
+        blocks = self._project_competency_blocks(project)
+        if not block_title:
+            return blocks
+        normalized_title = block_title.strip().casefold()
+        return [block for block in blocks if block.title.casefold() == normalized_title]
+
+    def _to_candidate(
+        self,
+        user: User,
+        blocks: list[ProjectCompetencyBlock],
+        response_user_ids: set[UUID],
+        member_user_ids: set[UUID],
+    ) -> ProjectCandidateRead:
+        user_competencies = {
+            competency.casefold(): competency
+            for competency in self._split_competencies(user.competencies)
+        }
+        matched_competencies: list[str] = []
+        matched_blocks: list[str] = []
+        for block in blocks:
+            block_has_match = False
+            for competency in block.competencies:
+                if competency.casefold() in user_competencies and competency not in matched_competencies:
+                    matched_competencies.append(competency)
+                    block_has_match = True
+            if block_has_match:
+                matched_blocks.append(block.title)
+
+        return ProjectCandidateRead(
+            id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            role=user.role,
+            department=user.department,
+            position=user.position,
+            competencies=user.competencies,
+            about=user.about,
+            matched_competencies=matched_competencies,
+            matched_blocks=matched_blocks,
+            match_score=len(matched_competencies),
+            is_working_group_member=user.id in member_user_ids,
+            has_response=user.id in response_user_ids,
+        )
+
+    def _candidate_matches_competency(self, candidate: ProjectCandidateRead, competency: str) -> bool:
+        competency_query = competency.strip().casefold()
+        candidate_competencies = self._split_competencies(candidate.competencies)
+        return any(competency_query in item.casefold() for item in candidate_competencies) or any(
+            competency_query in item.casefold() for item in candidate.matched_competencies
+        )
 
     def _list(
         self,

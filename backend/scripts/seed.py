@@ -15,13 +15,35 @@ from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 
 
-def upsert_user(repo: UserRepository, *, email: str, full_name: str, role: UserRole) -> User:
+def upsert_user(
+    repo: UserRepository,
+    *,
+    email: str,
+    full_name: str,
+    role: UserRole,
+    department: str | None = None,
+    position: str | None = None,
+    competencies: str | None = None,
+    about: str | None = None,
+) -> User:
     user = repo.get_by_email(email)
     if user is not None:
         user.full_name = full_name
         user.role = role
+        user.department = department
+        user.position = position
+        user.competencies = competencies
+        user.about = about
         return user
-    return repo.create(email=email, full_name=full_name, role=role)
+    return repo.create(
+        email=email,
+        full_name=full_name,
+        role=role,
+        department=department,
+        position=position,
+        competencies=competencies,
+        about=about,
+    )
 
 
 def competency_blocks(*items: tuple[str, list[str]]) -> list[dict]:
@@ -61,24 +83,38 @@ def main() -> None:
             email="admin@utmn.ru",
             full_name="Администратор ШПИУ",
             role=UserRole.ADMIN,
+            department="ШПИУ",
+            position="Администратор витрины",
         )
         manager = upsert_user(
             repo,
             email="manager@utmn.ru",
             full_name="Руководитель проекта",
             role=UserRole.PROJECT_MANAGER,
+            department="ШПИУ",
+            position="Руководитель проектных инициатив",
+            competencies="Управление проектами, Коммуникации, Фасилитация, Наставничество",
+            about="Ведёт проектные инициативы и собирает рабочие группы под задачи ШПИУ.",
         )
         employee = upsert_user(
             repo,
             email="employee@utmn.ru",
             full_name="Сотрудник ШПИУ",
             role=UserRole.EMPLOYEE,
+            department="ШПИУ",
+            position="Методист проектных программ",
+            competencies="Коммуникации, Русский язык, Наставничество, Организация встреч",
+            about="Помогает с коммуникациями, методическими материалами и сопровождением участников.",
         )
         analyst = upsert_user(
             repo,
             email="analyst@utmn.ru",
             full_name="Аналитик ШПИУ",
             role=UserRole.EMPLOYEE,
+            department="Аналитика",
+            position="Аналитик данных",
+            competencies="SQL, Аналитика данных, Интервью, Визуализация данных",
+            about="Собирает данные, проводит интервью и готовит аналитические выводы.",
         )
 
         if db.query(Project).count() == 0:
