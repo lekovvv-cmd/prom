@@ -927,6 +927,140 @@ button {
   gap: 14px;
 }
 
+.report-card {
+  display: grid;
+  gap: 16px;
+  max-width: 980px;
+  margin-top: 16px;
+}
+
+.admin-report-card {
+  max-width: 1180px;
+}
+
+.report-empty {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.report-empty svg {
+  color: var(--accent-dark);
+}
+
+.report-empty h2 {
+  margin-bottom: 4px;
+}
+
+.report-form {
+  display: grid;
+  gap: 12px;
+}
+
+.report-status {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #bfe7cf;
+  border-radius: 999px;
+  color: var(--success);
+  background: #e9f7ef;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.report-status-muted {
+  color: var(--muted-strong);
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+.report-admin-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) repeat(2, minmax(150px, 0.7fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.report-active-period {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid rgba(0, 174, 239, 0.35);
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+
+.report-active-period div {
+  display: grid;
+  gap: 2px;
+}
+
+.report-active-period strong {
+  font-size: 15px;
+}
+
+.report-active-period span {
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.report-submissions {
+  display: grid;
+  gap: 12px;
+}
+
+.report-list {
+  display: grid;
+  gap: 8px;
+}
+
+.report-list-item {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 130px;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.report-list-item div {
+  display: grid;
+  gap: 2px;
+}
+
+.report-list-item strong,
+.report-list-item span,
+.report-list-item small,
+.report-list-item p {
+  min-width: 0;
+}
+
+.report-list-item strong {
+  font-size: 14px;
+}
+
+.report-list-item span,
+.report-list-item small,
+.report-list-item time {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.report-list-item p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .project-candidates-section {
   min-width: 0;
 }
@@ -2061,6 +2195,8 @@ button.chip {
   .competency-block-editor-head,
   .member-picker-grid,
   .role-switcher,
+  .report-admin-form,
+  .report-list-item,
   .project-management-metrics {
     grid-template-columns: 1fr;
   }

@@ -33,7 +33,14 @@ const VALIDATION_FIELD_LABELS: Record<string, string> = {
   responsible_user_id: "Ответственный",
   working_group_member_ids: "Рабочая группа",
   start_date: "Дата начала",
-  end_date: "Дата окончания"
+  end_date: "Дата окончания",
+  completed_work: "Выполненная работа",
+  project_results: "Результаты по проектам",
+  competencies_used: "Использованные компетенции",
+  difficulties: "Сложности",
+  next_period_plans: "Планы на следующий период",
+  starts_on: "Начало периода",
+  ends_on: "Окончание периода"
 };
 
 const VALIDATION_VALUE_LABELS: Record<string, string> = {

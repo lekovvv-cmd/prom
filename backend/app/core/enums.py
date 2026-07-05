@@ -44,3 +44,8 @@ class ProjectMemberRole(StrEnum):
 class AttachmentOwnerType(StrEnum):
     PROJECT = "project"
     RESPONSE = "response"
+
+
+class ReportPeriodStatus(StrEnum):
+    OPEN = "open"
+    CLOSED = "closed"

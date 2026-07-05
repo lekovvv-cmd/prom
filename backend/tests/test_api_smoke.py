@@ -88,6 +88,105 @@ def test_user_can_update_profile_competencies(client):
     assert me.json()["full_name"] == "Сотрудник Профиль"
 
 
+def test_half_year_reports_are_profile_based_and_admin_controlled(client):
+    headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+    manager_headers = auth_headers(client, "manager@utmn.ru")
+
+    before_open = client.get("/api/reports/current", headers=employee_headers)
+    assert before_open.status_code == 200
+    assert before_open.json() == {"active_period": None, "report": None}
+
+    blocked_before_open = client.put(
+        "/api/reports/current",
+        json={"completed_work": "Prepared project materials."},
+        headers=employee_headers,
+    )
+    assert blocked_before_open.status_code == 400
+
+    opened = client.post(
+        "/api/admin/reports/periods",
+        json={
+            "title": "Half-year report 2026-1",
+            "starts_on": "2026-01-01",
+            "ends_on": "2026-06-30",
+        },
+        headers=headers,
+    )
+    assert opened.status_code == 201, opened.text
+    period_id = opened.json()["id"]
+
+    current_after_open = client.get("/api/reports/current", headers=employee_headers)
+    assert current_after_open.status_code == 200
+    assert current_after_open.json()["active_period"]["id"] == period_id
+    assert current_after_open.json()["report"] is None
+
+    employee_report = client.put(
+        "/api/reports/current",
+        json={
+            "completed_work": "Prepared materials and helped with communications.",
+            "project_results": "Two projects received methodology support.",
+            "competencies_used": "Communications, methodology",
+            "difficulties": "",
+            "next_period_plans": "Support new project practices.",
+        },
+        headers=employee_headers,
+    )
+    assert employee_report.status_code == 200, employee_report.text
+    assert employee_report.json()["period_id"] == period_id
+    assert employee_report.json()["difficulties"] is None
+
+    updated_employee_report = client.put(
+        "/api/reports/current",
+        json={
+            "completed_work": "Updated half-year report.",
+            "project_results": None,
+            "competencies_used": "Communications",
+            "difficulties": None,
+            "next_period_plans": None,
+        },
+        headers=employee_headers,
+    )
+    assert updated_employee_report.status_code == 200
+    assert updated_employee_report.json()["id"] == employee_report.json()["id"]
+    assert updated_employee_report.json()["completed_work"] == "Updated half-year report."
+
+    manager_report = client.put(
+        "/api/reports/current",
+        json={
+            "completed_work": "Managed projects and formed working groups.",
+            "project_results": "Project teams were assembled.",
+        },
+        headers=manager_headers,
+    )
+    assert manager_report.status_code == 200, manager_report.text
+
+    admin_as_user = client.put(
+        "/api/reports/current",
+        json={"completed_work": "Admin report."},
+        headers=headers,
+    )
+    assert admin_as_user.status_code == 403
+
+    reports = client.get("/api/admin/reports", params={"period_id": period_id}, headers=headers)
+    assert reports.status_code == 200
+    payload = reports.json()
+    assert {item["user"]["email"] for item in payload} == {"employee@utmn.ru", "manager@utmn.ru"}
+    assert all(item["period"]["id"] == period_id for item in payload)
+
+    periods = client.get("/api/admin/reports/periods", headers=headers)
+    assert periods.status_code == 200
+    assert periods.json()[0]["id"] == period_id
+
+    closed = client.patch(f"/api/admin/reports/periods/{period_id}/close", headers=headers)
+    assert closed.status_code == 200
+    assert closed.json()["status"] == "closed"
+
+    after_close_state = client.get("/api/reports/current", headers=manager_headers)
+    assert after_close_state.status_code == 200
+    assert after_close_state.json() == {"active_period": None, "report": None}
+
+
 def test_project_search_matches_separate_title_words(client):
     response = client.get("/api/projects", params={"search": "Архив пра", "limit": 100})
 

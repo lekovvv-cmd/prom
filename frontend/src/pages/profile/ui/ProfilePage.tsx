@@ -4,6 +4,8 @@ import { useAuth } from "../../../app/providers/AppProviders";
 import { CompetencyPicker } from "../../../entities/competency/ui/CompetencyPicker";
 import { updateMyProfile } from "../../../entities/user/api/userApi";
 import type { UserProfilePayload } from "../../../entities/user/model/types";
+import { HalfYearReportForm } from "../../../features/submit-half-year-report/ui/HalfYearReportForm";
+import { AdminReportControl } from "../../../widgets/admin-report-control/ui/AdminReportControl";
 import { Header } from "../../../widgets/header/ui/Header";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
@@ -12,7 +14,7 @@ import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Textarea } from "../../../shared/ui/Textarea";
 
 export function ProfilePage() {
-  const { refreshUser, user } = useAuth();
+  const { isAdmin, refreshUser, user } = useAuth();
   const [form, setForm] = useState<UserProfilePayload>({
     full_name: user?.full_name ?? "",
     department: user?.department ?? "",
@@ -103,6 +105,7 @@ export function ProfilePage() {
             </Button>
           </form>
         </Card>
+        {isAdmin ? <AdminReportControl /> : <HalfYearReportForm />}
       </PageLayout>
     </>
   );

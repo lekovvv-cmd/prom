@@ -8,11 +8,15 @@ declare module "lucide-react" {
   export const Archive: Icon;
   export const ArchiveRestore: Icon;
   export const BarChart3: Icon;
+  export const CalendarCheck: Icon;
+  export const CheckCircle2: Icon;
   export const Edit3: Icon;
   export const FileCheck2: Icon;
+  export const FileText: Icon;
   export const FolderKanban: Icon;
   export const LogIn: Icon;
   export const LogOut: Icon;
+  export const Lock: Icon;
   export const MessageSquare: Icon;
   export const Paperclip: Icon;
   export const Plus: Icon;

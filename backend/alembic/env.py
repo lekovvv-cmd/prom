@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.database import Base
 from app.modules.attachments import models as attachment_models  # noqa: F401
 from app.modules.projects import models as project_models  # noqa: F401
+from app.modules.reports import models as report_models  # noqa: F401
 from app.modules.responses import models as response_models  # noqa: F401
 from app.modules.users import models as user_models  # noqa: F401
 

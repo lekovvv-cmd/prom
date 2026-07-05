@@ -9,6 +9,7 @@ from app.api.routes import (
     auth,
     competencies,
     projects,
+    reports,
     users,
 )
 
@@ -18,6 +19,7 @@ for router in (
     auth.router,
     competencies.router,
     projects.router,
+    reports.router,
     users.router,
     attachments.router,
     admin_projects.router,
