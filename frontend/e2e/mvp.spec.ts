@@ -104,14 +104,32 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
 
   await page.getByRole("link", { name: /Отклики/ }).click();
   await expect(page.getByRole("heading", { name: "Очередь откликов" })).toBeVisible();
-  await expect(page.getByLabel("Проект")).toContainText(projectTitle);
-  await page.getByLabel("Проект").selectOption({ label: projectTitle });
+  const projectFilter = page.getByRole("combobox", { name: "Проект" });
+  await projectFilter.fill(projectTitle);
+  const projectFilterOption = page.getByRole("option", { name: projectTitle });
+  await expect(projectFilterOption).toBeVisible();
+  await projectFilterOption.click();
 
   const responseRow = page.getByRole("row", { name: new RegExp(escapeRegExp(responseName)) });
   await expect(responseRow).toBeVisible();
   await expect(responseRow.getByText("response.txt")).toBeVisible();
   await responseRow.getByRole("combobox").selectOption("accepted");
   await expect(responseRow.getByRole("cell", { name: "Принят" }).first()).toBeVisible();
+
+  await logout(page);
+  await loginAs(page, "Сотрудник");
+
+  await page.getByRole("link", { name: /Мои проекты/ }).click();
+  await expect(page.getByRole("heading", { name: "Мои проекты" })).toBeVisible();
+  await page.getByLabel("Поиск").fill(projectTitle);
+  await page.getByRole("link", { name: new RegExp(escapeRegExp(projectTitle)) }).click();
+  await expect(page.getByRole("heading", { level: 1, name: projectTitle })).toBeVisible();
+  await expect(page.getByText("Ваше участие")).toBeVisible();
+  await expect(page.getByText(/отклик принят/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Откликнуться на проект" })).toHaveCount(0);
+
+  await logout(page);
+  await loginAs(page, "Админ");
 
   await page.getByRole("link", { name: /Статистика/ }).click();
   await expect(page.getByRole("heading", { name: "Статистика витрины" })).toBeVisible();

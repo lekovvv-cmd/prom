@@ -11,11 +11,13 @@ import { Card } from "../../../shared/ui/Card";
 export function ProjectCard({
   project,
   isSelected = false,
-  onSelect
+  onSelect,
+  detailsPath
 }: {
   project: Project;
   isSelected?: boolean;
   onSelect?: (projectId: string) => void;
+  detailsPath?: string;
 }) {
   const competencies = splitCompetencies(project.required_competencies).slice(0, 4);
 
@@ -23,7 +25,7 @@ export function ProjectCard({
     <Card className={`project-card ${isSelected ? "project-card-selected" : ""}`}>
       <Link
         className="project-card-main"
-        to={`/projects/${project.id}`}
+        to={detailsPath ?? `/projects/${project.id}`}
         aria-current={isSelected ? "true" : undefined}
         onMouseEnter={() => onSelect?.(project.id)}
         onFocus={() => onSelect?.(project.id)}

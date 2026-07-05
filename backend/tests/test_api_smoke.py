@@ -456,6 +456,76 @@ def test_user_response_list_withdraw_and_admin_delete(client):
         assert response.deleted_at is not None
 
 
+def test_my_projects_include_accepted_responses_and_working_group(client):
+    headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+    analyst_headers = auth_headers(client, "analyst@utmn.ru")
+
+    users = client.get("/api/admin/users", headers=headers)
+    assert users.status_code == 200
+    analyst = next(user for user in users.json() if user["email"] == "analyst@utmn.ru")
+
+    accepted_project = client.post(
+        "/api/admin/projects",
+        json=project_payload("Pytest accepted employee project", "active"),
+        headers=headers,
+    )
+    assert accepted_project.status_code == 201, accepted_project.text
+    accepted_project_id = accepted_project.json()["id"]
+
+    employee_response = client.post(
+        f"/api/projects/{accepted_project_id}/responses",
+        json=employee_response_payload("My Projects Employee"),
+        headers=employee_headers,
+    )
+    assert employee_response.status_code == 201, employee_response.text
+
+    before_accept = client.get(
+        "/api/me/projects",
+        params={"search": "Pytest accepted employee project", "limit": 100},
+        headers=employee_headers,
+    )
+    assert before_accept.status_code == 200
+    assert before_accept.json()["total"] == 0
+
+    accepted_response = client.patch(
+        f"/api/admin/responses/{employee_response.json()['id']}",
+        json={"status": "accepted"},
+        headers=headers,
+    )
+    assert accepted_response.status_code == 200, accepted_response.text
+
+    my_projects = client.get(
+        "/api/me/projects",
+        params={"search": "Pytest accepted employee project", "limit": 100},
+        headers=employee_headers,
+    )
+    assert my_projects.status_code == 200
+    assert my_projects.json()["total"] == 1
+    assert my_projects.json()["items"][0]["id"] == accepted_project_id
+
+    my_project_details = client.get(f"/api/me/projects/{accepted_project_id}", headers=employee_headers)
+    assert my_project_details.status_code == 200
+    assert my_project_details.json()["id"] == accepted_project_id
+
+    forbidden_details = client.get(f"/api/me/projects/{accepted_project_id}", headers=analyst_headers)
+    assert forbidden_details.status_code == 403
+
+    group_payload = project_payload("Pytest working group user project", "active")
+    group_payload["working_group_member_ids"] = [analyst["id"]]
+    group_project = client.post("/api/admin/projects", json=group_payload, headers=headers)
+    assert group_project.status_code == 201, group_project.text
+
+    analyst_projects = client.get(
+        "/api/me/projects",
+        params={"search": "Pytest working group user project", "limit": 100},
+        headers=analyst_headers,
+    )
+    assert analyst_projects.status_code == 200
+    assert analyst_projects.json()["total"] == 1
+    assert analyst_projects.json()["items"][0]["id"] == group_project.json()["id"]
+
+
 def test_full_mvp_flow(client):
     headers = admin_headers(client)
     me = client.get("/api/me", headers=headers)

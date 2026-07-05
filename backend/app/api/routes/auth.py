@@ -1,9 +1,13 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.enums import ProjectStatus
 from app.core.schemas.common import PaginatedResponse
+from app.modules.projects.schemas import ProjectDetails, ProjectSummary
+from app.modules.projects.service import ProjectService
 from app.modules.responses.schemas import UserProjectResponseRead
 from app.modules.responses.service import ProjectResponseService
 from app.modules.users.schemas import (
@@ -32,6 +36,35 @@ def verify_code(payload: AuthVerifyRequest, db: DbSession) -> TokenResponse:
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: CurrentUser) -> UserRead:
     return UserRead.model_validate(current_user)
+
+
+@router.get("/me/projects", response_model=PaginatedResponse[ProjectSummary])
+def list_my_projects(
+    current_user: CurrentUser,
+    db: DbSession,
+    search: str | None = None,
+    status: ProjectStatus | None = None,
+    sort: Literal["created_at_desc", "created_at_asc", "priority_desc", "priority_asc"] = "created_at_desc",
+    limit: int | None = None,
+    offset: int | None = None,
+) -> PaginatedResponse[ProjectSummary]:
+    return ProjectService(db).list_current_user_projects(
+        current_user=current_user,
+        search=search,
+        status=status,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/me/projects/{project_id}", response_model=ProjectDetails)
+def get_my_project(
+    project_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> ProjectDetails:
+    return ProjectService(db).get_current_user_project_details(project_id=project_id, current_user=current_user)
 
 
 @router.get("/me/responses", response_model=PaginatedResponse[UserProjectResponseRead])

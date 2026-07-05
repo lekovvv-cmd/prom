@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectStatus, ProjectType
+from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectResponseStatus, ProjectStatus, ProjectType
 from app.core.pagination import clamp_limit, clamp_offset
 from app.modules.projects.models import Project, ProjectMember
 from app.modules.responses.models import ProjectResponse
@@ -68,6 +68,48 @@ class ProjectRepository:
         rows = self.db.execute(query.limit(safe_limit).offset(safe_offset)).all()
         return [(project, int(count)) for project, count in rows], total, safe_limit, safe_offset
 
+    def list_user_projects(
+        self,
+        *,
+        user_id: UUID,
+        email: str,
+        search: str | None,
+        status: ProjectStatus | None,
+        sort: str,
+        limit: int | None,
+        offset: int | None,
+    ) -> tuple[list[tuple[Project, int]], int, int, int]:
+        safe_limit = clamp_limit(limit)
+        safe_offset = clamp_offset(offset)
+        base = select(Project).where(Project.deleted_at.is_(None))
+        base = self._apply_user_project_scope(base, user_id, email)
+        base = self._apply_search_and_status(base, search, status)
+
+        total = self.db.scalar(select(func.count()).select_from(base.subquery())) or 0
+
+        response_counts = (
+            select(
+                ProjectResponse.project_id.label("project_id"),
+                func.count(ProjectResponse.id).label("responses_count"),
+            )
+            .where(ProjectResponse.deleted_at.is_(None))
+            .group_by(ProjectResponse.project_id)
+            .subquery()
+        )
+        priority_rank = self._priority_rank()
+        query = (
+            select(Project, func.coalesce(response_counts.c.responses_count, 0))
+            .outerjoin(response_counts, Project.id == response_counts.c.project_id)
+            .options(selectinload(Project.responsible))
+            .where(Project.deleted_at.is_(None))
+        )
+        query = self._apply_user_project_scope(query, user_id, email)
+        query = self._apply_search_and_status(query, search, status)
+        query = self._apply_sort(query, sort, priority_rank)
+
+        rows = self.db.execute(query.limit(safe_limit).offset(safe_offset)).all()
+        return [(project, int(count)) for project, count in rows], total, safe_limit, safe_offset
+
     def get_with_counts(self, project_id: UUID) -> tuple[Project, int] | None:
         response_count = (
             select(func.count(ProjectResponse.id))
@@ -91,6 +133,11 @@ class ProjectRepository:
     def user_can_manage_project(self, project_id: UUID, user_id: UUID) -> bool:
         query = select(Project.id).where(Project.id == project_id, Project.deleted_at.is_(None))
         query = self._apply_manager_project_scope(query, user_id)
+        return self.db.scalar(query) is not None
+
+    def user_can_view_project(self, project_id: UUID, user_id: UUID, email: str) -> bool:
+        query = select(Project.id).where(Project.id == project_id, Project.deleted_at.is_(None))
+        query = self._apply_user_project_scope(query, user_id, email)
         return self.db.scalar(query) is not None
 
     def create(self, *, data: dict, created_by: UUID) -> Project:
@@ -205,6 +252,65 @@ class ProjectRepository:
                 manager_member_exists,
             )
         )
+
+    @staticmethod
+    def _apply_user_project_scope(query: Select, user_id: UUID, email: str) -> Select:
+        member_exists = (
+            select(ProjectMember.id)
+            .where(ProjectMember.project_id == Project.id, ProjectMember.user_id == user_id)
+            .exists()
+        )
+        accepted_response_exists = (
+            select(ProjectResponse.id)
+            .where(
+                ProjectResponse.project_id == Project.id,
+                ProjectResponse.deleted_at.is_(None),
+                ProjectResponse.status == ProjectResponseStatus.ACCEPTED,
+                or_(ProjectResponse.user_id == user_id, func.lower(ProjectResponse.email) == email.lower()),
+            )
+            .exists()
+        )
+        return query.where(or_(member_exists, accepted_response_exists))
+
+    @staticmethod
+    def _apply_search_and_status(
+        query: Select,
+        search: str | None,
+        status: ProjectStatus | None,
+    ) -> Select:
+        search_terms = ProjectRepository._split_search_terms(search)
+        for term in search_terms:
+            pattern = f"%{term}%"
+            query = query.where(
+                or_(
+                    Project.title.ilike(pattern),
+                    Project.short_description.ilike(pattern),
+                    Project.goal.ilike(pattern),
+                    Project.required_competencies.ilike(pattern),
+                )
+            )
+        if status is not None:
+            query = query.where(Project.status == status)
+        return query
+
+    @staticmethod
+    def _priority_rank():
+        return case(
+            (Project.priority == ProjectPriority.CRITICAL, 4),
+            (Project.priority == ProjectPriority.HIGH, 3),
+            (Project.priority == ProjectPriority.MEDIUM, 2),
+            else_=1,
+        )
+
+    @staticmethod
+    def _apply_sort(query: Select, sort: str, priority_rank) -> Select:
+        if sort == "created_at_asc":
+            return query.order_by(Project.created_at.asc())
+        if sort == "priority_asc":
+            return query.order_by(priority_rank.asc(), Project.created_at.desc())
+        if sort == "priority_desc":
+            return query.order_by(priority_rank.desc(), Project.created_at.desc())
+        return query.order_by(Project.created_at.desc())
 
     @staticmethod
     def _split_competency_filter(value: str) -> list[str]:

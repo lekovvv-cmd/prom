@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getAdminProjects } from "../../../entities/project/api/projectApi";
 import type { Project } from "../../../entities/project/model/types";
@@ -8,6 +8,7 @@ import { AdminResponsesTable } from "../../../widgets/admin-responses-table/ui/A
 import { Header } from "../../../widgets/header/ui/Header";
 import { Input } from "../../../shared/ui/Input";
 import { PageLayout } from "../../../shared/ui/PageLayout";
+import { SearchableSelect } from "../../../shared/ui/SearchableSelect";
 import { Select } from "../../../shared/ui/Select";
 import { Spinner } from "../../../shared/ui/Spinner";
 
@@ -15,21 +16,20 @@ export function AdminResponsesPage() {
   const [responses, setResponses] = useState<ProjectResponse[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
+  const [projectSearch, setProjectSearch] = useState("");
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<ProjectResponseStatus | "">("");
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadResponses() {
     try {
       setIsLoading(true);
       setError(null);
-      const [responsesPayload, projectsPayload] = await Promise.all([
-        getAdminResponses({ project_id: projectId, status, search, limit: 100 }),
-        getAdminProjects({ limit: 100 })
-      ]);
+      const responsesPayload = await getAdminResponses({ project_id: projectId, status, search, limit: 100 });
       setResponses(responsesPayload.items);
-      setProjects(projectsPayload.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось загрузить отклики");
     } finally {
@@ -37,9 +37,60 @@ export function AdminResponsesPage() {
     }
   }
 
+  async function loadProjects(query: string) {
+    try {
+      setIsProjectsLoading(true);
+      const [currentProjectsPayload, archivedProjectsPayload] = await Promise.all([
+        getAdminProjects({ search: query, limit: 100 }),
+        getAdminProjects({ search: query, status: "archived", limit: 100 })
+      ]);
+      const uniqueProjects = [...currentProjectsPayload.items, ...archivedProjectsPayload.items].filter(
+        (project, index, items) => items.findIndex((item) => item.id === project.id) === index
+      );
+      setProjects(uniqueProjects);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось загрузить проекты");
+    } finally {
+      setIsProjectsLoading(false);
+    }
+  }
+
   useEffect(() => {
     void loadResponses();
   }, [projectId, status, search]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadProjects(projectSearch);
+    }, 200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [projectSearch]);
+
+  const projectOptions = useMemo(() => {
+    const options = projects.map((project) => ({
+      value: project.id,
+      label: project.title
+    }));
+    if (selectedProject && !options.some((option) => option.value === selectedProject.id)) {
+      options.unshift({
+        value: selectedProject.id,
+        label: selectedProject.title
+      });
+    }
+    return options;
+  }, [projects, selectedProject]);
+
+  function handleProjectChange(nextProjectId: string) {
+    setProjectId(nextProjectId);
+    if (!nextProjectId) {
+      setSelectedProject(null);
+      return;
+    }
+
+    const nextProject = projects.find((project) => project.id === nextProjectId) ?? selectedProject;
+    setSelectedProject(nextProject?.id === nextProjectId ? nextProject : null);
+  }
 
   return (
     <>
@@ -53,24 +104,19 @@ export function AdminResponsesPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="ФИО или email"
           />
-          <Select
+          <SearchableSelect
             label="Проект"
             name="project_id"
             value={projectId}
-            isClearable
+            options={projectOptions}
+            isLoading={isProjectsLoading}
+            placeholder="Проект не выбран"
+            searchPlaceholder="Название проекта"
+            emptyText="Проекты не найдены"
             clearLabel="Сбросить фильтр по проекту"
-            onClear={() => setProjectId("")}
-            onChange={(event) => setProjectId(event.target.value)}
-          >
-            <option value="" disabled hidden>
-              Проект не выбран
-            </option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.title}
-              </option>
-            ))}
-          </Select>
+            onChange={handleProjectChange}
+            onSearchChange={setProjectSearch}
+          />
           <Select
             label="Статус"
             name="status"

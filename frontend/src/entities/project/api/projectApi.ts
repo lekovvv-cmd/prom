@@ -28,6 +28,14 @@ export function getAdminProject(projectId: string) {
   return apiClient.request<ProjectDetails>(`/admin/projects/${projectId}`);
 }
 
+export function getMyProjects(params?: ProjectListParams) {
+  return apiClient.request<Paginated<Project>>(`/me/projects${toQuery(params)}`);
+}
+
+export function getMyProject(projectId: string) {
+  return apiClient.request<ProjectDetails>(`/me/projects/${projectId}`);
+}
+
 export function createAdminProject(payload: ProjectMutationPayload) {
   return apiClient.request<ProjectDetails>("/admin/projects", {
     method: "POST",

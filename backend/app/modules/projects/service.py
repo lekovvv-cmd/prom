@@ -74,6 +74,32 @@ class ProjectService:
             offset=offset,
         )
 
+    def list_current_user_projects(
+        self,
+        *,
+        current_user: User,
+        search: str | None,
+        status: ProjectStatus | None,
+        sort: str,
+        limit: int | None,
+        offset: int | None,
+    ) -> PaginatedResponse[ProjectSummary]:
+        rows, total, safe_limit, safe_offset = self.repo.list_user_projects(
+            user_id=current_user.id,
+            email=current_user.email,
+            search=search,
+            status=status,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+        )
+        return PaginatedResponse(
+            items=[self._to_summary(project, count) for project, count in rows],
+            total=total,
+            limit=safe_limit,
+            offset=safe_offset,
+        )
+
     def get_public_details(self, project_id: UUID) -> ProjectDetails:
         project, count = self._get_existing_with_count(project_id)
         if (
@@ -87,6 +113,12 @@ class ProjectService:
     def get_admin_details(self, project_id: UUID, current_user: User | None = None) -> ProjectDetails:
         self._ensure_can_manage_project(project_id, current_user)
         project, count = self._get_existing_with_count(project_id)
+        return self._to_details(project, count)
+
+    def get_current_user_project_details(self, project_id: UUID, current_user: User) -> ProjectDetails:
+        project, count = self._get_existing_with_count(project_id)
+        if not self.repo.user_can_view_project(project_id, current_user.id, current_user.email):
+            raise DomainError("Недостаточно прав для просмотра этого проекта", status_code=403)
         return self._to_details(project, count)
 
     def get_existing_project(self, project_id: UUID) -> Project:

@@ -1,4 +1,4 @@
-import { BarChart3, LogIn, LogOut, MessageSquare, Table2 } from "lucide-react";
+import { BarChart3, FolderKanban, LogIn, LogOut, MessageSquare, Table2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
@@ -26,10 +26,16 @@ export function Header() {
       <nav className="main-nav">
         <NavLink to="/projects">Витрина</NavLink>
         {token && user?.role !== "admin" && (
-          <NavLink to="/my/responses">
-            <MessageSquare size={15} />
-            Мои отклики
-          </NavLink>
+          <>
+            <NavLink to="/my/projects">
+              <FolderKanban size={15} />
+              Мои проекты
+            </NavLink>
+            <NavLink to="/my/responses">
+              <MessageSquare size={15} />
+              Мои отклики
+            </NavLink>
+          </>
         )}
         {isAdmin && (
           <>

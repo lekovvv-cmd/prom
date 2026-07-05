@@ -6,6 +6,8 @@ import { AdminProjectsPage } from "../../pages/admin-projects/ui/AdminProjectsPa
 import { AdminResponsesPage } from "../../pages/admin-responses/ui/AdminResponsesPage";
 import { AdminStatsPage } from "../../pages/admin-stats/ui/AdminStatsPage";
 import { LoginPage } from "../../pages/login/ui/LoginPage";
+import { MyProjectDetailsPage } from "../../pages/my-project-details/ui/MyProjectDetailsPage";
+import { MyProjectsPage } from "../../pages/my-projects/ui/MyProjectsPage";
 import { MyResponsesPage } from "../../pages/my-responses/ui/MyResponsesPage";
 import { ProjectDetailsPage } from "../../pages/project-details/ui/ProjectDetailsPage";
 import { ProjectsListPage } from "../../pages/projects-list/ui/ProjectsListPage";
@@ -50,6 +52,22 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
+      <Route
+        path="/my/projects"
+        element={
+          <UserRoute>
+            <MyProjectsPage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/my/projects/:projectId"
+        element={
+          <UserRoute>
+            <MyProjectDetailsPage />
+          </UserRoute>
+        }
+      />
       <Route
         path="/my/responses"
         element={
