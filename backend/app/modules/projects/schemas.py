@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -16,6 +17,41 @@ class ProjectMemberRead(BaseModel):
     member_role: ProjectMemberRole
 
 
+class ProjectCompetencyBlock(BaseModel):
+    title: str = Field(min_length=2, max_length=120)
+    competencies: list[str] = Field(default_factory=list)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) < 2:
+            raise ValueError("Название направления должно быть не короче 2 символов")
+        return normalized
+
+    @field_validator("competencies")
+    @classmethod
+    def normalize_competencies(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            competency = item.strip()
+            key = competency.casefold()
+            if not competency or key in seen:
+                continue
+            seen.add(key)
+            normalized.append(competency)
+        return normalized
+
+
+class ProjectCompetencyCoverage(BaseModel):
+    block_title: str
+    competency: str
+    accepted_count: int
+    is_covered: bool
+    priority: Literal["open", "covered"]
+
+
 class ProjectBase(BaseModel):
     title: str = Field(min_length=3, max_length=255)
     short_description: str = Field(min_length=3, max_length=500)
@@ -31,6 +67,7 @@ class ProjectBase(BaseModel):
     working_group_member_ids: list[UUID] = Field(default_factory=list)
     contact_email: str | None = None
     required_competencies: str | None = None
+    competency_blocks: list[ProjectCompetencyBlock] = Field(default_factory=list)
     planned_tasks: str | None = None
 
     @field_validator("contact_email")
@@ -63,6 +100,7 @@ class ProjectUpdate(BaseModel):
     working_group_member_ids: list[UUID] | None = None
     contact_email: str | None = None
     required_competencies: str | None = None
+    competency_blocks: list[ProjectCompetencyBlock] | None = None
     planned_tasks: str | None = None
 
     @field_validator("contact_email")
@@ -88,6 +126,7 @@ class ProjectSummary(BaseModel):
     end_date: date | None
     responsible: UserShort | None
     required_competencies: str | None
+    competency_blocks: list[ProjectCompetencyBlock] = Field(default_factory=list)
     responses_count: int
     created_at: datetime
 
@@ -101,6 +140,7 @@ class ProjectDetails(ProjectSummary):
     members: list[ProjectMemberRead]
     attachments: list[AttachmentRead]
     required_competencies: str | None
+    competency_coverage: list[ProjectCompetencyCoverage] = Field(default_factory=list)
     planned_tasks: str | None
     updated_at: datetime
 

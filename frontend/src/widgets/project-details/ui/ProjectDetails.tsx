@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 
 import type { ProjectDetails as ProjectDetailsType } from "../../../entities/project/model/types";
 import { AttachmentList } from "../../../entities/attachment/ui/AttachmentList";
-import { splitCompetencies } from "../../../entities/competency/lib/competencies";
+import { normalizeCompetencyBlocks } from "../../../entities/competency/lib/competencyBlocks";
+import { CompetencyCoverage } from "../../../entities/competency/ui/CompetencyCoverage";
 import { splitProjectTasks } from "../../../entities/project/lib/projectTasks";
 import { canAcceptProjectResponses } from "../../../entities/project/lib/responseAvailability";
 import { ProjectPriorityBadge } from "../../../entities/project/ui/ProjectPriorityBadge";
@@ -22,7 +23,7 @@ export function ProjectDetails({
   showResponseForm?: boolean;
   participationNotice?: ReactNode;
 }) {
-  const competencies = splitCompetencies(project.required_competencies);
+  const competencyBlocks = normalizeCompetencyBlocks(project.competency_blocks, project.required_competencies);
   const plannedTasks = splitProjectTasks(project.planned_tasks);
   const canRespond = canAcceptProjectResponses(project.status);
   const workingGroup = project.members.filter((member) => member.member_role === "working_group_member");
@@ -52,18 +53,12 @@ export function ProjectDetails({
             <p>{project.expected_result}</p>
           </Card>
         )}
-        {(competencies.length > 0 || plannedTasks.length > 0) && (
+        {(competencyBlocks.length > 0 || plannedTasks.length > 0) && (
           <Card>
-            {competencies.length > 0 && (
+            {competencyBlocks.length > 0 && (
               <div className="details-section">
-                <h3>Требуемые компетенции</h3>
-                <div className="competency-inline">
-                  {competencies.map((competency) => (
-                    <span className="chip chip-selected" key={competency}>
-                      {competency}
-                    </span>
-                  ))}
-                </div>
+                <h3>Направления работы</h3>
+                <CompetencyCoverage blocks={competencyBlocks} coverage={project.competency_coverage} />
               </div>
             )}
             {plannedTasks.length > 0 && (

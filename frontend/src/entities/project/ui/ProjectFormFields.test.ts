@@ -13,6 +13,7 @@ describe("normalizeProjectPayload", () => {
       expected_result: "",
       contact_email: "",
       required_competencies: "",
+      competency_blocks: [],
       planned_tasks: ""
     });
 
@@ -20,6 +21,28 @@ describe("normalizeProjectPayload", () => {
     expect(payload.contact_email).toBeNull();
     expect(payload.required_competencies).toBeNull();
     expect(payload.planned_tasks).toBeNull();
+    expect(payload.competency_blocks).toEqual([]);
+  });
+
+  it("derives flat competencies from responsibility blocks", () => {
+    const payload = normalizeProjectPayload({
+      ...emptyProjectForm,
+      title: "Test",
+      short_description: "Short",
+      description: "Long",
+      goal: "Goal",
+      required_competencies: "",
+      competency_blocks: [
+        { title: "Данные", competencies: ["SQL", "SQL"] },
+        { title: "Коммуникация", competencies: ["Русский язык"] }
+      ]
+    });
+
+    expect(payload.required_competencies).toBe("SQL, Русский язык");
+    expect(payload.competency_blocks).toEqual([
+      { title: "Данные", competencies: ["SQL"] },
+      { title: "Коммуникация", competencies: ["Русский язык"] }
+    ]);
   });
 
   it("keeps selected responsible user id", () => {
@@ -85,5 +108,18 @@ describe("validateProjectForm", () => {
         contact_email: "manager@example.com"
       })
     ).toBe("Контактный email: введите корректный адрес на домене @utmn.ru");
+  });
+
+  it("rejects unnamed competency block when it has competencies", () => {
+    expect(
+      validateProjectForm({
+        ...emptyProjectForm,
+        title: "Проект",
+        short_description: "Краткое описание",
+        description: "Полное описание",
+        goal: "Цель проекта",
+        competency_blocks: [{ title: " ", competencies: ["SQL"] }]
+      })
+    ).toBe("Направление работы: укажите название минимум из 2 символов");
   });
 });

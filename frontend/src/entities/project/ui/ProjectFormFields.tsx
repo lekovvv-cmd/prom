@@ -1,6 +1,11 @@
 import type { ProjectMutationPayload } from "../model/types";
 import type { User } from "../../user/model/types";
-import { CompetencyPicker } from "../../competency/ui/CompetencyPicker";
+import { CompetencyBlocksEditor } from "../../competency/ui/CompetencyBlocksEditor";
+import {
+  createEmptyCompetencyBlock,
+  flattenCompetencyBlocks,
+  normalizeCompetencyBlocks
+} from "../../competency/lib/competencyBlocks";
 import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { Textarea } from "../../../shared/ui/Textarea";
@@ -21,6 +26,7 @@ export const emptyProjectForm: ProjectMutationPayload = {
   working_group_member_ids: [],
   contact_email: "manager@utmn.ru",
   required_competencies: "",
+  competency_blocks: [createEmptyCompetencyBlock()],
   planned_tasks: ""
 };
 
@@ -40,6 +46,9 @@ function normalizeOptionalText(value: string | null | undefined) {
 }
 
 export function normalizeProjectPayload(form: ProjectMutationPayload): ProjectMutationPayload {
+  const competencyBlocks = normalizeCompetencyBlocks(form.competency_blocks, form.required_competencies);
+  const requiredCompetencies = flattenCompetencyBlocks(competencyBlocks);
+
   return {
     ...form,
     title: form.title.trim(),
@@ -52,7 +61,8 @@ export function normalizeProjectPayload(form: ProjectMutationPayload): ProjectMu
     responsible_user_id: form.responsible_user_id || null,
     working_group_member_ids: form.working_group_member_ids ?? [],
     contact_email: normalizeOptionalText(form.contact_email ? normalizeEmail(form.contact_email) : null),
-    required_competencies: normalizeOptionalText(form.required_competencies),
+    required_competencies: normalizeOptionalText(requiredCompetencies || form.required_competencies),
+    competency_blocks: competencyBlocks,
     planned_tasks: normalizeOptionalText(form.planned_tasks)
   };
 }
@@ -67,6 +77,13 @@ export function validateProjectForm(form: ProjectMutationPayload) {
   const contactEmail = normalizeOptionalText(form.contact_email);
   if (contactEmail && !isUtmnEmail(contactEmail)) {
     return "Контактный email: введите корректный адрес на домене @utmn.ru";
+  }
+
+  const invalidBlock = (form.competency_blocks ?? []).find(
+    (block) => block.competencies.length > 0 && block.title.trim().length < 2
+  );
+  if (invalidBlock) {
+    return "Направление работы: укажите название минимум из 2 символов";
   }
 
   return null;
@@ -209,10 +226,10 @@ export function ProjectFormFields({
           onChange={(event) => setForm({ ...form, end_date: event.target.value })}
         />
       </div>
-      <CompetencyPicker
-        label="Требуемые компетенции"
-        value={form.required_competencies}
-        onChange={(required_competencies) => setForm({ ...form, required_competencies })}
+      <CompetencyBlocksEditor
+        label="Направления работы и компетенции"
+        value={form.competency_blocks ?? [createEmptyCompetencyBlock()]}
+        onChange={(competency_blocks) => setForm({ ...form, competency_blocks })}
       />
       <div className="member-picker">
         <span className="field-label">Рабочая группа</span>

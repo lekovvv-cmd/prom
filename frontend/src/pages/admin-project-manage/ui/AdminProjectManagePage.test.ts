@@ -19,6 +19,8 @@ const project: ProjectDetails = {
   responsible: null,
   contact_email: null,
   required_competencies: null,
+  competency_blocks: [],
+  competency_coverage: [],
   responses_count: 5,
   members: [
     {

@@ -19,6 +19,19 @@ export type ProjectMember = Pick<User, "id" | "full_name" | "email"> & {
   member_role: "manager" | "working_group_member" | "participant";
 };
 
+export type ProjectCompetencyBlock = {
+  title: string;
+  competencies: string[];
+};
+
+export type ProjectCompetencyCoverage = {
+  block_title: string;
+  competency: string;
+  accepted_count: number;
+  is_covered: boolean;
+  priority: "open" | "covered";
+};
+
 export type Project = {
   id: string;
   title: string;
@@ -31,6 +44,7 @@ export type Project = {
   end_date: string | null;
   responsible: Pick<User, "id" | "full_name" | "email"> | null;
   required_competencies: string | null;
+  competency_blocks: ProjectCompetencyBlock[];
   responses_count: number;
   created_at: string;
 };
@@ -42,6 +56,7 @@ export type ProjectDetails = Project & {
   members: ProjectMember[];
   attachments: Attachment[];
   required_competencies: string | null;
+  competency_coverage: ProjectCompetencyCoverage[];
   planned_tasks: string | null;
   updated_at: string;
 };
@@ -78,5 +93,6 @@ export type ProjectMutationPayload = {
   working_group_member_ids?: string[];
   contact_email?: string | null;
   required_competencies?: string | null;
+  competency_blocks?: ProjectCompetencyBlock[];
   planned_tasks?: string | null;
 };

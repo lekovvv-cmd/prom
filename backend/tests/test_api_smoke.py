@@ -526,6 +526,59 @@ def test_my_projects_include_accepted_responses_and_working_group(client):
     assert analyst_projects.json()["items"][0]["id"] == group_project.json()["id"]
 
 
+def test_project_competency_blocks_and_coverage(client):
+    headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+    analyst_headers = auth_headers(client, "analyst@utmn.ru")
+
+    payload = project_payload("Pytest competency coverage project", "active")
+    payload["required_competencies"] = None
+    payload["competency_blocks"] = [
+        {"title": "Данные", "competencies": ["SQL"]},
+        {"title": "Коммуникация", "competencies": ["Русский язык"]},
+    ]
+    project = client.post("/api/admin/projects", json=payload, headers=headers)
+    assert project.status_code == 201, project.text
+    project_id = project.json()["id"]
+    assert project.json()["required_competencies"] == "SQL, Русский язык"
+
+    employee_response = client.post(
+        f"/api/projects/{project_id}/responses",
+        json={**employee_response_payload("Pytest SQL Employee"), "competencies": "SQL"},
+        headers=employee_headers,
+    )
+    assert employee_response.status_code == 201, employee_response.text
+    analyst_response = client.post(
+        f"/api/projects/{project_id}/responses",
+        json={
+            "full_name": "Pytest SQL Analyst",
+            "email": "analyst@utmn.ru",
+            "comment": "Закрываю SQL вторым участником.",
+            "competencies": "SQL",
+        },
+        headers=analyst_headers,
+    )
+    assert analyst_response.status_code == 201, analyst_response.text
+
+    for response in (employee_response, analyst_response):
+        accepted = client.patch(
+            f"/api/admin/responses/{response.json()['id']}",
+            json={"status": "accepted"},
+            headers=headers,
+        )
+        assert accepted.status_code == 200, accepted.text
+
+    details = client.get(f"/api/admin/projects/{project_id}", headers=headers)
+    assert details.status_code == 200, details.text
+    coverage = {item["competency"]: item for item in details.json()["competency_coverage"]}
+    assert coverage["SQL"]["accepted_count"] == 2
+    assert coverage["SQL"]["is_covered"] is True
+    assert coverage["SQL"]["priority"] == "covered"
+    assert coverage["Русский язык"]["accepted_count"] == 0
+    assert coverage["Русский язык"]["is_covered"] is False
+    assert coverage["Русский язык"]["priority"] == "open"
+
+
 def test_full_mvp_flow(client):
     headers = admin_headers(client)
     me = client.get("/api/me", headers=headers)

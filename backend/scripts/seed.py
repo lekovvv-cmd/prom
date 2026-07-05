@@ -24,16 +24,32 @@ def upsert_user(repo: UserRepository, *, email: str, full_name: str, role: UserR
     return repo.create(email=email, full_name=full_name, role=role)
 
 
+def competency_blocks(*items: tuple[str, list[str]]) -> list[dict]:
+    return [{"title": title, "competencies": competencies} for title, competencies in items]
+
+
 def refresh_demo_project_competencies(db) -> None:
     demo_competencies = {
-        "Цифровая карта образовательных инициатив": "Аналитика данных, SQL, Интервью, Визуализация данных",
-        "Наставничество для новых преподавателей": "Методология образования, Коммуникации, Фасилитация, Наставничество",
-        "Исследование вовлечённости сотрудников": "Опросы, Интервью, Аналитика данных",
+        "Цифровая карта образовательных инициатив": competency_blocks(
+            ("Аналитика и данные", ["Аналитика данных", "SQL", "Визуализация данных"]),
+            ("Исследование пользователей", ["Интервью"]),
+        ),
+        "Наставничество для новых преподавателей": competency_blocks(
+            ("Методология", ["Методология образования", "Наставничество"]),
+            ("Коммуникация", ["Коммуникации", "Фасилитация"]),
+        ),
+        "Исследование вовлечённости сотрудников": competency_blocks(
+            ("Полевое исследование", ["Опросы", "Интервью"]),
+            ("Аналитика", ["Аналитика данных"]),
+        ),
     }
-    for title, required_competencies in demo_competencies.items():
+    for title, blocks in demo_competencies.items():
         project = db.query(Project).filter(Project.title == title).one_or_none()
         if project is not None:
-            project.required_competencies = required_competencies
+            project.competency_blocks = blocks
+            project.required_competencies = ", ".join(
+                competency for block in blocks for competency in block["competencies"]
+            )
 
 
 def main() -> None:
@@ -80,6 +96,10 @@ def main() -> None:
                     responsible_user_id=manager.id,
                     contact_email="manager@utmn.ru",
                     required_competencies="Аналитика данных, SQL, Интервью, Визуализация данных",
+                    competency_blocks=competency_blocks(
+                        ("Аналитика и данные", ["Аналитика данных", "SQL", "Визуализация данных"]),
+                        ("Исследование пользователей", ["Интервью"]),
+                    ),
                     planned_tasks="Собрать требования, описать данные, подготовить витрину",
                     created_by=admin.id,
                 ),
@@ -95,6 +115,10 @@ def main() -> None:
                     responsible_user_id=manager.id,
                     contact_email="manager@utmn.ru",
                     required_competencies="Методология образования, Коммуникации, Фасилитация, Наставничество",
+                    competency_blocks=competency_blocks(
+                        ("Методология", ["Методология образования", "Наставничество"]),
+                        ("Коммуникация", ["Коммуникации", "Фасилитация"]),
+                    ),
                     planned_tasks="Описать маршрут, собрать наставников, провести пилот",
                     created_by=admin.id,
                 ),
@@ -112,6 +136,10 @@ def main() -> None:
                     responsible_user_id=analyst.id,
                     contact_email="analyst@utmn.ru",
                     required_competencies="Опросы, Интервью, Аналитика данных",
+                    competency_blocks=competency_blocks(
+                        ("Полевое исследование", ["Опросы", "Интервью"]),
+                        ("Аналитика", ["Аналитика данных"]),
+                    ),
                     planned_tasks="Подготовить анкету, провести интервью, собрать выводы",
                     created_by=admin.id,
                 ),

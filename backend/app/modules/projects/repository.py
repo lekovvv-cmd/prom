@@ -140,6 +140,14 @@ class ProjectRepository:
         query = self._apply_user_project_scope(query, user_id, email)
         return self.db.scalar(query) is not None
 
+    def list_accepted_response_competencies(self, project_id: UUID) -> list[str | None]:
+        query = select(ProjectResponse.competencies).where(
+            ProjectResponse.project_id == project_id,
+            ProjectResponse.status == ProjectResponseStatus.ACCEPTED,
+            ProjectResponse.deleted_at.is_(None),
+        )
+        return list(self.db.scalars(query))
+
     def create(self, *, data: dict, created_by: UUID) -> Project:
         project = Project(**data, created_by=created_by)
         self.db.add(project)

@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, Uuid
+from sqlalchemy import JSON, Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
@@ -51,6 +51,7 @@ class Project(Base):
     )
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     required_competencies: Mapped[str | None] = mapped_column(Text, nullable=True)
+    competency_blocks: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
     planned_tasks: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)

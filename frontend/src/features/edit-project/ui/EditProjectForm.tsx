@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 import type { ProjectDetails, ProjectMutationPayload } from "../../../entities/project/model/types";
 import type { User } from "../../../entities/user/model/types";
 import { getAdminUsers } from "../../../entities/user/api/userApi";
+import { normalizeCompetencyBlocks } from "../../../entities/competency/lib/competencyBlocks";
 import {
   normalizeProjectPayload,
   ProjectFormFields,
@@ -30,6 +31,7 @@ function projectToForm(project: ProjectDetails): ProjectMutationPayload {
       .map((member) => member.id),
     contact_email: project.contact_email,
     required_competencies: project.required_competencies,
+    competency_blocks: normalizeCompetencyBlocks(project.competency_blocks, project.required_competencies),
     planned_tasks: project.planned_tasks
   };
 }

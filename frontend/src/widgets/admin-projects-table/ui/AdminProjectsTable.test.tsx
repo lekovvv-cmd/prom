@@ -17,6 +17,7 @@ const archivedProject: Project = {
   end_date: null,
   responsible: null,
   required_competencies: null,
+  competency_blocks: [],
   responses_count: 0,
   created_at: "2026-07-03T12:00:00Z"
 };

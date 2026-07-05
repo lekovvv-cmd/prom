@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AttachmentList } from "../../../entities/attachment/ui/AttachmentList";
-import { splitCompetencies } from "../../../entities/competency/lib/competencies";
+import { normalizeCompetencyBlocks } from "../../../entities/competency/lib/competencyBlocks";
+import { CompetencyCoverage } from "../../../entities/competency/ui/CompetencyCoverage";
 import { getAdminProject } from "../../../entities/project/api/projectApi";
 import { splitProjectTasks } from "../../../entities/project/lib/projectTasks";
 import type { ProjectDetails } from "../../../entities/project/model/types";
@@ -81,7 +82,10 @@ export function AdminProjectManagePage() {
     void loadProject();
   }, [loadProject]);
 
-  const competencies = useMemo(() => splitCompetencies(project?.required_competencies), [project?.required_competencies]);
+  const competencyBlocks = useMemo(
+    () => normalizeCompetencyBlocks(project?.competency_blocks, project?.required_competencies),
+    [project?.competency_blocks, project?.required_competencies]
+  );
   const plannedTasks = useMemo(() => splitProjectTasks(project?.planned_tasks), [project?.planned_tasks]);
   const workingGroup = useMemo(
     () => project?.members.filter((member) => member.member_role === "working_group_member") ?? [],
@@ -185,21 +189,15 @@ export function AdminProjectManagePage() {
                   )}
                 </Card>
 
-                {(competencies.length > 0 || plannedTasks.length > 0) && (
+                {(competencyBlocks.length > 0 || plannedTasks.length > 0) && (
                   <Card>
                     <div className="section-heading">
                       <h3>Компетенции и задачи</h3>
                     </div>
-                    {competencies.length > 0 && (
+                    {competencyBlocks.length > 0 && (
                       <div className="details-section">
-                        <h4>Требуемые компетенции</h4>
-                        <div className="competency-inline">
-                          {competencies.map((competency) => (
-                            <span className="chip chip-selected" key={competency}>
-                              {competency}
-                            </span>
-                          ))}
-                        </div>
+                        <h4>Направления работы</h4>
+                        <CompetencyCoverage blocks={competencyBlocks} coverage={project.competency_coverage} />
                       </div>
                     )}
                     {plannedTasks.length > 0 && (

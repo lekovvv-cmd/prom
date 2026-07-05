@@ -10,6 +10,8 @@ from app.modules.attachments.schemas import AttachmentRead
 from app.modules.projects.models import Project
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import (
+    ProjectCompetencyBlock,
+    ProjectCompetencyCoverage,
     ProjectCreate,
     ProjectDetails,
     ProjectMemberRead,
@@ -21,6 +23,7 @@ from app.modules.users.models import User
 from app.modules.users.schemas import UserShort
 
 UNSET = object()
+DEFAULT_COMPETENCY_BLOCK_TITLE = "Общие компетенции"
 
 
 class ProjectService:
@@ -128,7 +131,7 @@ class ProjectService:
         return project
 
     def create(self, payload: ProjectCreate, created_by: UUID) -> ProjectDetails:
-        data = payload.model_dump()
+        data = self._normalize_competency_data(payload.model_dump())
         member_ids = self._ensure_users_exist(data.pop("working_group_member_ids", []))
         self._ensure_responsible_exists(payload.responsible_user_id)
         project = self.repo.create(data=data, created_by=created_by)
@@ -140,7 +143,7 @@ class ProjectService:
     def update(self, project_id: UUID, payload: ProjectUpdate, current_user: User | None = None) -> ProjectDetails:
         self._ensure_can_manage_project(project_id, current_user)
         project = self.get_existing_project(project_id)
-        data = payload.model_dump(exclude_unset=True)
+        data = self._normalize_competency_data(payload.model_dump(exclude_unset=True))
         member_ids = data.pop("working_group_member_ids", UNSET)
         self._ensure_responsible_exists(data.get("responsible_user_id"))
         if member_ids is not UNSET:
@@ -201,6 +204,122 @@ class ProjectService:
             offset=safe_offset,
         )
 
+    @classmethod
+    def _normalize_competency_data(cls, data: dict) -> dict:
+        has_blocks = "competency_blocks" in data
+        has_required = "required_competencies" in data
+        if not has_blocks and not has_required:
+            return data
+
+        if has_blocks:
+            blocks = cls._normalize_competency_blocks(
+                data.get("competency_blocks"),
+                data.get("required_competencies"),
+            )
+            data["competency_blocks"] = blocks
+            data["required_competencies"] = cls._flatten_competency_blocks(blocks)
+            return data
+
+        required_competencies = cls._normalize_competencies_text(data.get("required_competencies"))
+        data["required_competencies"] = required_competencies
+        data["competency_blocks"] = cls._blocks_from_required_competencies(required_competencies)
+        return data
+
+    @classmethod
+    def _normalize_competency_blocks(
+        cls,
+        blocks: list[dict] | None,
+        fallback_required_competencies: str | None,
+    ) -> list[dict]:
+        normalized_blocks: list[dict] = []
+        for block in blocks or []:
+            title = str(block.get("title", "")).strip() or DEFAULT_COMPETENCY_BLOCK_TITLE
+            competencies = cls._normalize_competency_items(block.get("competencies", []))
+            if competencies:
+                normalized_blocks.append({"title": title, "competencies": competencies})
+
+        if normalized_blocks:
+            return normalized_blocks
+
+        return cls._blocks_from_required_competencies(
+            cls._normalize_competencies_text(fallback_required_competencies)
+        )
+
+    @classmethod
+    def _blocks_from_required_competencies(cls, required_competencies: str | None) -> list[dict]:
+        competencies = cls._split_competencies(required_competencies)
+        if not competencies:
+            return []
+        return [{"title": DEFAULT_COMPETENCY_BLOCK_TITLE, "competencies": competencies}]
+
+    @classmethod
+    def _flatten_competency_blocks(cls, blocks: list[dict]) -> str | None:
+        return cls._join_competencies(
+            competency
+            for block in blocks
+            for competency in cls._normalize_competency_items(block.get("competencies", []))
+        )
+
+    @classmethod
+    def _normalize_competencies_text(cls, value: str | None) -> str | None:
+        return cls._join_competencies(cls._split_competencies(value))
+
+    @classmethod
+    def _normalize_competency_items(cls, value: list[str] | str | None) -> list[str]:
+        if isinstance(value, str):
+            return cls._split_competencies(value)
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in value or []:
+            competency = str(item).strip()
+            key = competency.casefold()
+            if not competency or key in seen:
+                continue
+            seen.add(key)
+            normalized.append(competency)
+        return normalized
+
+    @staticmethod
+    def _split_competencies(value: str | None) -> list[str]:
+        if not value:
+            return []
+        return [item.strip() for item in value.replace(";", ",").replace("\n", ",").split(",") if item.strip()]
+
+    @staticmethod
+    def _join_competencies(items) -> str | None:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            competency = str(item).strip()
+            key = competency.casefold()
+            if not competency or key in seen:
+                continue
+            seen.add(key)
+            normalized.append(competency)
+        return ", ".join(normalized) if normalized else None
+
+    def _build_competency_coverage(self, project: Project) -> list[ProjectCompetencyCoverage]:
+        accepted_counts: dict[str, int] = {}
+        for response_competencies in self.repo.list_accepted_response_competencies(project.id):
+            for competency in set(item.casefold() for item in self._split_competencies(response_competencies)):
+                accepted_counts[competency] = accepted_counts.get(competency, 0) + 1
+
+        coverage: list[ProjectCompetencyCoverage] = []
+        for block in self._project_competency_blocks(project):
+            for competency in block.competencies:
+                accepted_count = accepted_counts.get(competency.casefold(), 0)
+                coverage.append(
+                    ProjectCompetencyCoverage(
+                        block_title=block.title,
+                        competency=competency,
+                        accepted_count=accepted_count,
+                        is_covered=accepted_count > 0,
+                        priority="covered" if accepted_count > 0 else "open",
+                    )
+                )
+        return coverage
+
     @staticmethod
     def _manager_scope_user_id(current_user: User | None) -> UUID | None:
         if current_user is None or current_user.role == UserRole.ADMIN:
@@ -238,8 +357,16 @@ class ProjectService:
             unique_user_ids.append(user_id)
         return unique_user_ids
 
-    @staticmethod
-    def _to_summary(project: Project, responses_count: int) -> ProjectSummary:
+    def _project_competency_blocks(self, project: Project) -> list[ProjectCompetencyBlock]:
+        return [
+            ProjectCompetencyBlock(**block)
+            for block in self._normalize_competency_blocks(
+                project.competency_blocks,
+                project.required_competencies,
+            )
+        ]
+
+    def _to_summary(self, project: Project, responses_count: int) -> ProjectSummary:
         return ProjectSummary(
             id=project.id,
             title=project.title,
@@ -252,6 +379,7 @@ class ProjectService:
             end_date=project.end_date,
             responsible=UserShort.model_validate(project.responsible) if project.responsible else None,
             required_competencies=project.required_competencies,
+            competency_blocks=self._project_competency_blocks(project),
             responses_count=responses_count,
             created_at=project.created_at,
         )
@@ -287,6 +415,7 @@ class ProjectService:
                 )
                 for attachment in attachments
             ],
+            competency_coverage=self._build_competency_coverage(project),
             planned_tasks=project.planned_tasks,
             updated_at=project.updated_at,
         )

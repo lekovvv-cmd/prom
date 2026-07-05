@@ -47,7 +47,8 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   await expect(dialog.getByLabel("Ответственный")).toContainText("Руководитель проекта - Руководитель");
   await dialog.getByLabel("Ответственный").selectOption({ label: "Руководитель проекта - Руководитель" });
   await dialog.getByLabel(/employee@utmn\.ru/).check();
-  await addCustomCompetency(dialog.getByText("Требуемые компетенции").locator(".."), "E2E компетенция");
+  await dialog.getByLabel("Название направления").fill("Тестирование");
+  await addCustomCompetency(dialog.getByText("Направления работы и компетенции").locator(".."), "E2E компетенция");
   await dialog.getByLabel("Планируемые задачи").fill("Показать\nПокушать");
   await dialog.locator('input[type="file"]').setInputFiles([
     {
