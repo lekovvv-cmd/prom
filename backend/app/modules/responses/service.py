@@ -44,9 +44,11 @@ class ProjectResponseService:
             raise DomainError("Отклик можно отправить только от своего email", status_code=403)
         if self.repo.exists_for_project_email(project_id, email):
             raise DomainError("Вы уже откликнулись на этот проект", status_code=409)
+        data = payload.model_dump()
+        data["competencies"] = current_user.competencies
         response = self.repo.create(
             {
-                **payload.model_dump(),
+                **data,
                 "email": email,
                 "project_id": project_id,
                 "user_id": current_user.id,

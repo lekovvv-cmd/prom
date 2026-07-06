@@ -16,6 +16,7 @@ from app.modules.projects.schemas import (
     ProjectCreate,
     ProjectDetails,
     ProjectMemberRead,
+    ProjectRecommendationRead,
     ProjectSummary,
     ProjectUpdate,
 )
@@ -103,6 +104,38 @@ class ProjectService:
             limit=safe_limit,
             offset=safe_offset,
         )
+
+    def list_recommendations(self, current_user: User, limit: int | None = None) -> list[ProjectRecommendationRead]:
+        if current_user.role == UserRole.ADMIN:
+            return []
+
+        rows, _, _, _ = self.repo.list_projects(
+            public=True,
+            search=None,
+            status=None,
+            project_type=None,
+            competency=None,
+            manager_user_id=None,
+            sort="created_at_desc",
+            limit=100,
+            offset=0,
+        )
+        responded_project_ids = self.repo.list_user_response_project_ids(current_user.id, current_user.email)
+        user_project_ids = {
+            project.id
+            for project, _ in rows
+            if any(member.user_id == current_user.id for member in project.members)
+        }
+
+        recommendations = [
+            recommendation
+            for project, responses_count in rows
+            if project.id not in responded_project_ids and project.id not in user_project_ids
+            for recommendation in [self._to_recommendation(project, responses_count, current_user)]
+            if recommendation.score > 0
+        ]
+        recommendations.sort(key=lambda item: (-item.score, item.project.created_at), reverse=False)
+        return recommendations[: min(max(limit or 5, 1), 10)]
 
     def get_public_details(self, project_id: UUID) -> ProjectDetails:
         project, count = self._get_existing_with_count(project_id)
@@ -289,6 +322,65 @@ class ProjectService:
             competency_query in item.casefold() for item in candidate.matched_competencies
         )
 
+    def _to_recommendation(
+        self,
+        project: Project,
+        responses_count: int,
+        user: User,
+    ) -> ProjectRecommendationRead:
+        user_competencies = {
+            competency.casefold(): competency
+            for competency in self._split_competencies(user.competencies)
+        }
+        matched_competencies: list[str] = []
+        matched_blocks: list[str] = []
+        score = 0
+        for block in self._project_competency_blocks(project):
+            block_matched = False
+            for competency in block.competencies:
+                if competency.casefold() in user_competencies and competency not in matched_competencies:
+                    matched_competencies.append(competency)
+                    score += 5
+                    block_matched = True
+            if block_matched:
+                matched_blocks.append(block.title)
+                score += 1
+
+        matched_profile_terms: list[str] = []
+        profile_terms = self._profile_terms(user)
+        project_text = " ".join(
+            value
+            for value in (
+                project.title,
+                project.short_description,
+                project.goal,
+                project.required_competencies or "",
+                " ".join(block.title for block in self._project_competency_blocks(project)),
+            )
+            if value
+        ).casefold()
+        for term in profile_terms:
+            if term.casefold() in project_text and term not in matched_profile_terms:
+                matched_profile_terms.append(term)
+                score += 3 if term in self._split_competencies(user.about) else 1
+
+        reasons: list[str] = []
+        if matched_competencies:
+            reasons.append("Совпадают компетенции из профиля")
+        if matched_blocks:
+            reasons.append("Совпадают направления работы")
+        if matched_profile_terms:
+            reasons.append("Есть совпадения с описанием профиля")
+
+        return ProjectRecommendationRead(
+            project=self._to_summary(project, responses_count),
+            score=score,
+            matched_competencies=matched_competencies,
+            matched_blocks=matched_blocks,
+            matched_profile_terms=matched_profile_terms[:5],
+            reasons=reasons,
+        )
+
     def _list(
         self,
         *,
@@ -414,6 +506,26 @@ class ProjectService:
             seen.add(key)
             normalized.append(competency)
         return ", ".join(normalized) if normalized else None
+
+    @classmethod
+    def _profile_terms(cls, user: User) -> list[str]:
+        terms: list[str] = []
+        terms.extend(cls._split_competencies(user.competencies))
+        terms.extend(cls._split_competencies(user.about))
+        for value in (user.department, user.position):
+            if value:
+                terms.extend(item.strip() for item in value.replace("/", ",").split(",") if item.strip())
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for term in terms:
+            clean = term.strip()
+            key = clean.casefold()
+            if len(clean) < 3 or key in seen:
+                continue
+            seen.add(key)
+            normalized.append(clean)
+        return normalized[:20]
 
     def _build_competency_coverage(self, project: Project) -> list[ProjectCompetencyCoverage]:
         accepted_counts: dict[str, int] = {}

@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from app.api.deps import CurrentUser, DbSession
 from app.core.enums import ProjectStatus, ProjectType
 from app.core.schemas.common import PaginatedResponse
-from app.modules.projects.schemas import ProjectDetails, ProjectSummary
+from app.modules.projects.schemas import ProjectDetails, ProjectRecommendationRead, ProjectSummary
 from app.modules.projects.service import ProjectService
 from app.modules.responses.schemas import ProjectResponseCreate, ProjectResponseRead
 from app.modules.responses.service import ProjectResponseService
@@ -34,6 +34,15 @@ def list_projects(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/recommendations", response_model=list[ProjectRecommendationRead])
+def list_project_recommendations(
+    current_user: CurrentUser,
+    db: DbSession,
+    limit: int | None = None,
+) -> list[ProjectRecommendationRead]:
+    return ProjectService(db).list_recommendations(current_user, limit=limit)
 
 
 @router.get("/{project_id}", response_model=ProjectDetails)

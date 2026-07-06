@@ -57,7 +57,7 @@ export function AdminStatsPage() {
   return (
     <>
       <Header />
-      <PageLayout title="Статистика витрины" subtitle="Базовые показатели проектов и откликов">
+      <PageLayout title="Статистика витрины">
         {error && <p className="form-error">{error}</p>}
         {isLoading && <Spinner />}
         {stats && (

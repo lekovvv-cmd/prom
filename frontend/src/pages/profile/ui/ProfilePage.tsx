@@ -56,7 +56,7 @@ export function ProfilePage() {
   return (
     <>
       <Header />
-      <PageLayout title="Профиль" subtitle="Компетенции из профиля используются при подборе сотрудников в проекты">
+      <PageLayout title="Профиль">
         <Card className="profile-card">
           <form className="profile-form" onSubmit={handleSubmit}>
             <div className="form-grid">

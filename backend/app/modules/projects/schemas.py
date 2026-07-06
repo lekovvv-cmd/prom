@@ -149,6 +149,15 @@ class ProjectSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProjectRecommendationRead(BaseModel):
+    project: ProjectSummary
+    score: int
+    matched_competencies: list[str] = Field(default_factory=list)
+    matched_blocks: list[str] = Field(default_factory=list)
+    matched_profile_terms: list[str] = Field(default_factory=list)
+    reasons: list[str] = Field(default_factory=list)
+
+
 class ProjectDetails(ProjectSummary):
     description: str
     expected_result: str | None

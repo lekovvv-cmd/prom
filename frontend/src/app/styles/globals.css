@@ -169,6 +169,27 @@ button {
   white-space: nowrap;
 }
 
+.user-chip-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1px 7px;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.user-chip-link svg {
+  grid-row: 1 / span 2;
+  color: var(--accent-dark);
+}
+
+.user-chip-link:hover,
+.user-chip-link.active {
+  border-color: rgba(0, 174, 239, 0.36);
+  background: var(--accent-soft);
+}
+
 .page {
   width: min(1480px, calc(100% - 48px));
   margin: 0 auto;
@@ -244,11 +265,11 @@ button {
 
 .button-primary {
   color: #ffffff;
-  background: #000000;
+  background: var(--accent-dark);
 }
 
 .button-primary:hover {
-  background: var(--accent-dark);
+  background: #006a99;
 }
 
 .button-secondary {
@@ -279,7 +300,7 @@ button {
 
 .showcase-layout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 330px;
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -564,6 +585,65 @@ button {
   color: #000000;
   font-size: 28px;
   line-height: 1;
+}
+
+.recommendation-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid rgba(0, 174, 239, 0.32);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffffff, #f7fcff);
+}
+
+.recommendation-panel h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.recommendation-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.recommendation-card {
+  display: grid;
+  gap: 7px;
+  min-height: 126px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.recommendation-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.recommendation-card strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.recommendation-reason,
+.recommendation-score {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.recommendation-score {
+  color: var(--accent-dark);
+  font-weight: 700;
 }
 
 .project-list {
@@ -927,6 +1007,176 @@ button {
   gap: 14px;
 }
 
+.my-project-workspace {
+  display: grid;
+  gap: 16px;
+}
+
+.project-tasks-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.project-task-forms {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-stage-form,
+.task-create-form {
+  display: grid;
+  gap: 10px;
+  align-items: end;
+}
+
+.task-stage-form {
+  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(140px, 180px)) auto;
+}
+
+.task-create-form {
+  grid-template-columns: minmax(240px, 1.2fr) minmax(180px, 0.8fr) minmax(190px, 0.9fr) minmax(140px, 0.6fr) auto;
+}
+
+.task-create-form .field:has(textarea) {
+  grid-column: 1 / -2;
+}
+
+.task-stage-list {
+  display: grid;
+  gap: 12px;
+}
+
+.task-stage {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.task-stage-heading,
+.task-card-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.task-stage-heading h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.task-stage-heading span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.task-list-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.task-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.task-card-overdue {
+  border-color: rgba(180, 35, 24, 0.38);
+  border-left: 4px solid var(--danger);
+}
+
+.task-card-heading strong {
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.task-card p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.task-status {
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.task-status-todo {
+  color: var(--muted-strong);
+  background: var(--surface-alt);
+}
+
+.task-status-in_progress {
+  color: var(--info);
+  background: #eef5ff;
+  border-color: #c9dcfb;
+}
+
+.task-status-done {
+  color: var(--success);
+  background: #ecfdf3;
+  border-color: #c7eed8;
+}
+
+.task-status-cancelled {
+  color: var(--danger);
+  background: #fff0ee;
+  border-color: #f5c2bd;
+}
+
+.task-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.task-meta div {
+  display: grid;
+  gap: 3px;
+}
+
+.task-meta dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.task-meta dd {
+  margin: 0;
+  font-size: 14px;
+}
+
+.task-overdue-text {
+  color: var(--danger);
+  font-weight: 750;
+}
+
+.task-result-upload {
+  display: grid;
+  gap: 8px;
+}
+
 .report-card {
   display: grid;
   gap: 16px;
@@ -1259,6 +1509,22 @@ button {
   font-size: 14px;
   line-height: 1.45;
   font-weight: 650;
+}
+
+.profile-competencies-readonly {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.profile-competencies-readonly > strong {
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .login-page {
@@ -1623,11 +1889,17 @@ body {
 }
 
 .button-primary {
-  background: #111111;
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.button-primary:hover {
+  background: #006a99;
+  border-color: #006a99;
 }
 
 .showcase-layout {
-  grid-template-columns: 290px minmax(520px, 1fr) 360px;
+  grid-template-columns: 290px minmax(520px, 1fr);
   gap: 14px;
 }
 
@@ -2170,6 +2442,15 @@ button.chip {
   .project-management-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .task-stage-form,
+  .task-create-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .task-create-form .field:has(textarea) {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2197,7 +2478,10 @@ button.chip {
   .role-switcher,
   .report-admin-form,
   .report-list-item,
-  .project-management-metrics {
+  .project-management-metrics,
+  .task-stage-form,
+  .task-create-form,
+  .task-meta {
     grid-template-columns: 1fr;
   }
 

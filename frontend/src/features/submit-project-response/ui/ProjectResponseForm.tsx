@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
 import { FileInput } from "../../../entities/attachment/ui/FileInput";
-import { CompetencyPicker } from "../../../entities/competency/ui/CompetencyPicker";
+import { splitCompetencies } from "../../../entities/competency/lib/competencies";
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import { Textarea } from "../../../shared/ui/Textarea";
@@ -15,8 +15,7 @@ import type { ResponseFormState } from "../model/types";
 const initialState: ResponseFormState = {
   full_name: "",
   email: "employee@utmn.ru",
-  comment: "",
-  competencies: ""
+  comment: ""
 };
 
 export function ProjectResponseForm({
@@ -109,7 +108,7 @@ export function ProjectResponseForm({
         full_name: form.full_name.trim(),
         email: normalizeEmail(form.email),
         comment: form.comment || null,
-        competencies: form.competencies || null
+        competencies: user?.competencies || null
       }, files);
       setForm({
         ...initialState,
@@ -153,11 +152,20 @@ export function ProjectResponseForm({
         onChange={(event) => setForm({ ...form, comment: event.target.value })}
         rows={4}
       />
-      <CompetencyPicker
-        label="Мои компетенции"
-        value={form.competencies}
-        onChange={(competencies) => setForm({ ...form, competencies })}
-      />
+      <div className="profile-competencies-readonly" aria-label="Компетенции из профиля">
+        <strong>Компетенции из профиля</strong>
+        {splitCompetencies(user.competencies).length > 0 ? (
+          <div className="chip-list">
+            {splitCompetencies(user.competencies).map((competency) => (
+              <span className="chip" key={competency}>
+                {competency}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="muted">Не указаны</span>
+        )}
+      </div>
       <FileInput files={files} label="Прикрепить файлы к отклику" onChange={setFiles} />
       {error && <p className="form-error">{error}</p>}
       {success && (

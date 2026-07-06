@@ -35,6 +35,13 @@ class ProjectResponseStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class ProjectTaskStatus(StrEnum):
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    CANCELLED = "cancelled"
+
+
 class ProjectMemberRole(StrEnum):
     MANAGER = "manager"
     WORKING_GROUP_MEMBER = "working_group_member"
@@ -44,6 +51,7 @@ class ProjectMemberRole(StrEnum):
 class AttachmentOwnerType(StrEnum):
     PROJECT = "project"
     RESPONSE = "response"
+    TASK = "task"
 
 
 class ReportPeriodStatus(StrEnum):

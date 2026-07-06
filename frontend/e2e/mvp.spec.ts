@@ -90,7 +90,6 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   await page.getByLabel("ФИО").fill(responseName);
   await page.getByLabel("Email").fill("employee@utmn.ru");
   await page.getByLabel("Комментарий").fill("Готов участвовать в проекте.");
-  await addCustomCompetency(page.locator("#response-form .competency-picker"), "E2E отклик");
   await page.locator('input[type="file"]').setInputFiles({
     name: "response.txt",
     mimeType: "text/plain",
@@ -125,8 +124,6 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   await page.getByLabel("Поиск").fill(projectTitle);
   await page.getByRole("link", { name: new RegExp(escapeRegExp(projectTitle)) }).click();
   await expect(page.getByRole("heading", { level: 1, name: projectTitle })).toBeVisible();
-  await expect(page.getByText("Ваше участие")).toBeVisible();
-  await expect(page.getByText(/отклик принят/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Откликнуться на проект" })).toHaveCount(0);
 
   await logout(page);

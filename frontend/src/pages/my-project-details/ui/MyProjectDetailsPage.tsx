@@ -5,6 +5,7 @@ import { getMyProject } from "../../../entities/project/api/projectApi";
 import type { ProjectDetails as ProjectDetailsType } from "../../../entities/project/model/types";
 import { Header } from "../../../widgets/header/ui/Header";
 import { ProjectDetails } from "../../../widgets/project-details/ui/ProjectDetails";
+import { ProjectTasksPanel } from "../../../widgets/project-tasks/ui/ProjectTasksPanel";
 import { Button } from "../../../shared/ui/Button";
 import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Spinner } from "../../../shared/ui/Spinner";
@@ -41,7 +42,6 @@ export function MyProjectDetailsPage() {
       <Header />
       <PageLayout
         title={project?.title ?? "Мой проект"}
-        subtitle="Информация по проекту, в котором вы участвуете"
         actions={
           <Link to="/my/projects" className="button button-secondary">
             Назад к моим проектам
@@ -51,15 +51,10 @@ export function MyProjectDetailsPage() {
         {error && <p className="form-error">{error}</p>}
         {isLoading && <Spinner />}
         {!isLoading && project && (
-          <ProjectDetails
-            project={project}
-            showResponseForm={false}
-            participationNotice={
-              <p className="muted">
-                Вы видите этот проект, потому что ваш отклик принят или вы добавлены в рабочую группу.
-              </p>
-            }
-          />
+          <div className="my-project-workspace">
+            <ProjectDetails project={project} showResponseForm={false} />
+            <ProjectTasksPanel project={project} mode="assigned" />
+          </div>
         )}
         {!isLoading && !project && !error && (
           <Button variant="secondary" onClick={() => void loadProject()}>

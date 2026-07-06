@@ -9,6 +9,7 @@ from app.api.routes import (
     auth,
     competencies,
     projects,
+    project_tasks,
     reports,
     users,
 )
@@ -26,5 +27,6 @@ for router in (
     admin_responses.router,
     admin_stats.router,
     admin_users.router,
+    project_tasks.router,
 ):
     api_router.routes.extend(router.routes)

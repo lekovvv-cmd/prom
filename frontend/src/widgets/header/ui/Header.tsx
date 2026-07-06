@@ -24,7 +24,10 @@ export function Header() {
         </span>
       </NavLink>
       <nav className="main-nav">
-        <NavLink to="/projects">Витрина</NavLink>
+        <NavLink to="/projects">
+          <FolderKanban size={15} />
+          Витрина
+        </NavLink>
         {token && user?.role !== "admin" && (
           <>
             <NavLink to="/my/projects">
@@ -36,12 +39,6 @@ export function Header() {
               Мои отклики
             </NavLink>
           </>
-        )}
-        {token && (
-          <NavLink to="/profile">
-            <UserRound size={15} />
-            Профиль
-          </NavLink>
         )}
         {canManageProjects && (
           <>
@@ -67,10 +64,11 @@ export function Header() {
       <div className="header-auth">
         {token ? (
           <>
-            <span className="user-chip">
-              {user ? roleLabels[user.role] : "Пользователь"}
+            <NavLink className="user-chip user-chip-link" to="/profile">
+              <UserRound size={15} />
+              <span>{user ? roleLabels[user.role] : "Пользователь"}</span>
               <small>{user?.email}</small>
-            </span>
+            </NavLink>
             <Button variant="ghost" onClick={logout}>
               <LogOut size={16} />
               Выйти

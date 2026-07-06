@@ -9,7 +9,6 @@ import { Spinner } from "../../../shared/ui/Spinner";
 
 export function MyResponsesPage() {
   const [responses, setResponses] = useState<ProjectResponse[]>([]);
-  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +18,6 @@ export function MyResponsesPage() {
       setError(null);
       const payload = await getMyResponses({ limit: 100 });
       setResponses(payload.items);
-      setTotal(payload.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось загрузить ваши отклики");
     } finally {
@@ -34,10 +32,7 @@ export function MyResponsesPage() {
   return (
     <>
       <Header />
-      <PageLayout
-        title="Мои отклики"
-        subtitle={`${total} ${total === 1 ? "заявка" : "заявок"} на участие в проектах`}
-      >
+      <PageLayout title="Мои отклики">
         {error && <p className="form-error">{error}</p>}
         {isLoading ? <Spinner /> : <MyResponsesTable responses={responses} onUpdated={loadResponses} />}
       </PageLayout>

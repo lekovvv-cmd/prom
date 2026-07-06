@@ -73,7 +73,6 @@ export function AdminProjectsPage() {
       <Header />
       <PageLayout
         title="Управление проектами"
-        subtitle="Создание, редактирование и архивирование проектов витрины"
         actions={
           <Button onClick={() => setIsCreateOpen(true)}>
             <Plus size={18} />

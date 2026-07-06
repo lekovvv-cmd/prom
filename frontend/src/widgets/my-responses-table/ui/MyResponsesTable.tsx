@@ -20,7 +20,6 @@ export function MyResponsesTable({
     return (
       <EmptyState
         title="Откликов пока нет"
-        text="Откройте проект в витрине и отправьте заявку, чтобы отслеживать её статус здесь."
       />
     );
   }

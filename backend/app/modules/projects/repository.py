@@ -157,6 +157,14 @@ class ProjectRepository:
         )
         return {user_id for user_id in self.db.scalars(query) if user_id is not None}
 
+    def list_user_response_project_ids(self, user_id: UUID, email: str) -> set[UUID]:
+        query = select(ProjectResponse.project_id).where(
+            ProjectResponse.deleted_at.is_(None),
+            ProjectResponse.status != ProjectResponseStatus.CANCELLED,
+            or_(ProjectResponse.user_id == user_id, func.lower(ProjectResponse.email) == email.lower()),
+        )
+        return {project_id for project_id in self.db.scalars(query)}
+
     def create(self, *, data: dict, created_by: UUID) -> Project:
         project = Project(**data, created_by=created_by)
         self.db.add(project)

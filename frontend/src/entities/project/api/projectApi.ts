@@ -7,6 +7,7 @@ import type {
   ProjectCandidateParams,
   ProjectDetails,
   ProjectListParams,
+  ProjectRecommendation,
   ProjectMutationPayload
 } from "../model/types";
 
@@ -27,6 +28,10 @@ export function getProjects(params?: ProjectListParams) {
 
 export function getProject(projectId: string) {
   return apiClient.request<ProjectDetails>(`/projects/${projectId}`, { auth: false });
+}
+
+export function getProjectRecommendations(limit = 5) {
+  return apiClient.request<ProjectRecommendation[]>(`/projects/recommendations?limit=${limit}`);
 }
 
 export function getAdminProjects(params?: ProjectListParams) {

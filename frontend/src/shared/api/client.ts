@@ -40,7 +40,10 @@ const VALIDATION_FIELD_LABELS: Record<string, string> = {
   difficulties: "Сложности",
   next_period_plans: "Планы на следующий период",
   starts_on: "Начало периода",
-  ends_on: "Окончание периода"
+  ends_on: "Окончание периода",
+  stage_id: "Этап",
+  assignee_user_id: "Исполнитель",
+  due_date: "Дедлайн"
 };
 
 const VALIDATION_VALUE_LABELS: Record<string, string> = {
@@ -63,7 +66,10 @@ const VALIDATION_VALUE_LABELS: Record<string, string> = {
   contacted: "Связались",
   accepted: "Принят",
   rejected: "Отклонен",
-  cancelled: "Отозван"
+  cancelled: "Отозван",
+  todo: "Не начата",
+  in_progress: "В работе",
+  done: "Выполнена"
 };
 
 type ApiValidationError = {

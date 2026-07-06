@@ -657,12 +657,12 @@ def test_project_competency_blocks_and_coverage(client):
     payload["required_competencies"] = None
     payload["competency_blocks"] = [
         {"title": "Данные", "competencies": ["SQL"]},
-        {"title": "Коммуникация", "competencies": ["Русский язык"]},
+        {"title": "Коммуникация", "competencies": ["Editorial review"]},
     ]
     project = client.post("/api/admin/projects", json=payload, headers=headers)
     assert project.status_code == 201, project.text
     project_id = project.json()["id"]
-    assert project.json()["required_competencies"] == "SQL, Русский язык"
+    assert project.json()["required_competencies"] == "SQL, Editorial review"
 
     employee_response = client.post(
         f"/api/projects/{project_id}/responses",
@@ -696,9 +696,141 @@ def test_project_competency_blocks_and_coverage(client):
     assert coverage["SQL"]["accepted_count"] == 2
     assert coverage["SQL"]["is_covered"] is True
     assert coverage["SQL"]["priority"] == "covered"
-    assert coverage["Русский язык"]["accepted_count"] == 0
-    assert coverage["Русский язык"]["is_covered"] is False
-    assert coverage["Русский язык"]["priority"] == "open"
+    assert coverage["Editorial review"]["accepted_count"] == 0
+    assert coverage["Editorial review"]["is_covered"] is False
+    assert coverage["Editorial review"]["priority"] == "open"
+
+
+def test_project_recommendations_and_profile_competency_response(client):
+    headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+
+    profile = client.patch(
+        "/api/me/profile",
+        json={
+            "full_name": "Recommendation Employee",
+            "department": "Data lab",
+            "position": "Analyst",
+            "competencies": "SQL, Data analysis, Visualization",
+            "about": "Research and dashboard work.",
+        },
+        headers=employee_headers,
+    )
+    assert profile.status_code == 200, profile.text
+
+    payload = project_payload("Pytest recommended data project", "active")
+    payload["required_competencies"] = None
+    payload["competency_blocks"] = [
+        {"title": "Data", "competencies": ["SQL", "Data analysis"]},
+        {"title": "Research", "competencies": ["Interview"]},
+    ]
+    project = client.post("/api/admin/projects", json=payload, headers=headers)
+    assert project.status_code == 201, project.text
+    project_id = project.json()["id"]
+
+    recommendations = client.get("/api/projects/recommendations", headers=employee_headers)
+    assert recommendations.status_code == 200, recommendations.text
+    matching = [item for item in recommendations.json() if item["project"]["id"] == project_id]
+    assert matching
+    assert matching[0]["score"] >= 10
+    assert matching[0]["matched_competencies"] == ["SQL", "Data analysis"]
+    assert "Совпадают компетенции из профиля" in matching[0]["reasons"]
+
+    response = client.post(
+        f"/api/projects/{project_id}/responses",
+        json={
+            **employee_response_payload("Recommendation Employee"),
+            "competencies": "Manual value must be ignored",
+        },
+        headers=employee_headers,
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["competencies"] == "SQL, Data analysis, Visualization"
+
+
+def test_project_tasks_workspace_and_result_files(client):
+    headers = admin_headers(client)
+    employee_headers = auth_headers(client, "employee@utmn.ru")
+    analyst_headers = auth_headers(client, "analyst@utmn.ru")
+    manager_headers = auth_headers(client, "manager@utmn.ru")
+
+    users = client.get("/api/admin/users", headers=headers)
+    assert users.status_code == 200
+    manager = next(user for user in users.json() if user["email"] == "manager@utmn.ru")
+    employee = next(user for user in users.json() if user["email"] == "employee@utmn.ru")
+
+    payload = project_payload("Pytest project task workspace", "active")
+    payload["responsible_user_id"] = manager["id"]
+    payload["working_group_member_ids"] = [employee["id"]]
+    project = client.post("/api/admin/projects", json=payload, headers=headers)
+    assert project.status_code == 201, project.text
+    project_id = project.json()["id"]
+
+    stage = client.post(
+        f"/api/admin/projects/{project_id}/stages",
+        json={"title": "Discovery", "position": 0, "start_date": "2026-01-01", "end_date": "2026-01-31"},
+        headers=manager_headers,
+    )
+    assert stage.status_code == 201, stage.text
+
+    task = client.post(
+        f"/api/admin/projects/{project_id}/tasks",
+        json={
+            "title": "Prepare research notes",
+            "description": "Collect project context and attach result.",
+            "stage_id": stage.json()["id"],
+            "assignee_user_id": employee["id"],
+            "status": "todo",
+            "due_date": "2026-01-15",
+        },
+        headers=manager_headers,
+    )
+    assert task.status_code == 201, task.text
+    task_id = task.json()["id"]
+    assert task.json()["is_overdue"] is True
+    assert task.json()["assignee"]["id"] == employee["id"]
+
+    manager_stages = client.get(f"/api/admin/projects/{project_id}/stages", headers=manager_headers)
+    assert manager_stages.status_code == 200
+    assert manager_stages.json()[0]["tasks"][0]["id"] == task_id
+
+    employee_tasks = client.get(f"/api/me/projects/{project_id}/tasks", headers=employee_headers)
+    assert employee_tasks.status_code == 200
+    assert [item["id"] for item in employee_tasks.json()] == [task_id]
+
+    updated = client.patch(
+        f"/api/me/project-tasks/{task_id}",
+        json={"status": "in_progress"},
+        headers=employee_headers,
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["status"] == "in_progress"
+
+    forbidden_update = client.patch(
+        f"/api/me/project-tasks/{task_id}",
+        json={"status": "done"},
+        headers=analyst_headers,
+    )
+    assert forbidden_update.status_code == 403
+
+    result_file = client.post(
+        f"/api/project-tasks/{task_id}/attachments",
+        files={"file": ("result.txt", b"task result", "text/plain")},
+        headers=employee_headers,
+    )
+    assert result_file.status_code == 201, result_file.text
+    assert result_file.json()["owner_type"] == "task"
+
+    after_upload = client.get(f"/api/me/projects/{project_id}/tasks", headers=employee_headers)
+    assert after_upload.status_code == 200
+    assert after_upload.json()[0]["attachments"][0]["file_name"] == "result.txt"
+
+    forbidden_file = client.post(
+        f"/api/project-tasks/{task_id}/attachments",
+        files={"file": ("other.txt", b"other", "text/plain")},
+        headers=analyst_headers,
+    )
+    assert forbidden_file.status_code == 403
 
 
 def test_manager_scope_admin_only_and_project_hunting(client):

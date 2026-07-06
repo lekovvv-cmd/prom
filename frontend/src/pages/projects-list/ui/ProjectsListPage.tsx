@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
-import { canAcceptProjectResponses } from "../../../entities/project/lib/responseAvailability";
-import type { Project, ProjectListParams } from "../../../entities/project/model/types";
-import { getProjects } from "../../../entities/project/api/projectApi";
+import type { Project, ProjectListParams, ProjectRecommendation } from "../../../entities/project/model/types";
+import { getProjectRecommendations, getProjects } from "../../../entities/project/api/projectApi";
 import { ProjectFilters } from "../../../features/filter-projects/ui/ProjectFilters";
 import { Header } from "../../../widgets/header/ui/Header";
 import { ProjectCardList } from "../../../widgets/project-card-list/ui/ProjectCardList";
@@ -12,13 +11,15 @@ import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Spinner } from "../../../shared/ui/Spinner";
 
 export function ProjectsListPage() {
-  const { user } = useAuth();
+  const { token, user } = useAuth();
   const [filters, setFilters] = useState<ProjectListParams>({ sort: "created_at_desc", limit: 50 });
   const [projects, setProjects] = useState<Project[]>([]);
+  const [recommendations, setRecommendations] = useState<ProjectRecommendation[]>([]);
   const [total, setTotal] = useState(0);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const canLoadRecommendations = Boolean(token && user?.role !== "admin");
 
   useEffect(() => {
     let ignore = false;
@@ -26,9 +27,13 @@ export function ProjectsListPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await getProjects(filters);
+        const [response, recommendedProjects] = await Promise.all([
+          getProjects(filters),
+          canLoadRecommendations ? getProjectRecommendations(5) : Promise.resolve([])
+        ]);
         if (!ignore) {
           setProjects(response.items);
+          setRecommendations(recommendedProjects);
           setTotal(response.total);
         }
       } catch (err) {
@@ -45,38 +50,20 @@ export function ProjectsListPage() {
     return () => {
       ignore = true;
     };
-  }, [filters]);
+  }, [canLoadRecommendations, filters]);
 
-  const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
-  const currentUserCanRespond = Boolean(user && user.role !== "admin");
-  const selectedProjectCanRespond =
-    selectedProject && currentUserCanRespond ? canAcceptProjectResponses(selectedProject.status) : false;
-
-  useEffect(() => {
-    if (selectedProject && selectedProject.id !== selectedProjectId) {
-      setSelectedProjectId(selectedProject.id);
-    }
-  }, [selectedProject, selectedProjectId]);
+  const visibleRecommendations = useMemo(() => {
+    const projectIds = new Set(projects.map((project) => project.id));
+    return recommendations.filter((item) => projectIds.has(item.project.id));
+  }, [projects, recommendations]);
 
   return (
     <>
       <Header />
-      <PageLayout
-        title="Витрина проектов"
-        subtitle={
-          <span className="subtitle-lines">
-            <span>Найдено проектов: {total}.</span>
-            <span>Выберите проект, чтобы быстро проверить цель, ответственного и&nbsp;откликнуться.</span>
-          </span>
-        }
-      >
+      <PageLayout title="Витрина проектов">
         <div className="showcase-layout">
           <aside className="filter-rail" aria-label="Фильтры проектов">
             <ProjectFilters value={filters} onChange={setFilters} />
-            <div className="rail-note">
-              <strong>Сценарий сотрудника</strong>
-              <span>Найдите инициативу, откройте детали и отправьте отклик. Статус заявки обновит администратор.</span>
-            </div>
           </aside>
 
           <section className="project-stream" aria-label="Список проектов">
@@ -85,58 +72,54 @@ export function ProjectsListPage() {
                 <strong>{total}</strong>
                 <span>проектов в витрине</span>
               </div>
-              <span>Фильтры применяются сразу</span>
             </div>
+            {visibleRecommendations.length > 0 && (
+              <ProjectRecommendations recommendations={visibleRecommendations} />
+            )}
             {error && <p className="form-error">{error}</p>}
-            {isLoading ? (
-              <Spinner />
-            ) : (
-              <ProjectCardList
-                projects={projects}
-                selectedProjectId={selectedProject?.id}
-                onSelect={setSelectedProjectId}
-              />
-            )}
+            {isLoading ? <Spinner /> : <ProjectCardList projects={projects} />}
           </section>
-
-          <aside className="showcase-summary" aria-label="Краткая карточка проекта">
-            {selectedProject ? (
-              <>
-                <div className="summary-kicker">Выбранный проект</div>
-                <h2>{selectedProject.title}</h2>
-                <p>{selectedProject.short_description}</p>
-                <dl className="summary-list">
-                  <div>
-                    <dt>Цель</dt>
-                    <dd>{selectedProject.goal}</dd>
-                  </div>
-                  <div>
-                    <dt>Ответственный</dt>
-                    <dd>{selectedProject.responsible?.full_name ?? "Не указан"}</dd>
-                  </div>
-                  <div>
-                    <dt>Отклики</dt>
-                    <dd>{selectedProject.responses_count}</dd>
-                  </div>
-                </dl>
-                <div className="summary-actions">
-                  {selectedProjectCanRespond ? (
-                    <Link className="button button-primary" to={`/projects/${selectedProject.id}#response-form`}>
-                      Перейти к отклику
-                    </Link>
-                  ) : (
-                    <Link className="button button-secondary" to={`/projects/${selectedProject.id}`}>
-                      Открыть проект
-                    </Link>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="muted">Проект не выбран.</p>
-            )}
-          </aside>
         </div>
       </PageLayout>
     </>
+  );
+}
+
+function ProjectRecommendations({ recommendations }: { recommendations: ProjectRecommendation[] }) {
+  return (
+    <section className="recommendation-panel" aria-label="Рекомендуем вам">
+      <div className="section-heading">
+        <h2>Рекомендуем вам</h2>
+      </div>
+      <div className="recommendation-list">
+        {recommendations.map((recommendation) => {
+          const matchCount =
+            recommendation.matched_competencies.length +
+            recommendation.matched_blocks.length +
+            recommendation.matched_profile_terms.length;
+          return (
+            <Link
+              className="recommendation-card"
+              to={`/projects/${recommendation.project.id}`}
+              key={recommendation.project.id}
+            >
+              <span className="summary-kicker">Совпадение по вашему профилю</span>
+              <strong>{recommendation.project.title}</strong>
+              {recommendation.matched_competencies.length > 0 && (
+                <span className="recommendation-reason">
+                  Совпадают компетенции: {recommendation.matched_competencies.slice(0, 4).join(", ")}
+                </span>
+              )}
+              {recommendation.matched_blocks.length > 0 && (
+                <span className="recommendation-reason">
+                  Направления: {recommendation.matched_blocks.slice(0, 3).join(", ")}
+                </span>
+              )}
+              <span className="recommendation-score">{matchCount} совпадений по профилю</span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }

@@ -6,7 +6,7 @@ export type ProjectPriority = "low" | "medium" | "high" | "critical";
 
 export type Attachment = {
   id: string;
-  owner_type: "project" | "response";
+  owner_type: "project" | "response" | "task";
   owner_id: string;
   file_name: string;
   content_type: string | null;
@@ -57,6 +57,15 @@ export type Project = {
   competency_blocks: ProjectCompetencyBlock[];
   responses_count: number;
   created_at: string;
+};
+
+export type ProjectRecommendation = {
+  project: Project;
+  score: number;
+  matched_competencies: string[];
+  matched_blocks: string[];
+  matched_profile_terms: string[];
+  reasons: string[];
 };
 
 export type ProjectDetails = Project & {

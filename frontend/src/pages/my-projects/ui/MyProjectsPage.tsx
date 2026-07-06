@@ -10,20 +10,6 @@ import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Select } from "../../../shared/ui/Select";
 import { Spinner } from "../../../shared/ui/Spinner";
 
-export function getMyProjectsSubtitle(total: number) {
-  const remainder = total % 10;
-  const lastTwoDigits = total % 100;
-  const projectWord =
-    remainder === 1 && lastTwoDigits !== 11
-      ? "проект"
-      : remainder >= 2 && remainder <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)
-        ? "проекта"
-        : "проектов";
-  const relation = projectWord === "проект" ? "в котором" : "в которых";
-
-  return `${total} ${projectWord}, ${relation} вы участвуете`;
-}
-
 export function MyProjectsPage() {
   const [filters, setFilters] = useState<ProjectListParams>({ limit: 100, sort: "created_at_desc" });
   const [projects, setProjects] = useState<Project[]>([]);
@@ -56,7 +42,7 @@ export function MyProjectsPage() {
   return (
     <>
       <Header />
-      <PageLayout title="Мои проекты" subtitle={getMyProjectsSubtitle(total)}>
+      <PageLayout title="Мои проекты">
         <div className="filters my-projects-filters">
           <Input
             label="Поиск"
@@ -100,7 +86,6 @@ export function MyProjectsPage() {
         ) : projects.length === 0 ? (
           <EmptyState
             title="Проектов пока нет"
-            text="Здесь появятся проекты, где ваш отклик принят или вы добавлены в рабочую группу."
           />
         ) : (
           <section className="project-stream my-projects-stream">
@@ -109,7 +94,6 @@ export function MyProjectsPage() {
                 <strong>{total}</strong>
                 <span>проектов</span>
               </div>
-              <span>Откройте проект, чтобы посмотреть задачи, файлы и параметры участия.</span>
             </div>
             <div className="project-list">
               {projects.map((project) => (

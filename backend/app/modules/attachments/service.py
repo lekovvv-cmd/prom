@@ -13,6 +13,7 @@ from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.projects.service import ProjectService
 from app.modules.responses.repository import ProjectResponseRepository
+from app.modules.tasks.service import ProjectTaskService
 from app.modules.users.models import User
 
 
@@ -55,6 +56,18 @@ class AttachmentService:
 
     def list_response_files(self, response_id: UUID) -> list[AttachmentRead]:
         return self._to_read_many(self.repo.list_for_owner(AttachmentOwnerType.RESPONSE, response_id))
+
+    def upload_task_file(self, task_id: UUID, file: UploadFile, *, current_user: User) -> AttachmentRead:
+        ProjectTaskService(self.db).ensure_can_attach_result(task_id, current_user)
+        return self._upload(
+            owner_type=AttachmentOwnerType.TASK,
+            owner_id=task_id,
+            file=file,
+            uploaded_by=current_user.id,
+        )
+
+    def list_task_files(self, task_id: UUID) -> list[AttachmentRead]:
+        return self._to_read_many(self.repo.list_for_owner(AttachmentOwnerType.TASK, task_id))
 
     def get_download(self, attachment_id: UUID) -> FileResponse:
         attachment = self.repo.get_by_id(attachment_id)

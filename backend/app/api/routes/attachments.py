@@ -31,6 +31,16 @@ def upload_response_attachment(
     return AttachmentService(db).upload_response_file(project_id, response_id, file, current_user=current_user)
 
 
+@router.post("/project-tasks/{task_id}/attachments", response_model=AttachmentRead, status_code=201)
+def upload_task_attachment(
+    task_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+    file: UploadFile = File(...),
+) -> AttachmentRead:
+    return AttachmentService(db).upload_task_file(task_id, file, current_user=current_user)
+
+
 @router.get("/attachments/{attachment_id}", response_class=FileResponse)
 def download_attachment(attachment_id: UUID, db: DbSession) -> FileResponse:
     return AttachmentService(db).get_download(attachment_id)

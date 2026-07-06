@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 import type { ProjectDetails as ProjectDetailsType } from "../../../entities/project/model/types";
 import { AttachmentList } from "../../../entities/attachment/ui/AttachmentList";
 import { normalizeCompetencyBlocks } from "../../../entities/competency/lib/competencyBlocks";
@@ -15,13 +13,11 @@ import { Card } from "../../../shared/ui/Card";
 export function ProjectDetails({
   project,
   onResponseSubmitted = () => undefined,
-  showResponseForm = true,
-  participationNotice
+  showResponseForm = true
 }: {
   project: ProjectDetailsType;
   onResponseSubmitted?: () => void;
   showResponseForm?: boolean;
-  participationNotice?: ReactNode;
 }) {
   const competencyBlocks = normalizeCompetencyBlocks(project.competency_blocks, project.required_competencies);
   const plannedTasks = splitProjectTasks(project.planned_tasks);
@@ -73,16 +69,13 @@ export function ProjectDetails({
             )}
           </Card>
         )}
+        <Card>
+          <h3>Файлы проекта</h3>
+          <AttachmentList attachments={project.attachments} />
+        </Card>
       </section>
       <aside className="details-side">
-        {!showResponseForm ? (
-          <Card>
-            <h3>Ваше участие</h3>
-            {participationNotice ?? (
-              <p className="muted">Проект доступен вам как участнику. Здесь можно смотреть параметры, задачи и материалы.</p>
-            )}
-          </Card>
-        ) : canRespond ? (
+        {!showResponseForm ? null : canRespond ? (
           <ProjectResponseForm projectId={project.id} onSubmitted={onResponseSubmitted} />
         ) : (
           <Card>
@@ -113,10 +106,6 @@ export function ProjectDetails({
               <dd>{project.responses_count}</dd>
             </div>
           </dl>
-        </Card>
-        <Card>
-          <h3>Файлы проекта</h3>
-          <AttachmentList attachments={project.attachments} />
         </Card>
         <Card>
           <h3>Рабочая группа</h3>

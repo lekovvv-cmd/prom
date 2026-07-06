@@ -19,6 +19,7 @@ import { RestoreArchivedProjectButton } from "../../../features/restore-archived
 import { AdminResponsesTable } from "../../../widgets/admin-responses-table/ui/AdminResponsesTable";
 import { Header } from "../../../widgets/header/ui/Header";
 import { ProjectCandidatesPanel } from "../../../widgets/project-candidates/ui/ProjectCandidatesPanel";
+import { ProjectTasksPanel } from "../../../widgets/project-tasks/ui/ProjectTasksPanel";
 import { formatDate, formatDateTime } from "../../../shared/lib/date";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
@@ -104,7 +105,6 @@ export function AdminProjectManagePage() {
       <Header />
       <PageLayout
         title={title}
-        subtitle="Рабочее место руководителя: параметры, материалы, команда и отклики по выбранному проекту."
         actions={
           <Link className="button button-secondary" to="/admin/projects">
             Назад к проектам
@@ -214,13 +214,19 @@ export function AdminProjectManagePage() {
                   </Card>
                 )}
 
+                <Card>
+                  <h3>Файлы проекта</h3>
+                  <AttachmentList attachments={project.attachments} />
+                </Card>
+
+                <ProjectTasksPanel project={project} mode="manage" />
+
                 <ProjectCandidatesPanel project={project} onMemberAdded={loadProject} />
 
                 <Card className="project-responses-section">
                   <div className="section-heading">
                     <div>
                       <h3>Отклики по проекту</h3>
-                      <p className="muted">Руководитель видит и обрабатывает только отклики своего проекта.</p>
                     </div>
                     <span>{responses.length} из {project.responses_count}</span>
                   </div>
@@ -259,11 +265,6 @@ export function AdminProjectManagePage() {
                 </Card>
 
                 <Card>
-                  <h3>Файлы проекта</h3>
-                  <AttachmentList attachments={project.attachments} />
-                </Card>
-
-                <Card>
                   <h3>Рабочая группа</h3>
                   {workingGroup.length === 0 ? (
                     <p className="muted">Пока не указана.</p>
@@ -279,17 +280,15 @@ export function AdminProjectManagePage() {
                   )}
                 </Card>
 
-                <Card>
-                  <h3>Быстрый переход</h3>
-                  {project.status === "draft" || project.status === "archived" ? (
-                    <p className="muted">Публичная страница недоступна для черновиков и архивных проектов.</p>
-                  ) : (
+                {project.status !== "draft" && project.status !== "archived" && (
+                  <Card>
+                    <h3>Быстрый переход</h3>
                     <Link className="button button-secondary" to={`/projects/${project.id}`}>
                       <FolderKanban size={16} />
                       Открыть публичную страницу
                     </Link>
-                  )}
-                </Card>
+                  </Card>
+                )}
               </aside>
             </div>
           </div>
