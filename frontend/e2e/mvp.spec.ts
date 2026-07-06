@@ -48,7 +48,7 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   await dialog.getByLabel("Ответственный").selectOption({ label: "Руководитель проекта - Руководитель" });
   await dialog.getByLabel(/employee@utmn\.ru/).check();
   await dialog.getByLabel("Название направления").fill("Тестирование");
-  await addCustomCompetency(dialog.getByText("Направления работы и компетенции").locator(".."), "E2E компетенция");
+  await addCustomCompetency(dialog.locator(".competency-block-editor").first(), "E2E компетенция");
   await dialog.getByLabel("Планируемые задачи").fill("Показать\nПокушать");
   await dialog.locator('input[type="file"]').setInputFiles([
     {
@@ -90,7 +90,7 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   await page.getByLabel("ФИО").fill(responseName);
   await page.getByLabel("Email").fill("employee@utmn.ru");
   await page.getByLabel("Комментарий").fill("Готов участвовать в проекте.");
-  await addCustomCompetency(page.getByText("Мои компетенции").locator(".."), "E2E отклик");
+  await addCustomCompetency(page.locator("#response-form .competency-picker"), "E2E отклик");
   await page.locator('input[type="file"]').setInputFiles({
     name: "response.txt",
     mimeType: "text/plain",
