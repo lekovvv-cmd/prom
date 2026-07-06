@@ -39,7 +39,7 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   const dialog = page.getByRole("dialog", { name: "Создать проект" });
   await expect(dialog).toBeVisible();
 
-  await dialog.getByLabel("Название").fill(projectTitle);
+  await dialog.getByLabel("Название", { exact: true }).fill(projectTitle);
   await dialog.getByLabel("Краткое описание").fill("Проект создан браузерным автотестом.");
   await dialog.getByLabel("Полное описание").fill("Проверяет главный сценарий MVP через пользовательский интерфейс.");
   await dialog.getByLabel("Цель").fill("Проверить создание проекта, отклик, статус и статистику.");
