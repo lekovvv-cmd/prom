@@ -205,3 +205,56 @@ def test_template_validation_rules_and_conditions(client: TestClient):
     )
     assert invalid_option.status_code == 200
     assert invalid_option.json()["errors"][0]["message"] == "Нужен комментарий: Выберите значение из списка"
+
+
+def test_template_preview_resolves_dictionary_and_inline_options(client: TestClient):
+    service_id = create_catalog_service(client)
+    dictionary = client.post(
+        "/admin/dictionaries",
+        json={"code": "gia_type", "title": "Виды ГИА"},
+    )
+    assert dictionary.status_code == 201, dictionary.text
+    dictionary_id = dictionary.json()["id"]
+    for position, value in enumerate(["gos_exam", "vkr"]):
+        item = client.post(
+            f"/admin/dictionaries/{dictionary_id}/items",
+            json={"label": value, "value": value, "position": position},
+        )
+        assert item.status_code == 201, item.text
+
+    version = client.post(f"/admin/services/{service_id}/versions")
+    assert version.status_code == 201, version.text
+    version_id = version.json()["id"]
+
+    dictionary_field = client.post(
+        f"/admin/template-versions/{version_id}/fields",
+        json={
+            "key": "gia_type",
+            "label": "Вид ГИА",
+            "field_type": "select",
+            "dictionary_code": "gia_type",
+            "position": 0,
+        },
+    )
+    assert dictionary_field.status_code == 201, dictionary_field.text
+
+    inline_field = client.post(
+        f"/admin/template-versions/{version_id}/fields",
+        json={
+            "key": "water_type",
+            "label": "Тип воды",
+            "field_type": "select",
+            "position": 1,
+            "options": [
+                {"label": "Газированная", "value": "sparkling"},
+                {"label": "Негазированная", "value": "still"},
+            ],
+        },
+    )
+    assert inline_field.status_code == 201, inline_field.text
+
+    preview = client.get(f"/admin/template-versions/{version_id}/preview")
+    assert preview.status_code == 200
+    fields = {field["key"]: field for field in preview.json()["fields"]}
+    assert [option["value"] for option in fields["gia_type"]["effective_options"]] == ["gos_exam", "vkr"]
+    assert [option["value"] for option in fields["water_type"]["effective_options"]] == ["sparkling", "still"]

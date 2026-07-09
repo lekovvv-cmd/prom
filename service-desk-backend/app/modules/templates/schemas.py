@@ -118,6 +118,15 @@ class PublishedTemplateRead(BaseModel):
     fields: list[TemplateFieldRead] = Field(default_factory=list)
 
 
+class TemplateFieldPreviewRead(TemplateFieldRead):
+    effective_options: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class TemplatePreviewRead(BaseModel):
+    template_version: TemplateVersionRead
+    fields: list[TemplateFieldPreviewRead] = Field(default_factory=list)
+
+
 class DictionaryItemCreate(BaseModel):
     label: str = Field(min_length=1, max_length=255)
     value: str = Field(min_length=1, max_length=255)

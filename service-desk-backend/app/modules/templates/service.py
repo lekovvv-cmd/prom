@@ -85,6 +85,14 @@ class TemplateService:
         fields = sorted(version.fields, key=lambda field: (field.position, field.label))
         return schemas.PublishedTemplateRead(service_id=service_id, template_version=version, fields=fields)
 
+    def preview_version(self, version_id: uuid.UUID) -> schemas.TemplatePreviewRead:
+        version = self._require_version(version_id)
+        fields = [
+            self._build_field_preview(field)
+            for field in sorted(version.fields, key=lambda item: (item.position, item.label))
+        ]
+        return schemas.TemplatePreviewRead(template_version=version, fields=fields)
+
     def create_field(
         self,
         version_id: uuid.UUID,
@@ -248,3 +256,38 @@ class TemplateService:
     def _ensure_dictionary_exists(self, dictionary_code: str | None) -> None:
         if dictionary_code and not self.repository.get_dictionary_by_code(dictionary_code):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Справочник поля не найден")
+
+    def _build_field_preview(self, field: ServiceDeskTemplateField) -> schemas.TemplateFieldPreviewRead:
+        payload = schemas.TemplateFieldRead.model_validate(field).model_dump()
+        payload["effective_options"] = self._resolve_field_options(field)
+        return schemas.TemplateFieldPreviewRead(**payload)
+
+    def _resolve_field_options(self, field: ServiceDeskTemplateField) -> list[dict]:
+        if field.dictionary_code:
+            dictionary = self.repository.get_dictionary_by_code(field.dictionary_code)
+            if not dictionary:
+                return []
+            return [
+                {
+                    "label": item.label,
+                    "value": item.value,
+                    "position": item.position,
+                    "is_active": item.is_active,
+                    "metadata": item.metadata_json,
+                }
+                for item in sorted(dictionary.items, key=lambda item: (item.position, item.label))
+                if item.is_active
+            ]
+        if not field.options:
+            return []
+        return [
+            {
+                "label": option.get("label", option.get("value")),
+                "value": option.get("value"),
+                "position": option.get("position", index),
+                "is_active": option.get("is_active", True),
+                "metadata": option.get("metadata", {}),
+            }
+            for index, option in enumerate(field.options)
+            if isinstance(option, dict) and option.get("is_active", True)
+        ]

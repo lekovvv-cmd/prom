@@ -47,6 +47,11 @@ def publish_template_version(version_id: uuid.UUID, db: Session = Depends(get_db
     return TemplateService(db).publish_version(version_id)
 
 
+@router.get("/template-versions/{version_id}/preview", response_model=schemas.TemplatePreviewRead)
+def preview_template_version(version_id: uuid.UUID, db: Session = Depends(get_db)):
+    return TemplateService(db).preview_version(version_id)
+
+
 @router.post(
     "/template-versions/{version_id}/fields",
     response_model=schemas.TemplateFieldRead,
