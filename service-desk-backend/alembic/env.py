@@ -5,6 +5,7 @@ from alembic import context
 from app.core.config import settings
 from app.core.database import Base
 from app.modules.access import models as access_models  # noqa: F401
+from app.modules.approvals import models as approval_models  # noqa: F401
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.templates import models as template_models  # noqa: F401
 from app.modules.tickets import models as ticket_models  # noqa: F401

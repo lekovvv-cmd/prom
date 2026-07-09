@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
 from app.core.enums import TemplateVersionStatus
+from app.modules.approvals.service import ApprovalWorkflowService
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.templates import schemas
 from app.modules.templates.models import (
@@ -22,6 +23,7 @@ class TemplateService:
         self.db = db
         self.repository = TemplateRepository(db)
         self.catalog_repository = CatalogRepository(db)
+        self.approval_workflow_service = ApprovalWorkflowService(db)
 
     def list_versions(self, service_id: uuid.UUID) -> list[ServiceDeskTemplateVersion]:
         self._require_service(service_id)
@@ -64,6 +66,7 @@ class TemplateService:
     def publish_version(self, version_id: uuid.UUID) -> ServiceDeskTemplateVersion:
         version = self._require_version(version_id)
         self._ensure_draft(version)
+        self.approval_workflow_service.validate_for_publish(version)
         now = utc_now()
         current = self.repository.get_published_version(version.service_id)
         if current:

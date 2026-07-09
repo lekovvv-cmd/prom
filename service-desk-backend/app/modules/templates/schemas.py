@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.enums import TemplateFieldType, TemplateVersionStatus
+from app.core.enums import ApprovalMode, TemplateFieldType, TemplateVersionStatus
 
 
 DEFAULT_SYSTEM_SETTINGS = {
@@ -100,6 +100,7 @@ class TemplateVersionRead(BaseModel):
     service_id: uuid.UUID
     version: int
     status: TemplateVersionStatus
+    approval_mode: ApprovalMode
     system_settings: dict[str, Any]
     created_by: uuid.UUID | None
     published_by: uuid.UUID | None

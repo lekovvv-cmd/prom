@@ -8,7 +8,7 @@ from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, J
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
-from app.core.enums import TemplateFieldType, TemplateVersionStatus, enum_values
+from app.core.enums import ApprovalMode, TemplateFieldType, TemplateVersionStatus, enum_values
 from app.modules.catalog.models import ServiceDeskService
 
 
@@ -27,6 +27,11 @@ class ServiceDeskTemplateVersion(Base):
         SAEnum(TemplateVersionStatus, values_callable=enum_values, native_enum=False, length=32),
         nullable=False,
         default=TemplateVersionStatus.DRAFT,
+    )
+    approval_mode: Mapped[ApprovalMode] = mapped_column(
+        SAEnum(ApprovalMode, values_callable=enum_values, native_enum=False, length=32),
+        nullable=False,
+        default=ApprovalMode.NONE,
     )
     system_settings: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)

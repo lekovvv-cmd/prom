@@ -12,6 +12,16 @@ class TemplateVersionStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class ApprovalMode(StrEnum):
+    NONE = "none"
+    WORKFLOW = "workflow"
+
+
+class ApprovalDecisionRule(StrEnum):
+    ANY = "any"
+    ALL = "all"
+
+
 class TemplateFieldType(StrEnum):
     TEXT = "text"
     TEXTAREA = "textarea"
