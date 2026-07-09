@@ -10,3 +10,4 @@ Stage 2.4: добавлена backend-валидация dynamic форм с con
 Stage 2.5: добавлен preview шаблона с resolved options из inline values и справочников.
 Stage 2.6: добавлен idempotent seed каталога/справочников/шаблонов Service Desk из ТЗ и скриншотов.
 Stage 3.1: добавлены draft-заявки Service Desk со списком, деталями, редактированием и history.
+Stage 3.2: добавлена отправка draft с backend-валидацией формы и concurrency-safe номером SD-YYYY-NNNNNN.

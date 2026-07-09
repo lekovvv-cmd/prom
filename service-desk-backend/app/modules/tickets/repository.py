@@ -1,10 +1,10 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import ServiceDeskTicketStatus
-from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
+from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketCounter, ServiceDeskTicketHistory
 
 
 class TicketRepository:
@@ -29,6 +29,29 @@ class TicketRepository:
             .where(ServiceDeskTicket.id == ticket_id, ServiceDeskTicket.deleted_at.is_(None))
         )
         return self.db.scalars(stmt).unique().one_or_none()
+
+    def get_ticket_for_update(self, ticket_id: uuid.UUID) -> ServiceDeskTicket | None:
+        stmt = (
+            select(ServiceDeskTicket)
+            .where(ServiceDeskTicket.id == ticket_id, ServiceDeskTicket.deleted_at.is_(None))
+            .with_for_update()
+        )
+        return self.db.scalar(stmt)
+
+    def next_ticket_number(self, year: int) -> str:
+        if self.db.bind and self.db.bind.dialect.name == "postgresql":
+            # Serializes counter creation and increment for the current year.
+            self.db.execute(select(func.pg_advisory_xact_lock(year)))
+
+        counter = self.db.get(ServiceDeskTicketCounter, year, with_for_update=True)
+        if counter is None:
+            counter = ServiceDeskTicketCounter(year=year, last_value=0)
+            self.db.add(counter)
+            self.db.flush()
+
+        counter.last_value += 1
+        self.db.flush()
+        return f"SD-{year}-{counter.last_value:06d}"
 
     def list_user_tickets(
         self,

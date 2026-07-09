@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, JSON, String, Text, Uuid
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
@@ -110,3 +110,16 @@ class ServiceDeskTicketHistory(Base):
 
     ticket: Mapped[ServiceDeskTicket] = relationship(back_populates="history")
     actor: Mapped[ServiceDeskUser | None] = relationship()
+
+
+class ServiceDeskTicketCounter(Base):
+    __tablename__ = "service_desk_ticket_counters"
+
+    year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    last_value: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )

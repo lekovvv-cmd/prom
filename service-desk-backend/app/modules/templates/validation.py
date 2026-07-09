@@ -12,6 +12,8 @@ from app.modules.templates.schemas import TemplateValidationErrorItem, TemplateV
 def validate_template_payload(
     version: ServiceDeskTemplateVersion,
     data: dict[str, Any],
+    *,
+    dictionary_options: dict[str, set[Any]] | None = None,
 ) -> TemplateValidationResult:
     fields = sorted(version.fields, key=lambda field: (field.position, field.label))
     visible_fields = [field for field in fields if _matches_rules(field.visibility_rules, data, default=True)]
@@ -34,7 +36,7 @@ def validate_template_payload(
             continue
 
         normalized_data[field.key] = value
-        errors.extend(_validate_field_value(field, value))
+        errors.extend(_validate_field_value(field, value, dictionary_options=dictionary_options))
 
     return TemplateValidationResult(
         is_valid=not errors,
@@ -48,6 +50,8 @@ def validate_template_payload(
 def _validate_field_value(
     field: ServiceDeskTemplateField,
     value: Any,
+    *,
+    dictionary_options: dict[str, set[Any]] | None = None,
 ) -> list[TemplateValidationErrorItem]:
     errors: list[TemplateValidationErrorItem] = []
     rules = field.validation or {}
@@ -88,16 +92,16 @@ def _validate_field_value(
                 errors.append(_error(field, f"Дата должна быть не позже {max_date.isoformat()}"))
 
     if field.field_type == TemplateFieldType.SELECT:
-        allowed_values = _option_values(field)
-        if allowed_values and value not in allowed_values:
+        allowed_values = _option_values(field, dictionary_options)
+        if allowed_values is not None and value not in allowed_values:
             errors.append(_error(field, "Выберите значение из списка"))
 
     if field.field_type == TemplateFieldType.MULTISELECT:
         if not isinstance(value, list):
             errors.append(_error(field, "Выберите одно или несколько значений"))
         else:
-            allowed_values = _option_values(field)
-            if allowed_values and any(item not in allowed_values for item in value):
+            allowed_values = _option_values(field, dictionary_options)
+            if allowed_values is not None and any(item not in allowed_values for item in value):
                 errors.append(_error(field, "Выберите значения из списка"))
 
     if field.field_type == TemplateFieldType.CHECKBOX and not isinstance(value, bool):
@@ -196,9 +200,14 @@ def _parse_date(value: Any) -> date | None:
             return None
 
 
-def _option_values(field: ServiceDeskTemplateField) -> set[Any]:
-    if not field.options:
-        return set()
+def _option_values(
+    field: ServiceDeskTemplateField,
+    dictionary_options: dict[str, set[Any]] | None = None,
+) -> set[Any] | None:
+    if field.dictionary_code:
+        return (dictionary_options or {}).get(field.dictionary_code, set())
+    if field.options is None:
+        return None
     return {item.get("value") for item in field.options if isinstance(item, dict) and "value" in item}
 
 

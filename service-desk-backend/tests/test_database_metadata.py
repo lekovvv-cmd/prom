@@ -8,7 +8,11 @@ from app.modules.templates.models import (
     ServiceDeskTemplateField,
     ServiceDeskTemplateVersion,
 )
-from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
+from app.modules.tickets.models import (
+    ServiceDeskTicket,
+    ServiceDeskTicketCounter,
+    ServiceDeskTicketHistory,
+)
 
 
 def test_service_desk_access_tables_are_registered():
@@ -21,6 +25,7 @@ def test_service_desk_access_tables_are_registered():
     assert ServiceDeskDictionary.__tablename__ in Base.metadata.tables
     assert ServiceDeskDictionaryItem.__tablename__ in Base.metadata.tables
     assert ServiceDeskTicket.__tablename__ in Base.metadata.tables
+    assert ServiceDeskTicketCounter.__tablename__ in Base.metadata.tables
     assert ServiceDeskTicketHistory.__tablename__ in Base.metadata.tables
 
 

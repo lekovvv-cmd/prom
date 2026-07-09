@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
@@ -113,3 +114,108 @@ def test_ticket_draft_requires_active_service_desk_user(client: TestClient):
 
     assert created.status_code == 403
     assert created.json()["detail"] == "Нет доступа к Service Desk"
+
+
+def test_ticket_submit_validates_and_assigns_sequential_number(client: TestClient, db_session_factory):
+    requester_id = create_requester(client, db_session_factory)
+    service_id, _ = create_service_with_template(client)
+
+    missing_fields = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "requester_user_id": requester_id,
+            "title": "Нужна аудитория",
+        },
+    )
+    assert missing_fields.status_code == 201, missing_fields.text
+    rejected = client.post(f"/tickets/{missing_fields.json()['id']}/submit")
+    assert rejected.status_code == 422
+    assert rejected.json()["detail"] == {
+        "message": "Проверьте заполнение формы",
+        "errors": [
+            {"field_key": "description", "message": "Описание: Заполните обязательное поле"},
+            {"field_key": "room", "message": "Аудитория: Заполните обязательное поле"},
+        ],
+    }
+
+    ticket_ids: list[str] = []
+    for room in ("305", "408"):
+        created = client.post(
+            "/tickets/drafts",
+            json={
+                "service_id": service_id,
+                "requester_user_id": requester_id,
+                "title": "Нужна аудитория",
+                "description": "Для рабочей встречи.",
+                "field_values": {"room": room, "ignored": "not-in-template"},
+            },
+        )
+        assert created.status_code == 201, created.text
+        ticket_ids.append(created.json()["id"])
+
+    submitted = [client.post(f"/tickets/{ticket_id}/submit") for ticket_id in ticket_ids]
+    assert all(response.status_code == 200 for response in submitted)
+    current_year = datetime.now(UTC).year
+    assert [response.json()["number"] for response in submitted] == [
+        f"SD-{current_year}-000001",
+        f"SD-{current_year}-000002",
+    ]
+    assert submitted[0].json()["status"] == "submitted"
+    assert submitted[0].json()["submitted_at"] is not None
+    assert submitted[0].json()["field_values"] == {"room": "305"}
+    assert submitted[0].json()["history"][-1]["event_type"] == "ticket_submitted"
+
+    duplicate = client.post(f"/tickets/{ticket_ids[0]}/submit")
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "Отправить можно только черновик заявки"
+
+
+def test_ticket_submit_rejects_unknown_dictionary_value(client: TestClient, db_session_factory):
+    requester_id = create_requester(client, db_session_factory)
+    category = client.post("/admin/categories", json={"title": "Административные услуги"})
+    service = client.post(
+        "/admin/services",
+        json={"category_id": category.json()["id"], "title": "Допуск в здание"},
+    )
+    dictionary = client.post(
+        "/admin/dictionaries",
+        json={"code": "building_addresses", "title": "Адреса корпусов"},
+    )
+    client.post(
+        f"/admin/dictionaries/{dictionary.json()['id']}/items",
+        json={"label": "Ленина 16", "value": "lenina_16"},
+    )
+    version = client.post(
+        f"/admin/services/{service.json()['id']}/versions",
+        json={"system_settings": {"is_description_required": False}},
+    )
+    field = client.post(
+        f"/admin/template-versions/{version.json()['id']}/fields",
+        json={
+            "key": "address",
+            "label": "Адрес корпуса",
+            "field_type": "select",
+            "is_required": True,
+            "dictionary_code": "building_addresses",
+        },
+    )
+    assert field.status_code == 201, field.text
+    published = client.post(f"/admin/template-versions/{version.json()['id']}/publish")
+    assert published.status_code == 200, published.text
+
+    draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service.json()["id"],
+            "requester_user_id": requester_id,
+            "title": "Нужен допуск",
+            "field_values": {"address": "unknown"},
+        },
+    )
+    assert draft.status_code == 201, draft.text
+    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    assert submitted.status_code == 422
+    assert submitted.json()["detail"]["errors"] == [
+        {"field_key": "address", "message": "Адрес корпуса: Выберите значение из списка"}
+    ]

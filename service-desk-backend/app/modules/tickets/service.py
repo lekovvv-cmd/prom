@@ -1,12 +1,16 @@
 import uuid
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import ServiceDeskTicketStatus
+from app.core.enums import ServiceDeskTicketStatus, TemplateVersionStatus
 from app.modules.access.models import ServiceDeskUser
 from app.modules.catalog.repository import CatalogRepository
+from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.modules.templates.repository import TemplateRepository
+from app.modules.templates.validation import validate_template_payload
 from app.modules.tickets import schemas
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.repository import TicketRepository
@@ -71,6 +75,58 @@ class TicketService:
         self.db.commit()
         return self._require_ticket(ticket.id)
 
+    def submit_draft(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
+        ticket = self.repository.get_ticket_for_update(ticket_id)
+        if not ticket:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+        if ticket.status != ServiceDeskTicketStatus.DRAFT:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Отправить можно только черновик заявки",
+            )
+
+        self._require_active_user(ticket.requester_user_id)
+        service = self.catalog_repository.get_service(ticket.service_id)
+        if not service or not service.is_active or service.deleted_at is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Услуга больше недоступна")
+
+        template_version = self.template_repository.get_version(ticket.template_version_id)
+        if not template_version or template_version.service_id != ticket.service_id:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Шаблон услуги больше недоступен")
+        if template_version.status == TemplateVersionStatus.DRAFT:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Форма услуги ещё не опубликована")
+
+        validation = validate_template_payload(
+            template_version,
+            ticket.field_values,
+            dictionary_options=self._dictionary_options(template_version),
+        )
+        errors = self._validate_system_fields(ticket, template_version.system_settings)
+        errors.extend(error.model_dump() for error in validation.errors)
+        if errors:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"message": "Проверьте заполнение формы", "errors": errors},
+            )
+
+        default_title = template_version.system_settings.get("default_title")
+        if not template_version.system_settings.get("is_title_editable", True) and default_title:
+            ticket.title = str(default_title)
+        ticket.field_values = validation.normalized_data
+        now = datetime.now(UTC)
+        ticket.number = self.repository.next_ticket_number(now.year)
+        ticket.status = ServiceDeskTicketStatus.SUBMITTED
+        ticket.submitted_at = now
+        self._write_history(
+            ticket,
+            "ticket_submitted",
+            ticket.requester_user_id,
+            "Заявка отправлена",
+            {"number": ticket.number, "status": ticket.status.value},
+        )
+        self.db.commit()
+        return self._require_ticket(ticket.id)
+
     def list_user_tickets(
         self,
         requester_user_id: uuid.UUID,
@@ -94,6 +150,38 @@ class TicketService:
         if not ticket:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
         return ticket
+
+    def _dictionary_options(
+        self,
+        template_version: ServiceDeskTemplateVersion,
+    ) -> dict[str, set[Any]]:
+        options: dict[str, set[Any]] = {}
+        dictionary_codes = {
+            field.dictionary_code for field in template_version.fields if field.dictionary_code
+        }
+        for code in dictionary_codes:
+            dictionary = self.template_repository.get_dictionary_by_code(code)
+            if not dictionary or not dictionary.is_active:
+                options[code] = set()
+                continue
+            options[code] = {item.value for item in dictionary.items if item.is_active}
+        return options
+
+    @staticmethod
+    def _validate_system_fields(
+        ticket: ServiceDeskTicket,
+        system_settings: dict[str, Any],
+    ) -> list[dict[str, str]]:
+        errors: list[dict[str, str]] = []
+        if not isinstance(ticket.title, str) or len(ticket.title.strip()) < 2:
+            errors.append({"field_key": "title", "message": "Тема: Заполните обязательное поле"})
+        if system_settings.get("is_description_required", True) and (
+            not isinstance(ticket.description, str) or not ticket.description.strip()
+        ):
+            errors.append(
+                {"field_key": "description", "message": "Описание: Заполните обязательное поле"}
+            )
+        return errors
 
     def _write_history(
         self,

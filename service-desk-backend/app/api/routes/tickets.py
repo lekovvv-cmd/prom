@@ -25,6 +25,11 @@ def update_ticket_draft(
     return TicketService(db).update_draft(ticket_id, payload)
 
 
+@router.post("/tickets/{ticket_id}/submit", response_model=schemas.TicketRead)
+def submit_ticket_draft(ticket_id: uuid.UUID, db: Session = Depends(get_db)):
+    return TicketService(db).submit_draft(ticket_id)
+
+
 @router.get("/me/tickets", response_model=list[schemas.TicketRead])
 def list_my_tickets(
     requester_user_id: uuid.UUID = Query(),
