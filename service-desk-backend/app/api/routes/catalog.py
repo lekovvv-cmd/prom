@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.modules.catalog import schemas
 from app.modules.catalog.service import CatalogService
+from app.modules.templates.schemas import PublishedTemplateRead
+from app.modules.templates.service import TemplateService
 
 router = APIRouter(tags=["catalog"])
 
@@ -32,3 +34,9 @@ def list_services(
 @router.get("/services/{service_id}", response_model=schemas.ServiceRead)
 def get_service(service_id: uuid.UUID, db: Session = Depends(get_db)):
     return CatalogService(db).get_service(service_id, public=True)
+
+
+@router.get("/services/{service_id}/form", response_model=PublishedTemplateRead)
+def get_service_form(service_id: uuid.UUID, db: Session = Depends(get_db)):
+    CatalogService(db).get_service(service_id, public=True)
+    return TemplateService(db).get_published_form(service_id)

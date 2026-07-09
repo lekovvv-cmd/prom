@@ -6,6 +6,12 @@ class ServiceDeskAccessType(StrEnum):
     SERVICE_DESK_ADMIN = "service_desk_admin"
 
 
+class TemplateVersionStatus(StrEnum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
+
+
 SERVICE_DESK_CAPABILITIES: tuple[str, ...] = (
     "service_desk.access",
     "service_desk.create_request",
