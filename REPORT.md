@@ -6,3 +6,4 @@ Stage 1.5: добавлена dev-инфраструктура Service Desk DB/e
 Stage 2.1: добавлены Service Desk категории/услуги каталога с public/admin API и миграцией.
 Stage 2.2: добавлены версионированные шаблоны услуг с draft/published/archived API.
 Stage 2.3: добавлены dynamic поля шаблонов и справочники Service Desk.
+Stage 2.4: добавлена backend-валидация dynamic форм с conditional visibility/required rules.

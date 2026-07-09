@@ -78,6 +78,23 @@ class TemplateFieldsReorder(BaseModel):
     field_ids: list[uuid.UUID]
 
 
+class TemplateValidationRequest(BaseModel):
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
+class TemplateValidationErrorItem(BaseModel):
+    field_key: str
+    message: str
+
+
+class TemplateValidationResult(BaseModel):
+    is_valid: bool
+    errors: list[TemplateValidationErrorItem]
+    visible_fields: list[str]
+    required_fields: list[str]
+    normalized_data: dict[str, Any]
+
+
 class TemplateVersionRead(BaseModel):
     id: uuid.UUID
     service_id: uuid.UUID

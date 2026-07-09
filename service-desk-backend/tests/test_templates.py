@@ -131,3 +131,77 @@ def test_template_fields_and_dictionaries_are_versioned(client: TestClient):
         json={"label": "Нельзя менять опубликованный snapshot"},
     )
     assert blocked.status_code == 409
+
+
+def test_template_validation_rules_and_conditions(client: TestClient):
+    service_id = create_catalog_service(client)
+    version = client.post(f"/admin/services/{service_id}/versions")
+    assert version.status_code == 201, version.text
+    version_id = version.json()["id"]
+
+    need_comment = client.post(
+        f"/admin/template-versions/{version_id}/fields",
+        json={
+            "key": "needs_comment",
+            "label": "Нужен комментарий",
+            "field_type": "select",
+            "is_required": True,
+            "position": 0,
+            "options": [{"label": "Да", "value": "yes"}, {"label": "Нет", "value": "no"}],
+        },
+    )
+    assert need_comment.status_code == 201, need_comment.text
+
+    comment = client.post(
+        f"/admin/template-versions/{version_id}/fields",
+        json={
+            "key": "comment",
+            "label": "Комментарий",
+            "field_type": "textarea",
+            "position": 1,
+            "validation": {"min_length": 5},
+            "visibility_rules": {"field": "needs_comment", "operator": "equals", "value": "yes"},
+            "required_rules": {"field": "needs_comment", "operator": "equals", "value": "yes"},
+        },
+    )
+    assert comment.status_code == 201, comment.text
+
+    email = client.post(
+        f"/admin/template-versions/{version_id}/fields",
+        json={
+            "key": "contact_email",
+            "label": "Email для связи",
+            "field_type": "email",
+            "is_required": True,
+            "position": 2,
+        },
+    )
+    assert email.status_code == 201, email.text
+
+    hidden_optional = client.post(
+        f"/admin/template-versions/{version_id}/validate",
+        json={"data": {"needs_comment": "no", "contact_email": "user@utmn.ru"}},
+    )
+    assert hidden_optional.status_code == 200
+    assert hidden_optional.json()["is_valid"] is True
+    assert hidden_optional.json()["visible_fields"] == ["needs_comment", "contact_email"]
+
+    missing_conditional = client.post(
+        f"/admin/template-versions/{version_id}/validate",
+        json={"data": {"needs_comment": "yes", "contact_email": "broken-email"}},
+    )
+    assert missing_conditional.status_code == 200
+    payload = missing_conditional.json()
+    assert payload["is_valid"] is False
+    assert payload["visible_fields"] == ["needs_comment", "comment", "contact_email"]
+    assert payload["required_fields"] == ["needs_comment", "comment", "contact_email"]
+    messages = {item["field_key"]: item["message"] for item in payload["errors"]}
+    assert "Комментарий: Заполните обязательное поле" == messages["comment"]
+    assert "Email для связи: Укажите корректный email" == messages["contact_email"]
+
+    invalid_option = client.post(
+        f"/admin/template-versions/{version_id}/validate",
+        json={"data": {"needs_comment": "maybe", "contact_email": "user@utmn.ru"}},
+    )
+    assert invalid_option.status_code == 200
+    assert invalid_option.json()["errors"][0]["message"] == "Нужен комментарий: Выберите значение из списка"

@@ -83,6 +83,15 @@ def reorder_template_fields(
     return TemplateService(db).reorder_fields(version_id, payload)
 
 
+@router.post("/template-versions/{version_id}/validate", response_model=schemas.TemplateValidationResult)
+def validate_template_payload(
+    version_id: uuid.UUID,
+    payload: schemas.TemplateValidationRequest,
+    db: Session = Depends(get_db),
+):
+    return TemplateService(db).validate_payload(version_id, payload)
+
+
 @router.get("/dictionaries", response_model=list[schemas.DictionaryRead])
 def list_dictionaries(active: bool | None = None, db: Session = Depends(get_db)):
     return TemplateService(db).list_dictionaries(active=active)

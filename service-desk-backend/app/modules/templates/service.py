@@ -14,6 +14,7 @@ from app.modules.templates.models import (
     ServiceDeskTemplateVersion,
 )
 from app.modules.templates.repository import TemplateRepository
+from app.modules.templates.validation import validate_template_payload
 
 
 class TemplateService:
@@ -140,6 +141,14 @@ class TemplateService:
             fields_by_id[field_id].position = position
         self.db.commit()
         return sorted(fields_by_id.values(), key=lambda field: field.position)
+
+    def validate_payload(
+        self,
+        version_id: uuid.UUID,
+        payload: schemas.TemplateValidationRequest,
+    ) -> schemas.TemplateValidationResult:
+        version = self._require_version(version_id)
+        return validate_template_payload(version, payload.data)
 
     def list_dictionaries(self, active: bool | None = None) -> list[ServiceDeskDictionary]:
         return self.repository.list_dictionaries(active=active)
