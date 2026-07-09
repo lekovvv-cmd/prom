@@ -1,0 +1,34 @@
+import uuid
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_db
+from app.modules.catalog import schemas
+from app.modules.catalog.service import CatalogService
+
+router = APIRouter(tags=["catalog"])
+
+
+@router.get("/categories", response_model=list[schemas.CategoryRead])
+def list_categories(
+    q: str | None = Query(default=None),
+    active: bool | None = Query(default=True),
+    db: Session = Depends(get_db),
+):
+    return CatalogService(db).list_categories(q=q, active=active)
+
+
+@router.get("/services", response_model=list[schemas.ServiceRead])
+def list_services(
+    q: str | None = Query(default=None),
+    category_id: uuid.UUID | None = Query(default=None),
+    active: bool | None = Query(default=True),
+    db: Session = Depends(get_db),
+):
+    return CatalogService(db).list_services(q=q, category_id=category_id, active=active)
+
+
+@router.get("/services/{service_id}", response_model=schemas.ServiceRead)
+def get_service(service_id: uuid.UUID, db: Session = Depends(get_db)):
+    return CatalogService(db).get_service(service_id, public=True)
