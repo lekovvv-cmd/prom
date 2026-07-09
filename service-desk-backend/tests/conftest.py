@@ -10,6 +10,7 @@ from app.main import create_app
 from app.modules.access import models as access_models  # noqa: F401
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.templates import models as template_models  # noqa: F401
+from app.modules.tickets import models as ticket_models  # noqa: F401
 
 
 @pytest.fixture()

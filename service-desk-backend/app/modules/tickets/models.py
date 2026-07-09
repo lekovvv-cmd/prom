@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, JSON, String, Text, Uuid
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base, utc_now
+from app.core.enums import ServiceDeskPriority, ServiceDeskTicketStatus, enum_values
+from app.modules.access.models import ServiceDeskUser
+from app.modules.catalog.models import ServiceDeskService
+from app.modules.templates.models import ServiceDeskTemplateVersion
+
+
+class ServiceDeskTicket(Base):
+    __tablename__ = "service_desk_tickets"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    number: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
+    service_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_services.id"),
+        index=True,
+        nullable=False,
+    )
+    template_version_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_template_versions.id"),
+        nullable=False,
+    )
+    requester_user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_users.id"),
+        index=True,
+        nullable=False,
+    )
+    assignee_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_users.id"),
+        index=True,
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ServiceDeskTicketStatus] = mapped_column(
+        SAEnum(ServiceDeskTicketStatus, values_callable=enum_values, native_enum=False, length=32),
+        nullable=False,
+        default=ServiceDeskTicketStatus.DRAFT,
+        index=True,
+    )
+    priority: Mapped[ServiceDeskPriority] = mapped_column(
+        SAEnum(ServiceDeskPriority, values_callable=enum_values, native_enum=False, length=32),
+        nullable=False,
+        default=ServiceDeskPriority.MEDIUM,
+        index=True,
+    )
+    field_values: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approval_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    work_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sla_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    routing_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+    service: Mapped[ServiceDeskService] = relationship()
+    template_version: Mapped[ServiceDeskTemplateVersion] = relationship()
+    requester: Mapped[ServiceDeskUser] = relationship(foreign_keys=[requester_user_id])
+    assignee: Mapped[ServiceDeskUser | None] = relationship(foreign_keys=[assignee_user_id])
+    history: Mapped[list["ServiceDeskTicketHistory"]] = relationship(
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="ServiceDeskTicketHistory.created_at",
+    )
+
+
+class ServiceDeskTicketHistory(Base):
+    __tablename__ = "service_desk_ticket_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ticket_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_tickets.id"),
+        index=True,
+        nullable=False,
+    )
+    event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_users.id"),
+        nullable=True,
+    )
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    ticket: Mapped[ServiceDeskTicket] = relationship(back_populates="history")
+    actor: Mapped[ServiceDeskUser | None] = relationship()

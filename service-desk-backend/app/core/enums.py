@@ -27,6 +27,28 @@ class TemplateFieldType(StrEnum):
     USER = "user"
 
 
+class ServiceDeskTicketStatus(StrEnum):
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    PENDING_APPROVAL = "pending_approval"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ASSIGNED = "assigned"
+    IN_PROGRESS = "in_progress"
+    WAITING_REQUESTER = "waiting_requester"
+    WAITING_EXTERNAL = "waiting_external"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+    CANCELLED = "cancelled"
+
+
+class ServiceDeskPriority(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 SERVICE_DESK_CAPABILITIES: tuple[str, ...] = (
     "service_desk.access",
     "service_desk.create_request",
