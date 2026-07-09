@@ -8,9 +8,12 @@ version = "0.1.0"
 description = "FastAPI backend for SHPIU Service Desk"
 requires-python = ">=3.14"
 dependencies = [
+  "alembic>=1.17.0",
   "fastapi>=0.115.0,<0.116.0",
+  "psycopg[binary]>=3.2.0",
   "pydantic>=2.11.0",
   "pydantic-settings>=2.8.0",
+  "SQLAlchemy>=2.0.40",
   "uvicorn[standard]>=0.35.0"
 ]
 
