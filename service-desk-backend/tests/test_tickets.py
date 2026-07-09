@@ -161,10 +161,14 @@ def test_ticket_submit_validates_and_assigns_sequential_number(client: TestClien
         f"SD-{current_year}-000001",
         f"SD-{current_year}-000002",
     ]
-    assert submitted[0].json()["status"] == "submitted"
+    assert submitted[0].json()["status"] == "approved"
     assert submitted[0].json()["submitted_at"] is not None
+    assert submitted[0].json()["approved_at"] is not None
     assert submitted[0].json()["field_values"] == {"room": "305"}
-    assert submitted[0].json()["history"][-1]["event_type"] == "ticket_submitted"
+    assert [item["event_type"] for item in submitted[0].json()["history"]][-2:] == [
+        "ticket_submitted",
+        "ticket_approved",
+    ]
 
     duplicate = client.post(f"/tickets/{ticket_ids[0]}/submit")
     assert duplicate.status_code == 409

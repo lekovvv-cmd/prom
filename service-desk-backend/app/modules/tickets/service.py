@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus, TemplateVersionStatus
 from app.modules.access.models import ServiceDeskUser
+from app.modules.approvals.models import ServiceDeskTicketApprovalStage
+from app.modules.approvals.ticket_service import TicketApprovalService
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.modules.templates.repository import TemplateRepository
@@ -24,6 +26,7 @@ class TicketService:
         self.catalog_repository = CatalogRepository(db)
         self.template_repository = TemplateRepository(db)
         self.lifecycle = TicketLifecycleService(self.repository)
+        self.ticket_approval_service = TicketApprovalService(db, self.repository)
 
     def create_draft(self, payload: schemas.TicketDraftCreate) -> ServiceDeskTicket:
         requester = self._require_active_user(payload.requester_user_id)
@@ -124,6 +127,11 @@ class TicketService:
             metadata={"number": ticket.number},
             occurred_at=now,
         )
+        self.ticket_approval_service.initialize_snapshot(
+            ticket,
+            template_version,
+            occurred_at=now,
+        )
         self.db.commit()
         return self._require_ticket(ticket.id)
 
@@ -154,6 +162,9 @@ class TicketService:
 
     def get_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         return self._require_ticket(ticket_id)
+
+    def get_approval_snapshot(self, ticket_id: uuid.UUID) -> list[ServiceDeskTicketApprovalStage]:
+        return self.ticket_approval_service.get_snapshot(ticket_id)
 
     def _require_active_user(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)

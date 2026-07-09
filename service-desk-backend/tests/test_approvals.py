@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
+from app.modules.approvals.models import ServiceDeskApprovalStage
 
 
 def create_template_version(client: TestClient) -> str:
@@ -191,3 +192,96 @@ def test_workflow_template_cannot_publish_without_stages_and_approvers(client):
     published = client.post(f"/admin/template-versions/{version_id}/publish")
     assert published.status_code == 200, published.text
     assert published.json()["approval_mode"] == "none"
+
+
+def test_submit_snapshots_published_approval_workflow(client, db_session_factory):
+    category = client.post("/admin/categories", json={"title": "Snapshot category"})
+    service = client.post(
+        "/admin/services",
+        json={"category_id": category.json()["id"], "title": "Snapshot service"},
+    )
+    service_id = service.json()["id"]
+    version = client.post(f"/admin/services/{service_id}/versions")
+    version_id = version.json()["id"]
+    configured = client.put(
+        f"/admin/template-versions/{version_id}/approval-workflow",
+        json={"approval_mode": "workflow", "name": "Snapshot workflow"},
+    )
+    workflow_id = configured.json()["workflow"]["id"]
+
+    first = client.post(
+        f"/admin/approval-workflows/{workflow_id}/stages",
+        json={"title": "Первый этап", "decision_rule": "any"},
+    )
+    first_stage_id = first.json()["workflow"]["stages"][0]["id"]
+    second = client.post(
+        f"/admin/approval-workflows/{workflow_id}/stages",
+        json={"title": "Второй этап", "decision_rule": "all"},
+    )
+    second_stage_id = next(
+        stage["id"]
+        for stage in second.json()["workflow"]["stages"]
+        if stage["title"] == "Второй этап"
+    )
+
+    first_approver_id = create_approval_user(
+        db_session_factory,
+        "snapshot-approver-1@utmn.ru",
+        can_approve=True,
+    )
+    second_approver_id = create_approval_user(
+        db_session_factory,
+        "snapshot-approver-2@utmn.ru",
+        can_approve=True,
+    )
+    client.post(
+        f"/admin/approval-stages/{first_stage_id}/approvers",
+        json={"service_desk_user_id": first_approver_id},
+    )
+    client.post(
+        f"/admin/approval-stages/{second_stage_id}/approvers",
+        json={"service_desk_user_id": second_approver_id},
+    )
+    published = client.post(f"/admin/template-versions/{version_id}/publish")
+    assert published.status_code == 200, published.text
+
+    requester_id = create_approval_user(
+        db_session_factory,
+        "snapshot-requester@utmn.ru",
+        can_approve=False,
+    )
+    draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "requester_user_id": requester_id,
+            "title": "Заявка со snapshot",
+            "description": "Нужно согласовать заявку.",
+        },
+    )
+    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    assert submitted.status_code == 200, submitted.text
+    payload = submitted.json()
+    assert payload["status"] == "pending_approval"
+    assert payload["approval_started_at"] is not None
+    assert [stage["title"] for stage in payload["approval_stages"]] == ["Первый этап", "Второй этап"]
+    assert payload["approval_stages"][0]["started_at"] is not None
+    assert payload["approval_stages"][1]["started_at"] is None
+    assert [stage["decision_rule"] for stage in payload["approval_stages"]] == ["any", "all"]
+    assert [
+        stage["approvals"][0]["approver_user_id"] for stage in payload["approval_stages"]
+    ] == [first_approver_id, second_approver_id]
+    assert [item["event_type"] for item in payload["history"]][-2:] == [
+        "ticket_submitted",
+        "approval_started",
+    ]
+
+    with db_session_factory() as db:
+        source_stage = db.get(ServiceDeskApprovalStage, uuid.UUID(first_stage_id))
+        assert source_stage is not None
+        source_stage.title = "Изменённый исходный этап"
+        db.commit()
+
+    snapshot = client.get(f"/tickets/{payload['id']}/approvals")
+    assert snapshot.status_code == 200, snapshot.text
+    assert [stage["title"] for stage in snapshot.json()] == ["Первый этап", "Второй этап"]

@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import ServiceDeskPriority, ServiceDeskTicketStatus
+from app.modules.approvals.schemas import TicketApprovalStageRead
 
 
 class TicketDraftCreate(BaseModel):
@@ -76,6 +77,7 @@ class TicketRead(BaseModel):
     cancelled_at: datetime | None
     resolution_summary: str | None
     cancellation_reason: str | None
+    approval_stages: list[TicketApprovalStageRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

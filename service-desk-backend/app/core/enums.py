@@ -22,6 +22,13 @@ class ApprovalDecisionRule(StrEnum):
     ALL = "all"
 
 
+class ServiceDeskApprovalStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SKIPPED = "skipped"
+
+
 class TemplateFieldType(StrEnum):
     TEXT = "text"
     TEXTAREA = "textarea"

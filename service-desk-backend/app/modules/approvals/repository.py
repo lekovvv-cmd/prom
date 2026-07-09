@@ -7,6 +7,8 @@ from app.modules.approvals.models import (
     ServiceDeskApprovalStage,
     ServiceDeskApprovalStageApprover,
     ServiceDeskApprovalWorkflow,
+    ServiceDeskTicketApproval,
+    ServiceDeskTicketApprovalStage,
 )
 
 
@@ -76,3 +78,32 @@ class ApprovalWorkflowRepository:
         self.db.add(approver)
         self.db.flush()
         return approver
+
+    def add_ticket_stage(
+        self,
+        stage: ServiceDeskTicketApprovalStage,
+    ) -> ServiceDeskTicketApprovalStage:
+        self.db.add(stage)
+        self.db.flush()
+        return stage
+
+    def add_ticket_approval(
+        self,
+        approval: ServiceDeskTicketApproval,
+    ) -> ServiceDeskTicketApproval:
+        self.db.add(approval)
+        self.db.flush()
+        return approval
+
+    def list_ticket_stages(self, ticket_id: uuid.UUID) -> list[ServiceDeskTicketApprovalStage]:
+        stmt = (
+            select(ServiceDeskTicketApprovalStage)
+            .options(
+                joinedload(ServiceDeskTicketApprovalStage.approvals).joinedload(
+                    ServiceDeskTicketApproval.approver
+                )
+            )
+            .where(ServiceDeskTicketApprovalStage.ticket_id == ticket_id)
+            .order_by(ServiceDeskTicketApprovalStage.position.asc())
+        )
+        return list(self.db.scalars(stmt).unique().all())

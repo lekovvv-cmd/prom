@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus
+from app.modules.approvals.schemas import TicketApprovalStageRead
 from app.modules.tickets import schemas
 from app.modules.tickets.service import TicketService
 
@@ -126,6 +127,14 @@ def cancel_ticket(
         payload.actor_user_id,
         metadata={"reason": payload.reason},
     )
+
+
+@router.get(
+    "/tickets/{ticket_id}/approvals",
+    response_model=list[TicketApprovalStageRead],
+)
+def get_ticket_approvals(ticket_id: uuid.UUID, db: Session = Depends(get_db)):
+    return TicketService(db).get_approval_snapshot(ticket_id)
 
 
 @router.get("/me/tickets", response_model=list[schemas.TicketRead])

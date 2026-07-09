@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,6 +12,9 @@ from app.core.enums import ServiceDeskPriority, ServiceDeskTicketStatus, enum_va
 from app.modules.access.models import ServiceDeskUser
 from app.modules.catalog.models import ServiceDeskService
 from app.modules.templates.models import ServiceDeskTemplateVersion
+
+if TYPE_CHECKING:
+    from app.modules.approvals.models import ServiceDeskTicketApprovalStage
 
 
 class ServiceDeskTicket(Base):
@@ -87,6 +90,11 @@ class ServiceDeskTicket(Base):
         back_populates="ticket",
         cascade="all, delete-orphan",
         order_by="ServiceDeskTicketHistory.created_at",
+    )
+    approval_stages: Mapped[list["ServiceDeskTicketApprovalStage"]] = relationship(
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="ServiceDeskTicketApprovalStage.position",
     )
 
 

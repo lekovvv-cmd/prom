@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.enums import ApprovalDecisionRule, ApprovalMode
+from app.core.enums import ApprovalDecisionRule, ApprovalMode, ServiceDeskApprovalStatus
 
 
 class ApprovalWorkflowConfigure(BaseModel):
@@ -70,3 +70,30 @@ class ApprovalWorkflowConfigurationRead(BaseModel):
     template_version_id: uuid.UUID
     approval_mode: ApprovalMode
     workflow: ApprovalWorkflowRead | None
+
+
+class TicketApprovalRead(BaseModel):
+    id: uuid.UUID
+    ticket_approval_stage_id: uuid.UUID
+    approver_user_id: uuid.UUID
+    status: ServiceDeskApprovalStatus
+    decision_comment: str | None
+    decided_at: datetime | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TicketApprovalStageRead(BaseModel):
+    id: uuid.UUID
+    ticket_id: uuid.UUID
+    position: int
+    title: str
+    decision_rule: ApprovalDecisionRule
+    status: ServiceDeskApprovalStatus
+    started_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+    approvals: list[TicketApprovalRead] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)

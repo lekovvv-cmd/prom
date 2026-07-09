@@ -5,6 +5,8 @@ from app.modules.approvals.models import (
     ServiceDeskApprovalStage,
     ServiceDeskApprovalStageApprover,
     ServiceDeskApprovalWorkflow,
+    ServiceDeskTicketApproval,
+    ServiceDeskTicketApprovalStage,
 )
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
 from app.modules.templates.models import (
@@ -26,6 +28,8 @@ def test_service_desk_access_tables_are_registered():
     assert ServiceDeskApprovalWorkflow.__tablename__ in Base.metadata.tables
     assert ServiceDeskApprovalStage.__tablename__ in Base.metadata.tables
     assert ServiceDeskApprovalStageApprover.__tablename__ in Base.metadata.tables
+    assert ServiceDeskTicketApprovalStage.__tablename__ in Base.metadata.tables
+    assert ServiceDeskTicketApproval.__tablename__ in Base.metadata.tables
     assert ServiceDeskCategory.__tablename__ in Base.metadata.tables
     assert ServiceDeskService.__tablename__ in Base.metadata.tables
     assert ServiceDeskTemplateVersion.__tablename__ in Base.metadata.tables

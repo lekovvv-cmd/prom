@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import ServiceDeskTicketStatus
+from app.modules.approvals.models import ServiceDeskTicketApprovalStage
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketCounter, ServiceDeskTicketHistory
 
 
@@ -25,7 +26,12 @@ class TicketRepository:
     def get_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket | None:
         stmt = (
             select(ServiceDeskTicket)
-            .options(joinedload(ServiceDeskTicket.history))
+            .options(
+                joinedload(ServiceDeskTicket.history),
+                joinedload(ServiceDeskTicket.approval_stages).joinedload(
+                    ServiceDeskTicketApprovalStage.approvals
+                ),
+            )
             .where(ServiceDeskTicket.id == ticket_id, ServiceDeskTicket.deleted_at.is_(None))
         )
         return self.db.scalars(stmt).unique().one_or_none()
@@ -61,7 +67,12 @@ class TicketRepository:
     ) -> list[ServiceDeskTicket]:
         stmt = (
             select(ServiceDeskTicket)
-            .options(joinedload(ServiceDeskTicket.history))
+            .options(
+                joinedload(ServiceDeskTicket.history),
+                joinedload(ServiceDeskTicket.approval_stages).joinedload(
+                    ServiceDeskTicketApprovalStage.approvals
+                ),
+            )
             .where(
                 ServiceDeskTicket.requester_user_id == requester_user_id,
                 ServiceDeskTicket.deleted_at.is_(None),

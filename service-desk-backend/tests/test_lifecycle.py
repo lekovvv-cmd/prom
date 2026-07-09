@@ -254,6 +254,13 @@ def test_requester_can_cancel_submitted_ticket_with_reason(client, db_session_fa
     ticket_id, requester_id = create_submitted_ticket(client, db_session_factory)
     foreign_user_id = create_user(db_session_factory, "foreign-manager@utmn.ru")
 
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(ticket_id))
+        assert ticket is not None
+        ticket.status = ServiceDeskTicketStatus.SUBMITTED
+        ticket.approved_at = None
+        db.commit()
+
     forbidden = client.post(
         f"/tickets/{ticket_id}/cancel",
         json={"actor_user_id": foreign_user_id, "reason": "Не моя заявка"},
