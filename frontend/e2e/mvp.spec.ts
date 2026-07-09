@@ -17,7 +17,7 @@ async function loginAs(page: Page, roleLabel: "Админ" | "Сотрудник
 
 async function logout(page: Page) {
   await page.getByRole("button", { name: "Выйти" }).click();
-  await expect(page.getByRole("link", { name: "Войти" })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Войти" })).toBeVisible();
 }
 
 async function addCustomCompetency(scope: Locator, value: string) {
