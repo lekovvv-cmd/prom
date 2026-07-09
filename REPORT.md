@@ -5,3 +5,4 @@ Stage 1.4: добавлен frontend Service Desk API client с отдельны
 Stage 1.5: добавлена dev-инфраструктура Service Desk DB/env для локального запуска.
 Stage 2.1: добавлены Service Desk категории/услуги каталога с public/admin API и миграцией.
 Stage 2.2: добавлены версионированные шаблоны услуг с draft/published/archived API.
+Stage 2.3: добавлены dynamic поля шаблонов и справочники Service Desk.

@@ -12,6 +12,21 @@ class TemplateVersionStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class TemplateFieldType(StrEnum):
+    TEXT = "text"
+    TEXTAREA = "textarea"
+    RICH_TEXT = "rich_text"
+    SELECT = "select"
+    MULTISELECT = "multiselect"
+    DATE = "date"
+    DATETIME = "datetime"
+    EMAIL = "email"
+    NUMBER = "number"
+    CHECKBOX = "checkbox"
+    FILE = "file"
+    USER = "user"
+
+
 SERVICE_DESK_CAPABILITIES: tuple[str, ...] = (
     "service_desk.access",
     "service_desk.create_request",
