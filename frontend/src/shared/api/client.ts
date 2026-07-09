@@ -1,6 +1,5 @@
 import { env } from "../config/env";
-
-const TOKEN_KEY = "shpiu_project_showcase_token";
+import { authTokenStorage, type AuthTokenStorage } from "../lib/authTokenStorage";
 
 type RequestOptions = RequestInit & {
   auth?: boolean;
@@ -186,30 +185,31 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-export const apiClient = {
-  getToken() {
-    return localStorage.getItem(TOKEN_KEY);
-  },
-  setToken(token: string | null) {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
+export function createApiClient(baseUrl: string, tokenStorage: AuthTokenStorage = authTokenStorage) {
+  return {
+    getToken() {
+      return tokenStorage.getToken();
+    },
+    setToken(token: string | null) {
+      tokenStorage.setToken(token);
+    },
+    async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+      const headers = new Headers(options.headers);
+      if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
+        headers.set("Content-Type", "application/json");
+      }
+      const token = this.getToken();
+      if (token && options.auth !== false) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+      const response = await fetch(`${baseUrl}${path}`, {
+        ...options,
+        headers
+      });
+      return parseResponse<T>(response);
     }
-  },
-  async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const headers = new Headers(options.headers);
-    if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
-      headers.set("Content-Type", "application/json");
-    }
-    const token = this.getToken();
-    if (token && options.auth !== false) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-    const response = await fetch(`${env.apiBaseUrl}${path}`, {
-      ...options,
-      headers
-    });
-    return parseResponse<T>(response);
-  }
-};
+  };
+}
+
+export const apiClient = createApiClient(env.apiBaseUrl);
+export const serviceDeskApiClient = createApiClient(env.serviceDeskApiBaseUrl);
