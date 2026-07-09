@@ -8,3 +8,4 @@ Stage 2.2: добавлены версионированные шаблоны у
 Stage 2.3: добавлены dynamic поля шаблонов и справочники Service Desk.
 Stage 2.4: добавлена backend-валидация dynamic форм с conditional visibility/required rules.
 Stage 2.5: добавлен preview шаблона с resolved options из inline values и справочников.
+Stage 2.6: добавлен idempotent seed каталога/справочников/шаблонов Service Desk из ТЗ и скриншотов.

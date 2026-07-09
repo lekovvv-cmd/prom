@@ -60,6 +60,9 @@ jobs:
       - name: Run Service Desk migrations
         run: alembic upgrade head
 
+      - name: Seed Service Desk demo data
+        run: python scripts/seed.py
+
       - name: Run Service Desk backend tests
         run: pytest
 

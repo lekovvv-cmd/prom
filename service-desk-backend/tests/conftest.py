@@ -13,7 +13,7 @@ from app.modules.templates import models as template_models  # noqa: F401
 
 
 @pytest.fixture()
-def client():
+def db_session_factory():
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -21,9 +21,18 @@ def client():
     )
     TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     Base.metadata.create_all(bind=engine)
+    try:
+        yield TestingSessionLocal
+    finally:
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
+
+
+@pytest.fixture()
+def client(db_session_factory):
 
     def override_get_db():
-        db = TestingSessionLocal()
+        db = db_session_factory()
         try:
             yield db
         finally:
@@ -35,4 +44,3 @@ def client():
         yield TestClient(app)
     finally:
         app.dependency_overrides.clear()
-        Base.metadata.drop_all(bind=engine)
