@@ -5,14 +5,17 @@ SKIP_INSTALL=0
 NO_DOCKER=0
 EXIT_AFTER_READY=0
 BACKEND_PORT=8000
+SERVICE_DESK_PORT=8001
 FRONTEND_PORT=5173
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
+SERVICE_DESK_DIR="$ROOT_DIR/service-desk-backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 COMPOSE_PROJECT="shpiu_project_showcase"
 
 BACKEND_PID=""
+SERVICE_DESK_PID=""
 FRONTEND_PID=""
 BACKEND_PYTHON=""
 
@@ -36,6 +39,8 @@ Options:
                                     Stop after backend/frontend readiness checks
   --backend-port PORT               Backend port, default 8000
   --backend-port=PORT               Same as --backend-port PORT
+  --service-desk-port PORT          Service Desk backend port, default 8001
+  --service-desk-port=PORT          Same as --service-desk-port PORT
   --frontend-port PORT              Frontend port, default 5173
   --frontend-port=PORT              Same as --frontend-port PORT
   -h, --help                        Show help
@@ -63,6 +68,15 @@ while [[ $# -gt 0 ]]; do
       ;;
     --backend-port=*)
       BACKEND_PORT="${1#*=}"
+      shift
+      ;;
+    --service-desk-port|-ServiceDeskPort)
+      [[ $# -ge 2 ]] || fail "$1 requires a value"
+      SERVICE_DESK_PORT="$2"
+      shift 2
+      ;;
+    --service-desk-port=*)
+      SERVICE_DESK_PORT="${1#*=}"
       shift
       ;;
     --frontend-port|-FrontendPort)
@@ -171,6 +185,20 @@ raise SystemExit(0 if has_required and has_multipart else 1)' >/dev/null 2>&1; t
   (cd "$BACKEND_DIR" && "$BACKEND_PYTHON" -m pip install -e '.[dev]')
 }
 
+ensure_service_desk_dependencies() {
+  [[ "$SKIP_INSTALL" == "1" ]] && return
+
+  if "$BACKEND_PYTHON" -c 'import importlib.util
+required = ("alembic", "fastapi", "psycopg", "pydantic", "sqlalchemy", "uvicorn")
+raise SystemExit(0 if all(importlib.util.find_spec(module) for module in required) else 1)' >/dev/null 2>&1; then
+    log "Service Desk backend dependencies already installed"
+    return
+  fi
+
+  log "Installing Service Desk backend dependencies"
+  (cd "$SERVICE_DESK_DIR" && "$BACKEND_PYTHON" -m pip install -e '.[dev]')
+}
+
 ensure_frontend_dependencies() {
   [[ "$SKIP_INSTALL" == "1" ]] && return
 
@@ -199,6 +227,20 @@ wait_database() {
   done
 
   fail "PostgreSQL did not become ready in time. Check: docker compose -p $COMPOSE_PROJECT logs db"
+}
+
+wait_service_desk_database() {
+  [[ "$NO_DOCKER" == "1" ]] && return
+
+  log "Waiting for Service Desk PostgreSQL"
+  for _ in $(seq 1 60); do
+    if docker_compose exec -T service_desk_db pg_isready -U service_desk -d service_desk >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+
+  fail "Service Desk PostgreSQL did not become ready in time. Check: docker compose -p $COMPOSE_PROJECT logs service_desk_db"
 }
 
 port_is_open() {
@@ -251,12 +293,18 @@ cleanup() {
     kill "$FRONTEND_PID" >/dev/null 2>&1 || true
   fi
 
+  if [[ -n "$SERVICE_DESK_PID" ]] && kill -0 "$SERVICE_DESK_PID" >/dev/null 2>&1; then
+    log "Stopping Service Desk backend"
+    kill "$SERVICE_DESK_PID" >/dev/null 2>&1 || true
+  fi
+
   if [[ -n "$BACKEND_PID" ]] && kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
     log "Stopping backend"
     kill "$BACKEND_PID" >/dev/null 2>&1 || true
   fi
 
   [[ -n "$FRONTEND_PID" ]] && wait "$FRONTEND_PID" 2>/dev/null || true
+  [[ -n "$SERVICE_DESK_PID" ]] && wait "$SERVICE_DESK_PID" 2>/dev/null || true
   [[ -n "$BACKEND_PID" ]] && wait "$BACKEND_PID" 2>/dev/null || true
 }
 
@@ -270,23 +318,30 @@ require_command node "Install Node.js LTS/current first."
 require_command curl "Install curl first."
 
 copy_env_if_missing "$BACKEND_DIR"
+copy_env_if_missing "$SERVICE_DESK_DIR"
 copy_env_if_missing "$FRONTEND_DIR"
 
 ensure_backend_venv
 ensure_backend_dependencies
+ensure_service_desk_dependencies
 ensure_frontend_dependencies
 
 if [[ "$NO_DOCKER" != "1" ]]; then
   log "Starting PostgreSQL"
-  (cd "$ROOT_DIR" && docker_compose up -d db)
+  (cd "$ROOT_DIR" && docker_compose up -d db service_desk_db)
   wait_database
+  wait_service_desk_database
 fi
 
 log "Applying migrations"
 (cd "$BACKEND_DIR" && "$BACKEND_PYTHON" -m alembic upgrade head)
 (cd "$BACKEND_DIR" && "$BACKEND_PYTHON" scripts/seed.py)
 
+log "Applying Service Desk migrations"
+(cd "$SERVICE_DESK_DIR" && "$BACKEND_PYTHON" -m alembic upgrade head)
+
 assert_port_free "$BACKEND_PORT" "Backend"
+assert_port_free "$SERVICE_DESK_PORT" "Service Desk backend"
 assert_port_free "$FRONTEND_PORT" "Frontend"
 
 log "Starting backend"
@@ -294,18 +349,24 @@ log "Starting backend"
 BACKEND_PID=$!
 wait_url "http://127.0.0.1:$BACKEND_PORT/api/health" "backend" "$BACKEND_PID"
 
+log "Starting Service Desk backend"
+(cd "$SERVICE_DESK_DIR" && "$BACKEND_PYTHON" -m uvicorn app.main:app --host 127.0.0.1 --port "$SERVICE_DESK_PORT") &
+SERVICE_DESK_PID=$!
+wait_url "http://127.0.0.1:$SERVICE_DESK_PORT/health/live" "Service Desk backend" "$SERVICE_DESK_PID"
+
 log "Starting frontend"
 VITE_BIN="$FRONTEND_DIR/node_modules/vite/bin/vite.js"
 [[ -f "$VITE_BIN" ]] || fail "Vite is not installed. Run ./dev.sh without --skip-install first."
-(cd "$FRONTEND_DIR" && node "$VITE_BIN" --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort) &
+(cd "$FRONTEND_DIR" && VITE_SERVICE_DESK_API_BASE_URL="http://localhost:$SERVICE_DESK_PORT" node "$VITE_BIN" --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort) &
 FRONTEND_PID=$!
 wait_url "http://127.0.0.1:$FRONTEND_PORT" "frontend" "$FRONTEND_PID"
 
 cat <<EOF
 
 Application is running:
-  UI:      http://localhost:$FRONTEND_PORT
-  Swagger: http://localhost:$BACKEND_PORT/docs
+  UI:                   http://localhost:$FRONTEND_PORT
+  Projects Swagger:     http://localhost:$BACKEND_PORT/docs
+  Service Desk Swagger: http://localhost:$SERVICE_DESK_PORT/docs
 
 Demo users:
   admin@utmn.ru
@@ -324,6 +385,9 @@ fi
 while true; do
   if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
     fail "Backend process stopped"
+  fi
+  if ! kill -0 "$SERVICE_DESK_PID" >/dev/null 2>&1; then
+    fail "Service Desk backend process stopped"
   fi
   if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
     fail "Frontend process stopped"

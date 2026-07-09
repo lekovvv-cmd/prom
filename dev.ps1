@@ -3,6 +3,7 @@ param(
     [switch]$NoDocker,
     [switch]$ExitAfterReady,
     [int]$BackendPort = 8000,
+    [int]$ServiceDeskPort = 8001,
     [int]$FrontendPort = 5173
 )
 
@@ -11,10 +12,12 @@ Add-Type -AssemblyName System.Net.Http
 
 $RootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackendDir = Join-Path $RootDir "backend"
+$ServiceDeskDir = Join-Path $RootDir "service-desk-backend"
 $FrontendDir = Join-Path $RootDir "frontend"
 $ComposeProject = "shpiu_project_showcase"
 
 $BackendProcess = $null
+$ServiceDeskProcess = $null
 $FrontendProcess = $null
 
 function Write-Step {
@@ -115,6 +118,25 @@ required = ('alembic', 'fastapi', 'psycopg', 'pydantic', 'sqlalchemy', 'uvicorn'
 has_required = all(importlib.util.find_spec(module) for module in required)
 has_multipart = any(importlib.util.find_spec(module) for module in ('python_multipart', 'multipart'))
 raise SystemExit(0 if has_required and has_multipart else 1)
+"@
+
+    try {
+        & $PythonExe -c $code
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
+}
+
+function Test-ServiceDeskDependencies {
+    param([string]$PythonExe)
+
+    $code = @"
+import importlib.util
+
+required = ('alembic', 'fastapi', 'psycopg', 'pydantic', 'sqlalchemy', 'uvicorn')
+raise SystemExit(0 if all(importlib.util.find_spec(module) for module in required) else 1)
 "@
 
     try {
@@ -235,6 +257,28 @@ function Ensure-BackendDependencies {
     }
 }
 
+function Ensure-ServiceDeskDependencies {
+    param([string]$PythonExe)
+
+    if ($SkipInstall) {
+        return
+    }
+
+    if (Test-ServiceDeskDependencies $PythonExe) {
+        Write-Step "Service Desk backend dependencies already installed"
+        return
+    }
+
+    Write-Step "Installing Service Desk backend dependencies"
+    Push-Location $ServiceDeskDir
+    try {
+        & $PythonExe -m pip install -e ".[dev]"
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 function Ensure-FrontendDependencies {
     param([string]$NpmExe)
 
@@ -273,6 +317,23 @@ function Wait-Database {
     }
 
     throw "PostgreSQL did not become ready in time. Check Docker Desktop and run: docker compose -p $ComposeProject logs db"
+}
+
+function Wait-ServiceDeskDatabase {
+    if ($NoDocker) {
+        return
+    }
+
+    Write-Step "Waiting for Service Desk PostgreSQL"
+    for ($i = 0; $i -lt 60; $i++) {
+        & docker compose -p $ComposeProject exec -T service_desk_db pg_isready -U service_desk -d service_desk *> $null
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+        Start-Sleep -Seconds 1
+    }
+
+    throw "Service Desk PostgreSQL did not become ready in time. Check Docker Desktop and run: docker compose -p $ComposeProject logs service_desk_db"
 }
 
 function Start-AppProcess {
@@ -393,22 +454,25 @@ try {
     $NodeExe = Find-Node
 
     Copy-EnvIfMissing $BackendDir
+    Copy-EnvIfMissing $ServiceDeskDir
     Copy-EnvIfMissing $FrontendDir
 
     $BackendPython = Ensure-BackendVenv
     Ensure-BackendDependencies $BackendPython
+    Ensure-ServiceDeskDependencies $BackendPython
     Ensure-FrontendDependencies $NpmExe
 
     if (-not $NoDocker) {
         Write-Step "Starting PostgreSQL"
         Push-Location $RootDir
         try {
-            & docker compose -p $ComposeProject up -d db
+            & docker compose -p $ComposeProject up -d db service_desk_db
         }
         finally {
             Pop-Location
         }
         Wait-Database
+        Wait-ServiceDeskDatabase
     }
 
     Write-Step "Applying migrations"
@@ -421,7 +485,17 @@ try {
         Pop-Location
     }
 
+    Write-Step "Applying Service Desk migrations"
+    Push-Location $ServiceDeskDir
+    try {
+        & $BackendPython -m alembic upgrade head
+    }
+    finally {
+        Pop-Location
+    }
+
     Assert-PortFree $BackendPort "Backend"
+    Assert-PortFree $ServiceDeskPort "Service Desk backend"
     Assert-PortFree $FrontendPort "Frontend"
 
     Write-Step "Starting backend"
@@ -430,7 +504,14 @@ try {
 
     Wait-Url "http://127.0.0.1:$BackendPort/api/health" "backend" $BackendProcess
 
+    Write-Step "Starting Service Desk backend"
+    $serviceDeskArgs = "-m uvicorn app.main:app --host 127.0.0.1 --port $ServiceDeskPort"
+    $ServiceDeskProcess = Start-AppProcess $BackendPython $serviceDeskArgs $ServiceDeskDir "Service Desk backend"
+
+    Wait-Url "http://127.0.0.1:$ServiceDeskPort/health/live" "Service Desk backend" $ServiceDeskProcess
+
     Write-Step "Starting frontend"
+    $env:VITE_SERVICE_DESK_API_BASE_URL = "http://localhost:$ServiceDeskPort"
     $viteBin = Join-Path $FrontendDir "node_modules\vite\bin\vite.js"
     if (-not (Test-Path -LiteralPath $viteBin)) {
         throw "Vite is not installed. Run .\dev.cmd without -SkipInstall first."
@@ -442,8 +523,9 @@ try {
 
     Write-Host ""
     Write-Host "Application is running:" -ForegroundColor Green
-    Write-Host "  UI:      http://localhost:$FrontendPort"
-    Write-Host "  Swagger: http://localhost:$BackendPort/docs"
+    Write-Host "  UI:                   http://localhost:$FrontendPort"
+    Write-Host "  Projects Swagger:     http://localhost:$BackendPort/docs"
+    Write-Host "  Service Desk Swagger: http://localhost:$ServiceDeskPort/docs"
     Write-Host ""
     Write-Host "Demo users:"
     Write-Host "  admin@utmn.ru"
@@ -465,10 +547,14 @@ try {
         if ($FrontendProcess.HasExited) {
             throw "Frontend process stopped"
         }
+        if ($ServiceDeskProcess.HasExited) {
+            throw "Service Desk backend process stopped"
+        }
         Start-Sleep -Seconds 2
     }
 }
 finally {
     Stop-ChildProcess $FrontendProcess "frontend"
+    Stop-ChildProcess $ServiceDeskProcess "Service Desk backend"
     Stop-ChildProcess $BackendProcess "backend"
 }

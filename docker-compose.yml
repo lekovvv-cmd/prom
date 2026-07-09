@@ -15,5 +15,22 @@ services:
       timeout: 3s
       retries: 20
 
+  service_desk_db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: service_desk
+      POSTGRES_USER: service_desk
+      POSTGRES_PASSWORD: service_desk
+    ports:
+      - "5433:5432"
+    volumes:
+      - service_desk_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U service_desk -d service_desk"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 volumes:
   project_showcase_pg_data:
+  service_desk_pg_data:
