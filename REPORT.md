@@ -11,3 +11,4 @@ Stage 2.5: добавлен preview шаблона с resolved options из inli
 Stage 2.6: добавлен idempotent seed каталога/справочников/шаблонов Service Desk из ТЗ и скриншотов.
 Stage 3.1: добавлены draft-заявки Service Desk со списком, деталями, редактированием и history.
 Stage 3.2: добавлена отправка draft с backend-валидацией формы и concurrency-safe номером SD-YYYY-NNNNNN.
+Stage 3.4: добавлена единая lifecycle state machine с action endpoints, timestamps, причинами и immutable history.

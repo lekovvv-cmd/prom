@@ -76,6 +76,8 @@ class ServiceDeskTicket(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sla_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     routing_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    resolution_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     service: Mapped[ServiceDeskService] = relationship()
     template_version: Mapped[ServiceDeskTemplateVersion] = relationship()

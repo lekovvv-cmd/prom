@@ -49,6 +49,23 @@ class ServiceDeskPriority(StrEnum):
     CRITICAL = "critical"
 
 
+class ServiceDeskTicketAction(StrEnum):
+    SUBMIT = "submit"
+    START_APPROVAL = "start_approval"
+    SKIP_APPROVAL = "skip_approval"
+    COMPLETE_APPROVAL = "complete_approval"
+    REJECT_APPROVAL = "reject_approval"
+    ASSIGN = "assign"
+    START = "start"
+    REQUEST_CLARIFICATION = "request_clarification"
+    REQUESTER_REPLY = "requester_reply"
+    WAIT_EXTERNAL = "wait_external"
+    RESUME = "resume"
+    RESOLVE = "resolve"
+    CLOSE = "close"
+    CANCEL = "cancel"
+
+
 SERVICE_DESK_CAPABILITIES: tuple[str, ...] = (
     "service_desk.access",
     "service_desk.create_request",

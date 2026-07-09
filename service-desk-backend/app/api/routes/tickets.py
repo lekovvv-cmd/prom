@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.enums import ServiceDeskTicketStatus
+from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus
 from app.modules.tickets import schemas
 from app.modules.tickets.service import TicketService
 
@@ -28,6 +28,104 @@ def update_ticket_draft(
 @router.post("/tickets/{ticket_id}/submit", response_model=schemas.TicketRead)
 def submit_ticket_draft(ticket_id: uuid.UUID, db: Session = Depends(get_db)):
     return TicketService(db).submit_draft(ticket_id)
+
+
+@router.post("/tickets/{ticket_id}/start", response_model=schemas.TicketRead)
+def start_ticket(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketActorAction,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).perform_action(
+        ticket_id,
+        ServiceDeskTicketAction.START,
+        payload.actor_user_id,
+    )
+
+
+@router.post("/tickets/{ticket_id}/request-clarification", response_model=schemas.TicketRead)
+def request_ticket_clarification(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketCommentAction,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).perform_action(
+        ticket_id,
+        ServiceDeskTicketAction.REQUEST_CLARIFICATION,
+        payload.actor_user_id,
+        metadata={"comment": payload.comment},
+    )
+
+
+@router.post("/tickets/{ticket_id}/wait-external", response_model=schemas.TicketRead)
+def wait_for_external_action(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketReasonAction,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).perform_action(
+        ticket_id,
+        ServiceDeskTicketAction.WAIT_EXTERNAL,
+        payload.actor_user_id,
+        metadata={"reason": payload.reason},
+    )
+
+
+@router.post("/tickets/{ticket_id}/resume", response_model=schemas.TicketRead)
+def resume_ticket(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketActorAction,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).perform_action(
+        ticket_id,
+        ServiceDeskTicketAction.RESUME,
+        payload.actor_user_id,
+    )
+
+
+@router.post("/tickets/{ticket_id}/resolve", response_model=schemas.TicketRead)
+def resolve_ticket(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketResolveAction,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).perform_action(
+        ticket_id,
+        ServiceDeskTicketAction.RESOLVE,
+        payload.actor_user_id,
+        metadata={
+            "resolution_summary": payload.resolution_summary,
+            "comment": payload.comment,
+        },
+    )
+
+
+@router.post("/tickets/{ticket_id}/close", response_model=schemas.TicketRead)
+def close_ticket(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketActorAction,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).perform_action(
+        ticket_id,
+        ServiceDeskTicketAction.CLOSE,
+        payload.actor_user_id,
+    )
+
+
+@router.post("/tickets/{ticket_id}/cancel", response_model=schemas.TicketRead)
+def cancel_ticket(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketReasonAction,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).perform_action(
+        ticket_id,
+        ServiceDeskTicketAction.CANCEL,
+        payload.actor_user_id,
+        metadata={"reason": payload.reason},
+    )
 
 
 @router.get("/me/tickets", response_model=list[schemas.TicketRead])

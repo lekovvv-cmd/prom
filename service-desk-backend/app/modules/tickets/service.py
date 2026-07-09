@@ -5,13 +5,14 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import ServiceDeskTicketStatus, TemplateVersionStatus
+from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus, TemplateVersionStatus
 from app.modules.access.models import ServiceDeskUser
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.modules.templates.repository import TemplateRepository
 from app.modules.templates.validation import validate_template_payload
 from app.modules.tickets import schemas
+from app.modules.tickets.lifecycle import TicketLifecycleService
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.repository import TicketRepository
 
@@ -22,6 +23,7 @@ class TicketService:
         self.repository = TicketRepository(db)
         self.catalog_repository = CatalogRepository(db)
         self.template_repository = TemplateRepository(db)
+        self.lifecycle = TicketLifecycleService(self.repository)
 
     def create_draft(self, payload: schemas.TicketDraftCreate) -> ServiceDeskTicket:
         requester = self._require_active_user(payload.requester_user_id)
@@ -85,7 +87,7 @@ class TicketService:
                 "Отправить можно только черновик заявки",
             )
 
-        self._require_active_user(ticket.requester_user_id)
+        requester = self._require_active_user(ticket.requester_user_id)
         service = self.catalog_repository.get_service(ticket.service_id)
         if not service or not service.is_active or service.deleted_at is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, "Услуга больше недоступна")
@@ -115,15 +117,29 @@ class TicketService:
         ticket.field_values = validation.normalized_data
         now = datetime.now(UTC)
         ticket.number = self.repository.next_ticket_number(now.year)
-        ticket.status = ServiceDeskTicketStatus.SUBMITTED
-        ticket.submitted_at = now
-        self._write_history(
+        self.lifecycle.perform_transition(
             ticket,
-            "ticket_submitted",
-            ticket.requester_user_id,
-            "Заявка отправлена",
-            {"number": ticket.number, "status": ticket.status.value},
+            ServiceDeskTicketAction.SUBMIT,
+            actor=requester,
+            metadata={"number": ticket.number},
+            occurred_at=now,
         )
+        self.db.commit()
+        return self._require_ticket(ticket.id)
+
+    def perform_action(
+        self,
+        ticket_id: uuid.UUID,
+        action: ServiceDeskTicketAction,
+        actor_user_id: uuid.UUID,
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> ServiceDeskTicket:
+        ticket = self.repository.get_ticket_for_update(ticket_id)
+        if not ticket:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+        actor = self._require_active_user(actor_user_id)
+        self.lifecycle.perform_transition(ticket, action, actor=actor, metadata=metadata)
         self.db.commit()
         return self._require_ticket(ticket.id)
 
