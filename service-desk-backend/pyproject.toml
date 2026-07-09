@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=70.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shpiu-service-desk-backend"
+version = "0.1.0"
+description = "FastAPI backend for SHPIU Service Desk"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi>=0.115.0,<0.116.0",
+  "pydantic>=2.11.0",
+  "pydantic-settings>=2.8.0",
+  "uvicorn[standard]>=0.35.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.0",
+  "pytest>=8.4.0",
+  "ruff>=0.14.0"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*"]
