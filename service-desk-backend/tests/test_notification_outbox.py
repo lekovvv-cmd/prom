@@ -33,6 +33,7 @@ def test_outbox_worker_retries_idempotently_without_duplicate_notification(
     ticket_id, _ = create_submitted_ticket(client, db_session_factory, auth_headers_for_user)
     with db_session_factory() as db:
         record = db.scalar(select(ServiceDeskNotificationOutbox).where(
+            ServiceDeskNotificationOutbox.channel == "in_app",
             ServiceDeskNotificationOutbox.payload["ticket_id"].as_string() == ticket_id,
             ServiceDeskNotificationOutbox.payload["event_type"].as_string() == "ticket_submitted",
         ))

@@ -34,11 +34,34 @@ class InAppChannel:
         )
 
 
+class EmailChannel:
+    """Persists email intent without pretending unavailable external delivery succeeded."""
+
+    def __init__(self, repository: NotificationOutboxRepository) -> None:
+        self.repository = repository
+
+    def enqueue(self, event: NotificationEvent, recipient_email: str) -> None:
+        self.repository.get_or_add(ServiceDeskNotificationOutbox(
+            event_id=event.event_id,
+            channel="email",
+            recipient=recipient_email,
+            payload={
+                "ticket_id": str(event.ticket_id) if event.ticket_id else None,
+                "event_type": event.event_type.value,
+                "title": event.title,
+                "body": event.body,
+            },
+            status="blocked_external",
+            last_error="Email delivery configuration has not been provided by CIT",
+        ))
+
+
 class NotificationDispatcher:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.in_app = InAppChannel(NotificationRepository(db))
         self.outbox = NotificationOutboxRepository(db)
+        self.email = EmailChannel(self.outbox)
 
     def dispatch(self, event: NotificationEvent) -> None:
         for recipient_id in self._recipient_ids(event):
@@ -60,6 +83,9 @@ class NotificationDispatcher:
             record.status = "sent"
             record.processed_at = datetime.now(UTC)
             record.last_error = None
+            recipient = self.db.get(ServiceDeskUser, recipient_id)
+            if recipient:
+                self.email.enqueue(event, recipient.email)
 
     def _recipient_ids(self, event: NotificationEvent) -> list[uuid.UUID]:
         if event.recipient_user_ids is not None:
