@@ -8,24 +8,114 @@ from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHisto
 from sqlalchemy import select
 
 
-def create_sla_user(client, db_session_factory, *, can_manage_sla: bool) -> str:
+def create_sla_user(
+    client,
+    db_session_factory,
+    *,
+    can_manage_sla: bool,
+    has_service_desk_access: bool = True,
+    access_type: ServiceDeskAccessType = ServiceDeskAccessType.MANAGER,
+) -> str:
     with db_session_factory() as db:
         user = ServiceDeskUser(
             identity_user_id=str(uuid.uuid4()),
             email=f"sla-{uuid.uuid4().hex}@utmn.ru",
             display_name="SLA administrator",
-            access_type=ServiceDeskAccessType.MANAGER,
+            access_type=access_type,
             is_active=True,
         )
         db.add(user)
         db.flush()
-        capabilities = ["service_desk.access"]
+        capabilities = ["service_desk.access"] if has_service_desk_access else []
         if can_manage_sla:
             capabilities.append("service_desk.manage_sla")
         for capability in capabilities:
             db.add(ServiceDeskUserCapability(service_desk_user_id=user.id, capability=capability))
         db.commit()
         return str(user.id)
+
+
+def test_sla_authorization_uses_central_service_desk_capability_semantics(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    ordinary_user_id = create_sla_user(
+        client,
+        db_session_factory,
+        can_manage_sla=False,
+        has_service_desk_access=False,
+    )
+    manager_id = create_sla_user(client, db_session_factory, can_manage_sla=False)
+    capability_holder_id = create_sla_user(client, db_session_factory, can_manage_sla=True)
+    service_desk_admin_id = create_sla_user(
+        client,
+        db_session_factory,
+        can_manage_sla=False,
+        access_type=ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+    )
+
+    assert client.get("/admin/sla/calendars", headers={}).status_code == 401
+    assert (
+        client.get(
+            "/admin/sla/calendars",
+            headers=auth_headers_for_user(ordinary_user_id),
+        ).status_code
+        == 403
+    )
+    assert (
+        client.get(
+            "/admin/sla/calendars",
+            headers=auth_headers_for_user(manager_id),
+        ).status_code
+        == 403
+    )
+    assert (
+        client.get(
+            "/admin/sla/calendars",
+            headers=auth_headers_for_user(capability_holder_id),
+        ).status_code
+        == 200
+    )
+    admin_headers = auth_headers_for_user(service_desk_admin_id)
+    assert client.get("/admin/sla/calendars", headers=admin_headers).status_code == 200
+
+    calendar = client.post(
+        "/admin/sla/calendars",
+        json={
+            "name": "Authorization calendar",
+            "timezone": "Asia/Yekaterinburg",
+            "business_hours": [
+                {"weekday": 0, "start_time": "09:00:00", "end_time": "18:00:00"}
+            ],
+        },
+        headers=auth_headers_for_user(capability_holder_id),
+    )
+    assert calendar.status_code == 201, calendar.text
+
+    manager_policy = client.post(
+        "/admin/sla/policies",
+        json={
+            "name": "Forbidden manager policy",
+            "business_calendar_id": calendar.json()["id"],
+            "first_response_minutes": 30,
+            "resolution_minutes": 240,
+        },
+        headers=auth_headers_for_user(manager_id),
+    )
+    assert manager_policy.status_code == 403
+
+    admin_policy = client.post(
+        "/admin/sla/policies",
+        json={
+            "name": "Service Desk admin policy",
+            "business_calendar_id": calendar.json()["id"],
+            "first_response_minutes": 30,
+            "resolution_minutes": 240,
+        },
+        headers=admin_headers,
+    )
+    assert admin_policy.status_code == 201, admin_policy.text
 
 
 def test_business_calendars_require_capability_and_validate_working_intervals(

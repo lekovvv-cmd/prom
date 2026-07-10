@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.modules.access.models import ServiceDeskUser
+from app.modules.access.service import ServiceDeskAccessService
 from app.modules.sla import schemas
 from app.modules.sla.models import (
     ServiceDeskBusinessCalendar,
@@ -341,6 +342,6 @@ class SlaService:
 
     @staticmethod
     def _require_manage_sla(actor: ServiceDeskUser) -> None:
-        if any(item.capability == "service_desk.manage_sla" for item in actor.capabilities):
+        if "service_desk.manage_sla" in ServiceDeskAccessService.capabilities_for(actor):
             return
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Missing service_desk.manage_sla capability")
