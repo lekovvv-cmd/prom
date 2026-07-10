@@ -76,6 +76,7 @@ class TicketApprovalRead(BaseModel):
     id: uuid.UUID
     ticket_approval_stage_id: uuid.UUID
     approver_user_id: uuid.UUID
+    approver_display_name: str
     status: ServiceDeskApprovalStatus
     decision_comment: str | None
     decided_at: datetime | None
@@ -100,10 +101,8 @@ class TicketApprovalStageRead(BaseModel):
 
 
 class TicketApprovalDecision(BaseModel):
-    actor_user_id: uuid.UUID
     comment: str | None = Field(default=None, max_length=2000)
 
 
 class TicketApprovalRejection(BaseModel):
-    actor_user_id: uuid.UUID
     comment: str = Field(min_length=2, max_length=2000)

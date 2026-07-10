@@ -2494,3 +2494,268 @@ button.chip {
     display: grid;
   }
 }
+
+/* Service Desk ticket and approval workflow */
+.service-desk-ticket-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
+}
+
+.service-desk-ticket-main,
+.service-desk-ticket-side {
+  display: grid;
+  gap: 14px;
+}
+
+.service-desk-ticket-side {
+  position: sticky;
+  top: 84px;
+}
+
+.service-desk-ticket-heading {
+  border-left-color: var(--accent-dark);
+}
+
+.service-desk-eyebrow {
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.service-desk-approvals {
+  display: grid;
+  gap: 16px;
+}
+
+.service-desk-section-heading,
+.approval-stage-header,
+.approval-action-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.service-desk-section-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.approval-stage-list,
+.approval-person-list,
+.service-desk-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.approval-stage-list {
+  display: grid;
+  gap: 10px;
+}
+
+.approval-stage {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.approval-stage-current {
+  border-color: rgba(0, 126, 180, 0.55);
+  background: linear-gradient(180deg, #ffffff, #f3fbfe);
+  box-shadow: inset 3px 0 0 var(--accent-dark);
+}
+
+.approval-stage-marker {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.approval-stage-content {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.approval-stage-header h4 {
+  margin: 0 0 3px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.approval-stage-header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.approval-person-list {
+  display: grid;
+  gap: 7px;
+}
+
+.approval-person-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.approval-person-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.approval-person-list li > div {
+  display: grid;
+  gap: 2px;
+}
+
+.approval-person-list strong {
+  font-size: 13px;
+}
+
+.approval-person-list span,
+.approval-person-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.approval-person-list p {
+  margin-top: 4px;
+  padding: 7px 9px;
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-alt);
+}
+
+.approval-action-panel {
+  padding: 13px;
+  border: 1px solid rgba(0, 126, 180, 0.38);
+  border-radius: 6px;
+  background: var(--accent-soft);
+}
+
+.approval-action-panel > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.approval-action-panel strong {
+  color: #00384d;
+  font-size: 14px;
+}
+
+.approval-action-panel span {
+  color: #315b69;
+  font-size: 12px;
+}
+
+.service-desk-field-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.service-desk-field-list > div {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-alt);
+}
+
+.service-desk-field-list dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.service-desk-field-list dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.service-desk-history {
+  display: grid;
+  gap: 0;
+  margin-top: 14px;
+}
+
+.service-desk-history li {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--border);
+}
+
+.service-desk-history li > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.service-desk-history li > div {
+  display: grid;
+  gap: 4px;
+}
+
+.service-desk-history strong {
+  font-size: 13px;
+}
+
+.service-desk-history p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 1000px) {
+  .service-desk-ticket-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-ticket-side {
+    position: static;
+  }
+}
+
+@media (max-width: 620px) {
+  .service-desk-section-heading,
+  .approval-stage-header,
+  .approval-action-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .service-desk-field-list {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-history li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

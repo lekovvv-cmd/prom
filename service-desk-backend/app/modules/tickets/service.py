@@ -17,6 +17,7 @@ from app.modules.templates.validation import validate_template_payload
 from app.modules.tickets import schemas
 from app.modules.tickets.lifecycle import TicketLifecycleService
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
+from app.modules.tickets.policy import TicketPolicyService
 from app.modules.tickets.repository import TicketRepository
 
 
@@ -28,6 +29,7 @@ class TicketService:
         self.template_repository = TemplateRepository(db)
         self.lifecycle = TicketLifecycleService(self.repository)
         self.ticket_approval_service = TicketApprovalService(db, self.repository)
+        self.policy = TicketPolicyService()
 
     def create_draft(self, payload: schemas.TicketDraftCreate) -> ServiceDeskTicket:
         requester = self._require_active_user(payload.requester_user_id)
@@ -164,7 +166,22 @@ class TicketService:
     def get_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         return self._require_ticket(ticket_id)
 
-    def get_approval_snapshot(self, ticket_id: uuid.UUID) -> list[ServiceDeskTicketApprovalStage]:
+    def get_ticket_for_actor(
+        self,
+        ticket_id: uuid.UUID,
+        actor: ServiceDeskUser,
+    ) -> schemas.TicketRead:
+        ticket = self._require_ticket(ticket_id)
+        self.policy.require_view(ticket, actor)
+        return self._read_for_actor(ticket, actor)
+
+    def get_approval_snapshot(
+        self,
+        ticket_id: uuid.UUID,
+        actor: ServiceDeskUser,
+    ) -> list[ServiceDeskTicketApprovalStage]:
+        ticket = self._require_ticket(ticket_id)
+        self.policy.require_view(ticket, actor)
         return self.ticket_approval_service.get_snapshot(ticket_id)
 
     def approve_ticket(
@@ -172,25 +189,38 @@ class TicketService:
         ticket_id: uuid.UUID,
         approval_id: uuid.UUID,
         payload: approval_schemas.TicketApprovalDecision,
-    ) -> ServiceDeskTicket:
-        return self.ticket_approval_service.approve(
+        actor: ServiceDeskUser,
+    ) -> schemas.TicketRead:
+        ticket = self.ticket_approval_service.approve(
             ticket_id,
             approval_id,
-            payload.actor_user_id,
+            actor.id,
             comment=payload.comment,
         )
+        return self._read_for_actor(ticket, actor)
 
     def reject_ticket(
         self,
         ticket_id: uuid.UUID,
         approval_id: uuid.UUID,
         payload: approval_schemas.TicketApprovalRejection,
-    ) -> ServiceDeskTicket:
-        return self.ticket_approval_service.reject(
+        actor: ServiceDeskUser,
+    ) -> schemas.TicketRead:
+        ticket = self.ticket_approval_service.reject(
             ticket_id,
             approval_id,
-            payload.actor_user_id,
+            actor.id,
             comment=payload.comment,
+        )
+        return self._read_for_actor(ticket, actor)
+
+    def _read_for_actor(
+        self,
+        ticket: ServiceDeskTicket,
+        actor: ServiceDeskUser,
+    ) -> schemas.TicketRead:
+        return schemas.TicketRead.model_validate(ticket).model_copy(
+            update={"allowed_actions": self.policy.allowed_actions(ticket, actor)}
         )
 
     def _require_active_user(self, user_id: uuid.UUID) -> ServiceDeskUser:

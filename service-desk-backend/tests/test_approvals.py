@@ -35,6 +35,12 @@ def create_approval_user(
         )
         db.add(user)
         db.flush()
+        db.add(
+            ServiceDeskUserCapability(
+                service_desk_user_id=user.id,
+                capability="service_desk.access",
+            )
+        )
         if can_approve:
             db.add(
                 ServiceDeskUserCapability(
@@ -194,7 +200,11 @@ def test_workflow_template_cannot_publish_without_stages_and_approvers(client):
     assert published.json()["approval_mode"] == "none"
 
 
-def test_submit_snapshots_published_approval_workflow(client, db_session_factory):
+def test_submit_snapshots_published_approval_workflow(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
     category = client.post("/admin/categories", json={"title": "Snapshot category"})
     service = client.post(
         "/admin/services",
@@ -282,7 +292,10 @@ def test_submit_snapshots_published_approval_workflow(client, db_session_factory
         source_stage.title = "Изменённый исходный этап"
         db.commit()
 
-    snapshot = client.get(f"/tickets/{payload['id']}/approvals")
+    snapshot = client.get(
+        f"/tickets/{payload['id']}/approvals",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert snapshot.status_code == 200, snapshot.text
     assert [stage["title"] for stage in snapshot.json()] == ["Первый этап", "Второй этап"]
 
@@ -358,7 +371,11 @@ def approval_id_for_actor(stage: dict, actor_user_id: str) -> str:
     )
 
 
-def test_any_stage_completes_on_first_approval_and_skips_remaining(client, db_session_factory):
+def test_any_stage_completes_on_first_approval_and_skips_remaining(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
     ticket, approver_ids, requester_id = create_decision_ticket(
         client,
         db_session_factory,
@@ -367,15 +384,36 @@ def test_any_stage_completes_on_first_approval_and_skips_remaining(client, db_se
     stage = ticket["approval_stages"][0]
     approval_id = approval_id_for_actor(stage, approver_ids[0][0])
 
+    assert client.get(f"/tickets/{ticket['id']}").status_code == 401
+    requester_view = client.get(
+        f"/tickets/{ticket['id']}",
+        headers=auth_headers_for_user(requester_id),
+    )
+    assert requester_view.status_code == 200
+    assert requester_view.json()["allowed_actions"] == []
+
+    approver_view = client.get(
+        f"/tickets/{ticket['id']}",
+        headers=auth_headers_for_user(approver_ids[0][0]),
+    )
+    assert approver_view.status_code == 200
+    assert approver_view.json()["allowed_actions"] == ["approve", "reject"]
+    assert approver_view.json()["service"]["title"].startswith("Decision service")
+    assert approver_view.json()["approval_stages"][0]["approvals"][0][
+        "approver_display_name"
+    ].startswith("decision-")
+
     forbidden = client.post(
         f"/tickets/{ticket['id']}/approvals/{approval_id}/approve",
-        json={"actor_user_id": requester_id},
+        json={},
+        headers=auth_headers_for_user(requester_id),
     )
     assert forbidden.status_code == 403
 
     approved = client.post(
         f"/tickets/{ticket['id']}/approvals/{approval_id}/approve",
-        json={"actor_user_id": approver_ids[0][0], "comment": "Согласовано"},
+        json={"comment": "Согласовано"},
+        headers=auth_headers_for_user(approver_ids[0][0]),
     )
     assert approved.status_code == 200, approved.text
     payload = approved.json()
@@ -392,12 +430,17 @@ def test_any_stage_completes_on_first_approval_and_skips_remaining(client, db_se
 
     duplicate = client.post(
         f"/tickets/{ticket['id']}/approvals/{approval_id}/approve",
-        json={"actor_user_id": approver_ids[0][0]},
+        json={},
+        headers=auth_headers_for_user(approver_ids[0][0]),
     )
     assert duplicate.status_code == 409
 
 
-def test_all_stage_waits_for_every_approver(client, db_session_factory):
+def test_all_stage_waits_for_every_approver(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
     ticket, approver_ids, _ = create_decision_ticket(
         client,
         db_session_factory,
@@ -409,7 +452,8 @@ def test_all_stage_waits_for_every_approver(client, db_session_factory):
 
     first = client.post(
         f"/tickets/{ticket['id']}/approvals/{first_approval_id}/approve",
-        json={"actor_user_id": approver_ids[0][0]},
+        json={},
+        headers=auth_headers_for_user(approver_ids[0][0]),
     )
     assert first.status_code == 200, first.text
     assert first.json()["status"] == "pending_approval"
@@ -417,14 +461,19 @@ def test_all_stage_waits_for_every_approver(client, db_session_factory):
 
     second = client.post(
         f"/tickets/{ticket['id']}/approvals/{second_approval_id}/approve",
-        json={"actor_user_id": approver_ids[0][1]},
+        json={},
+        headers=auth_headers_for_user(approver_ids[0][1]),
     )
     assert second.status_code == 200, second.text
     assert second.json()["status"] == "approved"
     assert second.json()["approval_stages"][0]["completed_at"] is not None
 
 
-def test_multistage_progression_and_reject_skip_future_stages(client, db_session_factory):
+def test_multistage_progression_and_reject_skip_future_stages(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
     ticket, approver_ids, _ = create_decision_ticket(
         client,
         db_session_factory,
@@ -436,13 +485,15 @@ def test_multistage_progression_and_reject_skip_future_stages(client, db_session
 
     premature = client.post(
         f"/tickets/{ticket['id']}/approvals/{second_approval_id}/approve",
-        json={"actor_user_id": approver_ids[1][0]},
+        json={},
+        headers=auth_headers_for_user(approver_ids[1][0]),
     )
     assert premature.status_code == 409
 
     first = client.post(
         f"/tickets/{ticket['id']}/approvals/{first_approval_id}/approve",
-        json={"actor_user_id": approver_ids[0][0]},
+        json={},
+        headers=auth_headers_for_user(approver_ids[0][0]),
     )
     assert first.status_code == 200, first.text
     assert first.json()["status"] == "pending_approval"
@@ -451,13 +502,15 @@ def test_multistage_progression_and_reject_skip_future_stages(client, db_session
 
     missing_reason = client.post(
         f"/tickets/{ticket['id']}/approvals/{second_approval_id}/reject",
-        json={"actor_user_id": approver_ids[1][0], "comment": ""},
+        json={"comment": ""},
+        headers=auth_headers_for_user(approver_ids[1][0]),
     )
     assert missing_reason.status_code == 422
 
     rejected = client.post(
         f"/tickets/{ticket['id']}/approvals/{second_approval_id}/reject",
-        json={"actor_user_id": approver_ids[1][0], "comment": "Не хватает обоснования"},
+        json={"comment": "Не хватает обоснования"},
+        headers=auth_headers_for_user(approver_ids[1][0]),
     )
     assert rejected.status_code == 200, rejected.text
     payload = rejected.json()

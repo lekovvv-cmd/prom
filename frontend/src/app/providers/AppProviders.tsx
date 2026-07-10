@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { getMe } from "../../entities/user/api/userApi";
 import type { User } from "../../entities/user/model/types";
 import { apiClient } from "../../shared/api/client";
+import { ServiceDeskAccessProvider } from "./ServiceDeskAccessProvider";
 
 type AuthContextValue = {
   token: string | null;
@@ -71,7 +72,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <BrowserRouter>
-      <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+      <AuthContext.Provider value={value}>
+        <ServiceDeskAccessProvider token={token}>{children}</ServiceDeskAccessProvider>
+      </AuthContext.Provider>
     </BrowserRouter>
   );
 }

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from app.core.enums import ServiceDeskAccessType
-from app.modules.access.models import ServiceDeskUser
+from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 
 
 def create_requester(client: TestClient, db_session_factory) -> str:
@@ -17,6 +17,13 @@ def create_requester(client: TestClient, db_session_factory) -> str:
             is_active=True,
         )
         db.add(user)
+        db.flush()
+        db.add(
+            ServiceDeskUserCapability(
+                service_desk_user_id=user.id,
+                capability="service_desk.access",
+            )
+        )
         db.commit()
         db.refresh(user)
         return str(user.id)
@@ -50,7 +57,11 @@ def create_service_with_template(client: TestClient) -> tuple[str, str]:
     return service_id, version_id
 
 
-def test_ticket_draft_create_update_list_and_history(client: TestClient, db_session_factory):
+def test_ticket_draft_create_update_list_and_history(
+    client: TestClient,
+    db_session_factory,
+    auth_headers_for_user,
+):
     requester_id = create_requester(client, db_session_factory)
     service_id, version_id = create_service_with_template(client)
 
@@ -89,7 +100,10 @@ def test_ticket_draft_create_update_list_and_history(client: TestClient, db_sess
     assert mine.status_code == 200
     assert [item["id"] for item in mine.json()] == [ticket_id]
 
-    details = client.get(f"/tickets/{ticket_id}")
+    details = client.get(
+        f"/tickets/{ticket_id}",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert details.status_code == 200
     assert details.json()["id"] == ticket_id
 

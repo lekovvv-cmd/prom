@@ -1,11 +1,34 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import ServiceDeskPriority, ServiceDeskTicketStatus
 from app.modules.approvals.schemas import TicketApprovalStageRead
+
+
+class TicketUserSummary(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TicketCategorySummary(BaseModel):
+    id: uuid.UUID
+    title: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TicketServiceSummary(BaseModel):
+    id: uuid.UUID
+    title: str
+    category: TicketCategorySummary
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TicketDraftCreate(BaseModel):
@@ -58,9 +81,12 @@ class TicketRead(BaseModel):
     id: uuid.UUID
     number: str | None
     service_id: uuid.UUID
+    service: TicketServiceSummary
     template_version_id: uuid.UUID
     requester_user_id: uuid.UUID
+    requester: TicketUserSummary
     assignee_user_id: uuid.UUID | None
+    assignee: TicketUserSummary | None
     title: str
     description: str | None
     status: ServiceDeskTicketStatus
@@ -78,6 +104,7 @@ class TicketRead(BaseModel):
     resolution_summary: str | None
     cancellation_reason: str | None
     approval_stages: list[TicketApprovalStageRead] = Field(default_factory=list)
+    allowed_actions: list[Literal["approve", "reject"]] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

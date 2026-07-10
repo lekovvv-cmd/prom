@@ -4,7 +4,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import ServiceDeskTicketStatus
-from app.modules.approvals.models import ServiceDeskTicketApprovalStage
+from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
+from app.modules.catalog.models import ServiceDeskService
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketCounter, ServiceDeskTicketHistory
 
 
@@ -28,9 +29,12 @@ class TicketRepository:
             select(ServiceDeskTicket)
             .options(
                 joinedload(ServiceDeskTicket.history),
+                joinedload(ServiceDeskTicket.service).joinedload(ServiceDeskService.category),
+                joinedload(ServiceDeskTicket.requester),
+                joinedload(ServiceDeskTicket.assignee),
                 joinedload(ServiceDeskTicket.approval_stages).joinedload(
                     ServiceDeskTicketApprovalStage.approvals
-                ),
+                ).joinedload(ServiceDeskTicketApproval.approver),
             )
             .where(ServiceDeskTicket.id == ticket_id, ServiceDeskTicket.deleted_at.is_(None))
         )
@@ -69,9 +73,12 @@ class TicketRepository:
             select(ServiceDeskTicket)
             .options(
                 joinedload(ServiceDeskTicket.history),
+                joinedload(ServiceDeskTicket.service).joinedload(ServiceDeskService.category),
+                joinedload(ServiceDeskTicket.requester),
+                joinedload(ServiceDeskTicket.assignee),
                 joinedload(ServiceDeskTicket.approval_stages).joinedload(
                     ServiceDeskTicketApprovalStage.approvals
-                ),
+                ).joinedload(ServiceDeskTicketApproval.approver),
             )
             .where(
                 ServiceDeskTicket.requester_user_id == requester_user_id,

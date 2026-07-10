@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import CurrentServiceDeskUser, get_db
 from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus
 from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.schemas import TicketApprovalStageRead
@@ -134,8 +134,12 @@ def cancel_ticket(
     "/tickets/{ticket_id}/approvals",
     response_model=list[TicketApprovalStageRead],
 )
-def get_ticket_approvals(ticket_id: uuid.UUID, db: Session = Depends(get_db)):
-    return TicketService(db).get_approval_snapshot(ticket_id)
+def get_ticket_approvals(
+    ticket_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).get_approval_snapshot(ticket_id, current_user)
 
 
 @router.post(
@@ -146,9 +150,10 @@ def approve_ticket(
     ticket_id: uuid.UUID,
     approval_id: uuid.UUID,
     payload: approval_schemas.TicketApprovalDecision,
+    current_user: CurrentServiceDeskUser,
     db: Session = Depends(get_db),
 ):
-    return TicketService(db).approve_ticket(ticket_id, approval_id, payload)
+    return TicketService(db).approve_ticket(ticket_id, approval_id, payload, current_user)
 
 
 @router.post(
@@ -159,9 +164,10 @@ def reject_ticket(
     ticket_id: uuid.UUID,
     approval_id: uuid.UUID,
     payload: approval_schemas.TicketApprovalRejection,
+    current_user: CurrentServiceDeskUser,
     db: Session = Depends(get_db),
 ):
-    return TicketService(db).reject_ticket(ticket_id, approval_id, payload)
+    return TicketService(db).reject_ticket(ticket_id, approval_id, payload, current_user)
 
 
 @router.get("/me/tickets", response_model=list[schemas.TicketRead])
@@ -174,5 +180,9 @@ def list_my_tickets(
 
 
 @router.get("/tickets/{ticket_id}", response_model=schemas.TicketRead)
-def get_ticket(ticket_id: uuid.UUID, db: Session = Depends(get_db)):
-    return TicketService(db).get_ticket(ticket_id)
+def get_ticket(
+    ticket_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).get_ticket_for_actor(ticket_id, current_user)

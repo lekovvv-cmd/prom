@@ -114,6 +114,18 @@ def test_me_rejects_missing_invalid_unknown_and_inactive_access(client, db_sessi
     )
     assert unknown.status_code == 403
 
+    no_access_identity = str(uuid.uuid4())
+    create_service_desk_user(
+        db_session_factory,
+        identity_user_id=no_access_identity,
+        capabilities=(),
+    )
+    no_access = client.get(
+        "/me",
+        headers={"Authorization": f"Bearer {access_token(no_access_identity)}"},
+    )
+    assert no_access.status_code == 403
+
     identity_user_id = str(uuid.uuid4())
     create_service_desk_user(
         db_session_factory,

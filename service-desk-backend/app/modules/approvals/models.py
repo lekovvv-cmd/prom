@@ -168,3 +168,7 @@ class ServiceDeskTicketApproval(Base):
 
     stage: Mapped[ServiceDeskTicketApprovalStage] = relationship(back_populates="approvals")
     approver: Mapped[ServiceDeskUser] = relationship()
+
+    @property
+    def approver_display_name(self) -> str:
+        return self.approver.display_name
