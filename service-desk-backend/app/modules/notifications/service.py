@@ -163,9 +163,23 @@ EVENT_COPY: dict[NotificationEventType, tuple[str, str]] = {
 }
 
 
-def ticket_notification(event_type: NotificationEventType, ticket_id: uuid.UUID, *, recipient_user_ids=None) -> NotificationEvent:
+def ticket_notification(
+    event_type: NotificationEventType,
+    ticket_id: uuid.UUID,
+    *,
+    recipient_user_ids=None,
+    event_id: uuid.UUID | None = None,
+) -> NotificationEvent:
     title, body = EVENT_COPY[event_type]
-    return NotificationEvent(event_type, ticket_id, title, body, recipient_user_ids=recipient_user_ids)
+    kwargs = {"event_id": event_id} if event_id is not None else {}
+    return NotificationEvent(
+        event_type,
+        ticket_id,
+        title,
+        body,
+        recipient_user_ids=recipient_user_ids,
+        **kwargs,
+    )
 
 
 class NotificationService:

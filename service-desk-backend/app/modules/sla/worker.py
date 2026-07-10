@@ -10,7 +10,10 @@ from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser
 from app.modules.notifications.domain import NotificationEventType
 from app.modules.notifications.service import NotificationDispatcher, ticket_notification
-from app.modules.sla.engine import add_business_minutes
+from app.modules.sla.engine import (
+    business_seconds_between,
+    effective_business_seconds_between,
+)
 from app.modules.sla.models import (
     ServiceDeskEscalationRule,
     ServiceDeskSlaEscalationEvent,
@@ -89,7 +92,9 @@ class SlaWorker:
         existing = set(self.db.scalars(select(ServiceDeskSlaEscalationEvent.rule_id).where(
             ServiceDeskSlaEscalationEvent.ticket_id == ticket.id
         )).all())
-        selected_at = datetime.fromisoformat(ticket.sla_snapshot["selected_at"])
+        selected_at = _utc(datetime.fromisoformat(ticket.sla_snapshot["selected_at"]))
+        occurred_at = _utc(occurred_at)
+        resolution_elapsed_seconds: int | None = None
         for rule in rules:
             if rule.id in existing:
                 continue
@@ -98,21 +103,35 @@ class SlaWorker:
             if rule.metric == "resolution" and ticket.resolved_at is not None:
                 continue
             minutes = ticket.sla_snapshot[f"{rule.metric}_minutes"]
-            threshold = add_business_minutes(
-                selected_at, max(1, round(minutes * rule.threshold_percent / 100)), ticket.sla_snapshot
-            )
-            if threshold > _utc(occurred_at):
+            if rule.metric == "resolution":
+                if resolution_elapsed_seconds is None:
+                    resolution_elapsed_seconds = self._resolution_elapsed_seconds(
+                        ticket,
+                        selected_at,
+                        occurred_at,
+                    )
+                elapsed_seconds = resolution_elapsed_seconds
+            else:
+                # Resolution pause statuses do not pause first-response SLA.
+                elapsed_seconds = business_seconds_between(
+                    selected_at,
+                    occurred_at,
+                    ticket.sla_snapshot,
+                )
+            if elapsed_seconds * 100 < minutes * 60 * rule.threshold_percent:
                 continue
             recipient_user_id = (
                 rule.recipient_user_id if rule.recipient_type == "specific_user"
                 else ticket.assignee_user_id if rule.recipient_type == "assignee"
                 else ticket.requester_user_id if rule.recipient_type == "requester" else None
             )
-            self.db.add(ServiceDeskSlaEscalationEvent(
+            escalation_event = ServiceDeskSlaEscalationEvent(
                 ticket_id=ticket.id, rule_id=rule.id, metric=rule.metric,
                 action_type=rule.action_type, recipient_type=rule.recipient_type,
                 recipient_user_id=recipient_user_id,
-            ))
+            )
+            self.db.add(escalation_event)
+            self.db.flush()
             self.db.add(ServiceDeskTicketHistory(
                 ticket_id=ticket.id, event_type="sla_warning" if rule.threshold_percent < 100 else "sla_escalated",
                 actor_user_id=None, message="SLA escalation threshold reached",
@@ -129,7 +148,34 @@ class SlaWorker:
                     NotificationEventType.SLA_WARNING if rule.threshold_percent < 100 else NotificationEventType.SLA_BREACHED,
                     ticket.id,
                     recipient_user_ids=tuple(recipient_ids),
+                    event_id=escalation_event.id,
                 ))
+
+    def _resolution_elapsed_seconds(
+        self,
+        ticket: ServiceDeskTicket,
+        selected_at: datetime,
+        occurred_at: datetime,
+    ) -> int:
+        pauses = self.db.scalars(
+            select(ServiceDeskTicketSlaPause).where(
+                ServiceDeskTicketSlaPause.ticket_id == ticket.id,
+                ServiceDeskTicketSlaPause.started_at < occurred_at,
+            )
+        ).all()
+        pause_intervals = [
+            (
+                max(selected_at, _utc(pause.started_at)),
+                min(occurred_at, _utc(pause.ended_at) if pause.ended_at else occurred_at),
+            )
+            for pause in pauses
+        ]
+        return effective_business_seconds_between(
+            selected_at,
+            occurred_at,
+            ticket.sla_snapshot,
+            pause_intervals,
+        )
 
     def _history(self, ticket: ServiceDeskTicket, metric: str, occurred_at: datetime) -> None:
         self.db.add(ServiceDeskTicketHistory(

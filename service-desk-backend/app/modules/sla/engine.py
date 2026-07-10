@@ -88,3 +88,20 @@ def business_seconds_between(start: datetime, end: datetime, snapshot: dict) -> 
                 total += int((upper - lower).total_seconds())
         cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min, timezone)
     return total
+
+
+def effective_business_seconds_between(
+    start: datetime,
+    end: datetime,
+    snapshot: dict,
+    pause_intervals: list[tuple[datetime, datetime]],
+) -> int:
+    """Return business time elapsed outside SLA pause intervals."""
+    elapsed = business_seconds_between(start, end, snapshot)
+    paused = 0
+    for pause_start, pause_end in pause_intervals:
+        lower = max(start, pause_start)
+        upper = min(end, pause_end)
+        if upper > lower:
+            paused += business_seconds_between(lower, upper, snapshot)
+    return max(0, elapsed - paused)

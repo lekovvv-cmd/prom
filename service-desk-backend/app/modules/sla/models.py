@@ -4,7 +4,19 @@ import uuid
 from datetime import date, datetime, time
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, String, Text, Time, Uuid
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+    Time,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
@@ -150,6 +162,9 @@ class ServiceDeskEscalationRule(Base):
 
 class ServiceDeskSlaEscalationEvent(Base):
     __tablename__ = "service_desk_sla_escalation_events"
+    __table_args__ = (
+        UniqueConstraint("ticket_id", "rule_id", name="uq_sla_escalation_ticket_rule"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ticket_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("service_desk_tickets.id"), nullable=False, index=True)
     rule_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("service_desk_escalation_rules.id"), nullable=False)
