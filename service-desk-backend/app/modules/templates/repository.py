@@ -19,7 +19,10 @@ class TemplateRepository:
     def list_versions(self, service_id: uuid.UUID) -> list[ServiceDeskTemplateVersion]:
         stmt = (
             select(ServiceDeskTemplateVersion)
-            .options(joinedload(ServiceDeskTemplateVersion.fields))
+            .options(
+                joinedload(ServiceDeskTemplateVersion.fields),
+                joinedload(ServiceDeskTemplateVersion.service),
+            )
             .where(ServiceDeskTemplateVersion.service_id == service_id)
             .order_by(ServiceDeskTemplateVersion.version.desc())
         )
@@ -28,7 +31,10 @@ class TemplateRepository:
     def get_version(self, version_id: uuid.UUID) -> ServiceDeskTemplateVersion | None:
         stmt = (
             select(ServiceDeskTemplateVersion)
-            .options(joinedload(ServiceDeskTemplateVersion.fields))
+            .options(
+                joinedload(ServiceDeskTemplateVersion.fields),
+                joinedload(ServiceDeskTemplateVersion.service),
+            )
             .where(ServiceDeskTemplateVersion.id == version_id)
         )
         return self.db.scalar(stmt)
@@ -37,7 +43,10 @@ class TemplateRepository:
         stmt = select(ServiceDeskTemplateVersion).where(
             ServiceDeskTemplateVersion.service_id == service_id,
             ServiceDeskTemplateVersion.status == TemplateVersionStatus.PUBLISHED,
-        ).options(joinedload(ServiceDeskTemplateVersion.fields))
+        ).options(
+            joinedload(ServiceDeskTemplateVersion.fields),
+            joinedload(ServiceDeskTemplateVersion.service),
+        )
         return self.db.scalar(stmt)
 
     def next_version_number(self, service_id: uuid.UUID) -> int:

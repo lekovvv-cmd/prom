@@ -24,6 +24,7 @@ def create_approval_user(
     *,
     can_approve: bool,
     access_type: ServiceDeskAccessType = ServiceDeskAccessType.MANAGER,
+    capabilities: tuple[str, ...] = (),
 ) -> str:
     with db_session_factory() as db:
         user = ServiceDeskUser(
@@ -35,17 +36,14 @@ def create_approval_user(
         )
         db.add(user)
         db.flush()
-        db.add(
-            ServiceDeskUserCapability(
-                service_desk_user_id=user.id,
-                capability="service_desk.access",
-            )
-        )
+        assigned_capabilities = {"service_desk.access", *capabilities}
         if can_approve:
+            assigned_capabilities.add("service_desk.approve")
+        for capability in assigned_capabilities:
             db.add(
                 ServiceDeskUserCapability(
                     service_desk_user_id=user.id,
-                    capability="service_desk.approve",
+                    capability=capability,
                 )
             )
         db.commit()
@@ -298,6 +296,215 @@ def test_submit_snapshots_published_approval_workflow(
     )
     assert snapshot.status_code == 200, snapshot.text
     assert [stage["title"] for stage in snapshot.json()] == ["Первый этап", "Второй этап"]
+
+
+def test_default_assignee_is_applied_after_successful_approval(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    category = client.post("/admin/categories", json={"title": "Default assignment category"})
+    service = client.post(
+        "/admin/services",
+        json={"category_id": category.json()["id"], "title": "Default assignment service"},
+    )
+    default_assignee_id = create_approval_user(
+        db_session_factory,
+        "default-assignee@utmn.ru",
+        can_approve=False,
+        capabilities=("service_desk.be_assignee",),
+    )
+    version = client.post(
+        f"/admin/services/{service.json()['id']}/versions",
+        json={"default_assignee_user_id": default_assignee_id},
+    )
+    assert version.status_code == 201, version.text
+    version_id = version.json()["id"]
+    assert version.json()["default_assignee_user_id"] == default_assignee_id
+
+    configured = client.put(
+        f"/admin/template-versions/{version_id}/approval-workflow",
+        json={"approval_mode": "workflow", "name": "Default assignment workflow"},
+    )
+    workflow_id = configured.json()["workflow"]["id"]
+    stage = client.post(
+        f"/admin/approval-workflows/{workflow_id}/stages",
+        json={"title": "Согласование", "decision_rule": "any"},
+    )
+    stage_id = stage.json()["workflow"]["stages"][0]["id"]
+    approver_id = create_approval_user(
+        db_session_factory,
+        "default-assignment-approver@utmn.ru",
+        can_approve=True,
+    )
+    added = client.post(
+        f"/admin/approval-stages/{stage_id}/approvers",
+        json={"service_desk_user_id": approver_id},
+    )
+    assert added.status_code == 201, added.text
+    assert client.post(f"/admin/template-versions/{version_id}/publish").status_code == 200
+
+    requester_id = create_approval_user(
+        db_session_factory,
+        "default-assignment-requester@utmn.ru",
+        can_approve=False,
+    )
+    draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service.json()["id"],
+            "requester_user_id": requester_id,
+            "title": "Заявка с исполнителем по умолчанию",
+            "description": "Нужно автоматическое назначение.",
+        },
+    )
+    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    stage = submitted.json()["approval_stages"][0]
+    approval_id = approval_id_for_actor(stage, approver_id)
+
+    approved = client.post(
+        f"/tickets/{submitted.json()['id']}/approvals/{approval_id}/approve",
+        json={},
+        headers=auth_headers_for_user(approver_id),
+    )
+    assert approved.status_code == 200, approved.text
+    payload = approved.json()
+    assert payload["status"] == "assigned"
+    assert payload["assignee_user_id"] == default_assignee_id
+    assert [item["event_type"] for item in payload["history"]][-3:] == [
+        "approval_approved",
+        "ticket_approved",
+        "ticket_assigned",
+    ]
+    assert payload["history"][-1]["payload"]["assignment_source"] == "default"
+
+
+def test_service_default_assignee_is_used_without_version_override(
+    client,
+    db_session_factory,
+):
+    default_assignee_id = create_approval_user(
+        db_session_factory,
+        "service-default-assignee@utmn.ru",
+        can_approve=False,
+        capabilities=("service_desk.be_assignee",),
+    )
+    category = client.post("/admin/categories", json={"title": "Service default category"})
+    service = client.post(
+        "/admin/services",
+        json={
+            "category_id": category.json()["id"],
+            "title": "Service default service",
+            "default_assignee_user_id": default_assignee_id,
+        },
+    )
+    assert service.status_code == 201, service.text
+    assert service.json()["default_assignee_user_id"] == default_assignee_id
+
+    version = client.post(f"/admin/services/{service.json()['id']}/versions")
+    assert version.status_code == 201, version.text
+    assert version.json()["default_assignee_user_id"] is None
+    published = client.post(f"/admin/template-versions/{version.json()['id']}/publish")
+    assert published.status_code == 200, published.text
+
+    requester_id = create_approval_user(
+        db_session_factory,
+        "service-default-requester@utmn.ru",
+        can_approve=False,
+    )
+    draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service.json()["id"],
+            "requester_user_id": requester_id,
+            "title": "Service default assignment",
+            "description": "Проверка default assignment на уровне услуги.",
+        },
+    )
+    assert draft.status_code == 201, draft.text
+
+    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    assert submitted.status_code == 200, submitted.text
+    assert submitted.json()["status"] == "assigned"
+    assert submitted.json()["assignee_user_id"] == default_assignee_id
+    assert submitted.json()["history"][-1]["event_type"] == "ticket_assigned"
+    assert submitted.json()["history"][-1]["payload"]["assignment_source"] == "default"
+
+
+def test_inactive_default_assignee_does_not_block_approval(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    category = client.post("/admin/categories", json={"title": "Inactive default category"})
+    service = client.post(
+        "/admin/services",
+        json={"category_id": category.json()["id"], "title": "Inactive default service"},
+    )
+    default_assignee_id = create_approval_user(
+        db_session_factory,
+        "inactive-default-assignee@utmn.ru",
+        can_approve=False,
+        capabilities=("service_desk.be_assignee",),
+    )
+    version = client.post(
+        f"/admin/services/{service.json()['id']}/versions",
+        json={"default_assignee_user_id": default_assignee_id},
+    )
+    version_id = version.json()["id"]
+    configured = client.put(
+        f"/admin/template-versions/{version_id}/approval-workflow",
+        json={"approval_mode": "workflow", "name": "Inactive default workflow"},
+    )
+    workflow_id = configured.json()["workflow"]["id"]
+    stage = client.post(
+        f"/admin/approval-workflows/{workflow_id}/stages",
+        json={"title": "Согласование", "decision_rule": "any"},
+    )
+    stage_id = stage.json()["workflow"]["stages"][0]["id"]
+    approver_id = create_approval_user(
+        db_session_factory,
+        "inactive-default-approver@utmn.ru",
+        can_approve=True,
+    )
+    client.post(
+        f"/admin/approval-stages/{stage_id}/approvers",
+        json={"service_desk_user_id": approver_id},
+    )
+    assert client.post(f"/admin/template-versions/{version_id}/publish").status_code == 200
+    requester_id = create_approval_user(
+        db_session_factory,
+        "inactive-default-requester@utmn.ru",
+        can_approve=False,
+    )
+    draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service.json()["id"],
+            "requester_user_id": requester_id,
+            "title": "Заявка с неактивным исполнителем по умолчанию",
+            "description": "Проверка пропуска назначения.",
+        },
+    )
+    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    with db_session_factory() as db:
+        default_assignee = db.get(ServiceDeskUser, uuid.UUID(default_assignee_id))
+        assert default_assignee is not None
+        default_assignee.is_active = False
+        db.commit()
+
+    approval_id = approval_id_for_actor(submitted.json()["approval_stages"][0], approver_id)
+    approved = client.post(
+        f"/tickets/{submitted.json()['id']}/approvals/{approval_id}/approve",
+        json={},
+        headers=auth_headers_for_user(approver_id),
+    )
+    assert approved.status_code == 200, approved.text
+    payload = approved.json()
+    assert payload["status"] == "approved"
+    assert payload["assignee_user_id"] is None
+    assert payload["history"][-1]["event_type"] == "default_assignment_skipped"
+    assert payload["history"][-1]["payload"]["assignment_source"] == "default"
 
 
 def create_decision_ticket(

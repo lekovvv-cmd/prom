@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
+from app.modules.assignments.policy import AssigneePolicy
 from app.modules.catalog import schemas
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
 from app.modules.catalog.repository import CatalogRepository
@@ -82,6 +83,8 @@ class CatalogService:
 
     def create_service(self, payload: schemas.ServiceCreate) -> ServiceDeskService:
         self._require_category(payload.category_id)
+        if payload.default_assignee_user_id:
+            AssigneePolicy(self.db).require_eligible_assignee(payload.default_assignee_user_id)
         service = ServiceDeskService(**payload.model_dump())
         self.repository.add_service(service)
         self.db.commit()
@@ -93,6 +96,8 @@ class CatalogService:
         data = payload.model_dump(exclude_unset=True)
         if "category_id" in data and data["category_id"]:
             self._require_category(data["category_id"])
+        if data.get("default_assignee_user_id"):
+            AssigneePolicy(self.db).require_eligible_assignee(data["default_assignee_user_id"])
         for field, value in data.items():
             setattr(service, field, value)
         self.db.commit()

@@ -17,10 +17,12 @@ DEFAULT_SYSTEM_SETTINGS = {
 
 class TemplateVersionCreate(BaseModel):
     system_settings: dict[str, Any] = Field(default_factory=lambda: dict(DEFAULT_SYSTEM_SETTINGS))
+    default_assignee_user_id: uuid.UUID | None = None
 
 
 class TemplateVersionUpdate(BaseModel):
     system_settings: dict[str, Any] | None = None
+    default_assignee_user_id: uuid.UUID | None = None
 
 
 class TemplateFieldCreate(BaseModel):
@@ -101,6 +103,7 @@ class TemplateVersionRead(BaseModel):
     version: int
     status: TemplateVersionStatus
     approval_mode: ApprovalMode
+    default_assignee_user_id: uuid.UUID | None
     system_settings: dict[str, Any]
     created_by: uuid.UUID | None
     published_by: uuid.UUID | None

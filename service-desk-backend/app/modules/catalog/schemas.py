@@ -36,6 +36,7 @@ class CategoryRead(BaseModel):
 
 class ServiceCreate(BaseModel):
     category_id: uuid.UUID
+    default_assignee_user_id: uuid.UUID | None = None
     title: str = Field(min_length=2, max_length=255)
     short_description: str | None = Field(default=None, max_length=500)
     description: str | None = None
@@ -45,6 +46,7 @@ class ServiceCreate(BaseModel):
 
 class ServiceUpdate(BaseModel):
     category_id: uuid.UUID | None = None
+    default_assignee_user_id: uuid.UUID | None = None
     title: str | None = Field(default=None, min_length=2, max_length=255)
     short_description: str | None = Field(default=None, max_length=500)
     description: str | None = None
@@ -55,6 +57,7 @@ class ServiceUpdate(BaseModel):
 class ServiceRead(BaseModel):
     id: uuid.UUID
     category_id: uuid.UUID
+    default_assignee_user_id: uuid.UUID | None
     title: str
     short_description: str | None
     description: str | None

@@ -18,3 +18,4 @@ Stage 4.3–4.4: добавлены approve/reject решения, ANY/ALL evalu
 Stage 4.5 prerequisite: добавлены JWT access bridge, Service Desk `/me` capabilities и связанные dev user projections.
 Stage 4.5: добавлены backend `allowed_actions`, защищённые approval actions, карточка согласования и Service Desk browser E2E.
 Stage 5.1: добавлены JWT-защищённые manual assign/reassign с проверкой capability исполнителя и history assignment_source.
+Stage 5.2: добавлен default assignment на услуге/версии шаблона с проверкой active/be_assignee и history assignment_source=default.

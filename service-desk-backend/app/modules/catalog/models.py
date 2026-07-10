@@ -49,6 +49,11 @@ class ServiceDeskService(Base):
         index=True,
         nullable=False,
     )
+    default_assignee_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_users.id"),
+        nullable=True,
+    )
     title: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     short_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

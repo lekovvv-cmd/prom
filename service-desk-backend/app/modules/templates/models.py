@@ -33,6 +33,11 @@ class ServiceDeskTemplateVersion(Base):
         nullable=False,
         default=ApprovalMode.NONE,
     )
+    default_assignee_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("service_desk_users.id"),
+        nullable=True,
+    )
     system_settings: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     published_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)

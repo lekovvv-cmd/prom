@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus, TemplateVersionStatus
 from app.modules.access.models import ServiceDeskUser
-from app.modules.access.service import ServiceDeskAccessService
+from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.models import ServiceDeskTicketApprovalStage
 from app.modules.approvals.ticket_service import TicketApprovalService
@@ -164,7 +164,7 @@ class TicketService:
         ticket = self._require_ticket_for_update(ticket_id)
         if ticket.assignee_user_id is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, "У заявки уже назначен исполнитель")
-        assignee = self._require_eligible_assignee(payload.assignee_user_id)
+        assignee = AssigneePolicy(self.db).require_eligible_assignee(payload.assignee_user_id)
         self.lifecycle.perform_transition(
             ticket,
             ServiceDeskTicketAction.ASSIGN,
@@ -188,7 +188,7 @@ class TicketService:
             raise HTTPException(status.HTTP_409_CONFLICT, "У заявки нет назначенного исполнителя")
         if ticket.assignee_user_id == payload.assignee_user_id:
             raise HTTPException(status.HTTP_409_CONFLICT, "Исполнитель уже назначен на заявку")
-        assignee = self._require_eligible_assignee(payload.assignee_user_id)
+        assignee = AssigneePolicy(self.db).require_eligible_assignee(payload.assignee_user_id)
         self.lifecycle.perform_transition(
             ticket,
             ServiceDeskTicketAction.REASSIGN,
@@ -275,20 +275,6 @@ class TicketService:
         user = self.db.get(ServiceDeskUser, user_id)
         if not user or not user.is_active:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
-        return user
-
-    def _require_eligible_assignee(self, user_id: uuid.UUID) -> ServiceDeskUser:
-        user = self.db.get(ServiceDeskUser, user_id)
-        if not user:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Исполнитель не найден")
-        if not user.is_active:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Исполнитель неактивен")
-        capabilities = set(ServiceDeskAccessService.capabilities_for(user))
-        if "service_desk.be_assignee" not in capabilities:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "У пользователя нет capability service_desk.be_assignee",
-            )
         return user
 
     def _require_ticket_for_update(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:

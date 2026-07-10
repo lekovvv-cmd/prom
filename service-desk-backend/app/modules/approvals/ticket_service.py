@@ -14,6 +14,7 @@ from app.core.enums import (
     ServiceDeskTicketStatus,
 )
 from app.modules.access.models import ServiceDeskUser
+from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.approvals.repository import ApprovalWorkflowRepository
 from app.modules.approvals.service import ApprovalWorkflowService
@@ -39,6 +40,7 @@ class TicketApprovalService:
         self.workflow_service = ApprovalWorkflowService(db)
         self.ticket_repository = ticket_repository
         self.lifecycle = TicketLifecycleService(ticket_repository)
+        self.assignee_policy = AssigneePolicy(db)
 
     def initialize_snapshot(
         self,
@@ -58,6 +60,7 @@ class TicketApprovalService:
                 actor=None,
                 occurred_at=now,
             )
+            self._apply_default_assignment(ticket, template_version, now)
             return
 
         self.workflow_service.validate_for_publish(template_version)
@@ -243,6 +246,50 @@ class TicketApprovalService:
             context.ticket,
             ServiceDeskTicketAction.COMPLETE_APPROVAL,
             actor=None,
+            occurred_at=now,
+        )
+        template_version = self.db.get(ServiceDeskTemplateVersion, context.ticket.template_version_id)
+        if not template_version:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Шаблон заявки не найден")
+        self._apply_default_assignment(context.ticket, template_version, now)
+
+    def _apply_default_assignment(
+        self,
+        ticket: ServiceDeskTicket,
+        template_version: ServiceDeskTemplateVersion,
+        now: datetime,
+    ) -> None:
+        default_assignee_user_id = (
+            template_version.default_assignee_user_id
+            or template_version.service.default_assignee_user_id
+        )
+        if not default_assignee_user_id:
+            return
+
+        assignee = self.assignee_policy.get_eligible_assignee(default_assignee_user_id)
+        if not assignee:
+            self.ticket_repository.add_history(
+                ServiceDeskTicketHistory(
+                    ticket_id=ticket.id,
+                    event_type="default_assignment_skipped",
+                    actor_user_id=None,
+                    message="Исполнитель по умолчанию недоступен",
+                    payload={
+                        "default_assignee_user_id": str(default_assignee_user_id),
+                        "assignment_source": "default",
+                    },
+                )
+            )
+            return
+
+        self.lifecycle.perform_transition(
+            ticket,
+            ServiceDeskTicketAction.ASSIGN,
+            actor=None,
+            metadata={
+                "assignee_user_id": str(assignee.id),
+                "assignment_source": "default",
+            },
             occurred_at=now,
         )
 

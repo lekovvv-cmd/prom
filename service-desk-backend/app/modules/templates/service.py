@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
 from app.core.enums import TemplateVersionStatus
+from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals.service import ApprovalWorkflowService
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.templates import schemas
@@ -35,11 +36,14 @@ class TemplateService:
         payload: schemas.TemplateVersionCreate,
     ) -> ServiceDeskTemplateVersion:
         self._require_service(service_id)
+        if payload.default_assignee_user_id:
+            AssigneePolicy(self.db).require_eligible_assignee(payload.default_assignee_user_id)
         version = ServiceDeskTemplateVersion(
             service_id=service_id,
             version=self.repository.next_version_number(service_id),
             status=TemplateVersionStatus.DRAFT,
             system_settings=payload.system_settings,
+            default_assignee_user_id=payload.default_assignee_user_id,
         )
         self.repository.add_version(version)
         self.db.commit()
@@ -57,6 +61,8 @@ class TemplateService:
         version = self._require_version(version_id)
         self._ensure_draft(version)
         data = payload.model_dump(exclude_unset=True)
+        if data.get("default_assignee_user_id"):
+            AssigneePolicy(self.db).require_eligible_assignee(data["default_assignee_user_id"])
         for field, value in data.items():
             setattr(version, field, value)
         self.db.commit()
