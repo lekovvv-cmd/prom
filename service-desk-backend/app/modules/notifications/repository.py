@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.modules.notifications.models import ServiceDeskNotification
+from app.modules.notifications.models import ServiceDeskNotification, ServiceDeskNotificationOutbox
 
 
 class NotificationRepository:
@@ -54,3 +54,33 @@ class NotificationRepository:
             ServiceDeskNotification.is_read.is_(False),
         ).values(is_read=True, read_at=read_at))
         return result.rowcount
+
+
+class NotificationOutboxRepository:
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def get_or_add(self, record: ServiceDeskNotificationOutbox):
+        for item in self.db.new:
+            if isinstance(item, ServiceDeskNotificationOutbox) and (
+                item.event_id, item.channel, item.recipient
+            ) == (record.event_id, record.channel, record.recipient):
+                return item
+        existing = self.db.scalar(select(ServiceDeskNotificationOutbox).where(
+            ServiceDeskNotificationOutbox.event_id == record.event_id,
+            ServiceDeskNotificationOutbox.channel == record.channel,
+            ServiceDeskNotificationOutbox.recipient == record.recipient,
+        ))
+        if existing:
+            return existing
+        self.db.add(record)
+        return record
+
+    def ready_for_processing(self, now):
+        return list(self.db.scalars(
+            select(ServiceDeskNotificationOutbox).where(
+                ServiceDeskNotificationOutbox.status.in_(("pending", "failed")),
+                (ServiceDeskNotificationOutbox.next_retry_at.is_(None))
+                | (ServiceDeskNotificationOutbox.next_retry_at <= now),
+            ).order_by(ServiceDeskNotificationOutbox.created_at).with_for_update(skip_locked=True)
+        ).all())

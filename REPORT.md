@@ -40,3 +40,4 @@ Stage 8.1: добавлен собственный Service Desk notification dom
 Stage 8.2: добавлен authenticated API списка/unread count/read/read-all, полностью scoped через CurrentServiceDeskUser, с idempotent read_at и запретом доступа к foreign notifications.
 Stage 8.3: в PROM Header добавлен responsive notification center с badge, loading/error/empty states, read/read-all, ticket navigation и безопасным отображением событий без ticket_id; добавлены frontend и browser E2E проверки.
 Stage 8.4: добавлен actor-aware backend read model contextual counters и PROM navigation counters для моих согласований, назначений, ожидающих ответа и capability-gated SLA breaches без клиентского пересчёта tickets.
+Stage 8.5: добавлен transactional ServiceDeskNotificationOutbox, уникальная event/channel/recipient идемпотентность и lock-based retry worker; in-app outbox и notification фиксируются атомарно без промежутка best-effort после business commit.

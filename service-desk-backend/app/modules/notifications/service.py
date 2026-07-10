@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from app.modules.access.models import ServiceDeskUser
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.notifications.domain import NotificationEvent, NotificationEventType
-from app.modules.notifications.models import ServiceDeskNotification
-from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.models import ServiceDeskNotification, ServiceDeskNotificationOutbox
+from app.modules.notifications.repository import NotificationOutboxRepository, NotificationRepository
 from app.modules.tickets.models import ServiceDeskTicket
 
 
@@ -38,10 +38,28 @@ class NotificationDispatcher:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.in_app = InAppChannel(NotificationRepository(db))
+        self.outbox = NotificationOutboxRepository(db)
 
     def dispatch(self, event: NotificationEvent) -> None:
         for recipient_id in self._recipient_ids(event):
+            record = self.outbox.get_or_add(ServiceDeskNotificationOutbox(
+                event_id=event.event_id,
+                channel="in_app",
+                recipient=str(recipient_id),
+                payload={
+                    "ticket_id": str(event.ticket_id) if event.ticket_id else None,
+                    "event_type": event.event_type.value,
+                    "title": event.title,
+                    "body": event.body,
+                },
+                status="pending",
+            ))
+            if record.status == "sent":
+                continue
             self.in_app.deliver(event, recipient_id)
+            record.status = "sent"
+            record.processed_at = datetime.now(UTC)
+            record.last_error = None
 
     def _recipient_ids(self, event: NotificationEvent) -> list[uuid.UUID]:
         if event.recipient_user_ids is not None:
