@@ -127,7 +127,7 @@ def create_user(
         )
         db.add(user)
         db.flush()
-        for capability in capabilities:
+        for capability in {"service_desk.access", *capabilities}:
             db.add(
                 ServiceDeskUserCapability(
                     service_desk_user_id=user.id,
@@ -142,6 +142,7 @@ def create_user(
 def create_submitted_ticket(
     client: TestClient,
     db_session_factory,
+    auth_headers_for_user,
 ) -> tuple[str, str]:
     requester_id = create_user(db_session_factory, "lifecycle-requester@utmn.ru")
     category = client.post("/admin/categories", json={"title": "Lifecycle"})
@@ -159,12 +160,15 @@ def create_submitted_ticket(
         "/tickets/drafts",
         json={
             "service_id": service.json()["id"],
-            "requester_user_id": requester_id,
             "title": "Lifecycle ticket",
         },
+        headers=auth_headers_for_user(requester_id),
     )
     assert draft.status_code == 201, draft.text
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert submitted.status_code == 200, submitted.text
     return submitted.json()["id"], requester_id
 
@@ -178,20 +182,37 @@ def assign_ticket(db_session_factory, ticket_id: str, assignee_user_id: str) -> 
         db.commit()
 
 
-def test_lifecycle_action_endpoints_write_timestamps_and_history(client, db_session_factory):
-    ticket_id, requester_id = create_submitted_ticket(client, db_session_factory)
+def test_lifecycle_action_endpoints_write_timestamps_and_history(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    ticket_id, requester_id = create_submitted_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
     assignee_id = create_user(db_session_factory, "lifecycle-assignee@utmn.ru")
     assign_ticket(db_session_factory, ticket_id, assignee_id)
 
     foreign_start = client.post(
         f"/tickets/{ticket_id}/start",
-        json={"actor_user_id": requester_id},
+        json={},
+        headers=auth_headers_for_user(requester_id),
     )
     assert foreign_start.status_code == 403
 
+    spoofed_start = client.post(
+        f"/tickets/{ticket_id}/start",
+        json={"actor_user_id": requester_id},
+        headers=auth_headers_for_user(assignee_id),
+    )
+    assert spoofed_start.status_code == 422
+
     started = client.post(
         f"/tickets/{ticket_id}/start",
-        json={"actor_user_id": assignee_id},
+        json={},
+        headers=auth_headers_for_user(assignee_id),
     )
     assert started.status_code == 200, started.text
     assert started.json()["status"] == "in_progress"
@@ -199,13 +220,15 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(client, db_sess
 
     duplicate_start = client.post(
         f"/tickets/{ticket_id}/start",
-        json={"actor_user_id": assignee_id},
+        json={},
+        headers=auth_headers_for_user(assignee_id),
     )
     assert duplicate_start.status_code == 409
 
     clarification = client.post(
         f"/tickets/{ticket_id}/request-clarification",
-        json={"actor_user_id": assignee_id, "comment": "Уточните количество участников"},
+        json={"comment": "Уточните количество участников"},
+        headers=auth_headers_for_user(assignee_id),
     )
     assert clarification.status_code == 200, clarification.text
     assert clarification.json()["status"] == "waiting_requester"
@@ -225,14 +248,16 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(client, db_sess
 
     waiting = client.post(
         f"/tickets/{ticket_id}/wait-external",
-        json={"actor_user_id": assignee_id, "reason": "Ожидаем подтверждение аудитории"},
+        json={"reason": "Ожидаем подтверждение аудитории"},
+        headers=auth_headers_for_user(assignee_id),
     )
     assert waiting.status_code == 200, waiting.text
     assert waiting.json()["status"] == "waiting_external"
 
     resumed = client.post(
         f"/tickets/{ticket_id}/resume",
-        json={"actor_user_id": assignee_id},
+        json={},
+        headers=auth_headers_for_user(assignee_id),
     )
     assert resumed.status_code == 200, resumed.text
     assert resumed.json()["status"] == "in_progress"
@@ -240,10 +265,10 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(client, db_sess
     resolved = client.post(
         f"/tickets/{ticket_id}/resolve",
         json={
-            "actor_user_id": assignee_id,
             "resolution_summary": "Аудитория забронирована",
             "comment": "Подтверждение получено",
         },
+        headers=auth_headers_for_user(assignee_id),
     )
     assert resolved.status_code == 200, resolved.text
     assert resolved.json()["status"] == "resolved"
@@ -252,11 +277,13 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(client, db_sess
 
     closed = client.post(
         f"/tickets/{ticket_id}/close",
-        json={"actor_user_id": requester_id},
+        json={},
+        headers=auth_headers_for_user(requester_id),
     )
     assert closed.status_code == 200, closed.text
     assert closed.json()["status"] == "closed"
     assert closed.json()["closed_at"] is not None
+    assert closed.json()["history"][-1]["actor_user_id"] == requester_id
     assert [item["event_type"] for item in closed.json()["history"]][-7:] == [
         "ticket_started",
         "clarification_requested",
@@ -268,8 +295,16 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(client, db_sess
     ]
 
 
-def test_requester_can_cancel_submitted_ticket_with_reason(client, db_session_factory):
-    ticket_id, requester_id = create_submitted_ticket(client, db_session_factory)
+def test_requester_can_cancel_submitted_ticket_with_reason(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    ticket_id, requester_id = create_submitted_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
     foreign_user_id = create_user(db_session_factory, "foreign-manager@utmn.ru")
 
     with db_session_factory() as db:
@@ -281,13 +316,15 @@ def test_requester_can_cancel_submitted_ticket_with_reason(client, db_session_fa
 
     forbidden = client.post(
         f"/tickets/{ticket_id}/cancel",
-        json={"actor_user_id": foreign_user_id, "reason": "Не моя заявка"},
+        json={"reason": "Не моя заявка"},
+        headers=auth_headers_for_user(foreign_user_id),
     )
     assert forbidden.status_code == 403
 
     cancelled = client.post(
         f"/tickets/{ticket_id}/cancel",
-        json={"actor_user_id": requester_id, "reason": "Потребность отпала"},
+        json={"reason": "Потребность отпала"},
+        headers=auth_headers_for_user(requester_id),
     )
     assert cancelled.status_code == 200, cancelled.text
     assert cancelled.json()["status"] == "cancelled"
@@ -301,7 +338,7 @@ def test_assign_and_reassign_require_capabilities_and_write_history(
     db_session_factory,
     auth_headers_for_user,
 ):
-    ticket_id, _ = create_submitted_ticket(client, db_session_factory)
+    ticket_id, _ = create_submitted_ticket(client, db_session_factory, auth_headers_for_user)
     assigner_id = create_user(
         db_session_factory,
         "assignment-manager@utmn.ru",

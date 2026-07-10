@@ -31,9 +31,12 @@ class TicketServiceSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class TicketDraftCreate(BaseModel):
+class StrictTicketRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class TicketDraftCreate(StrictTicketRequest):
     service_id: uuid.UUID
-    requester_user_id: uuid.UUID
     template_version_id: uuid.UUID | None = None
     title: str = Field(min_length=2, max_length=255)
     description: str | None = None
@@ -41,30 +44,30 @@ class TicketDraftCreate(BaseModel):
     field_values: dict[str, Any] = Field(default_factory=dict)
 
 
-class TicketDraftUpdate(BaseModel):
+class TicketDraftUpdate(StrictTicketRequest):
     title: str | None = Field(default=None, min_length=2, max_length=255)
     description: str | None = None
     priority: ServiceDeskPriority | None = None
     field_values: dict[str, Any] | None = None
 
 
-class TicketActorAction(BaseModel):
-    actor_user_id: uuid.UUID
+class TicketAction(StrictTicketRequest):
+    pass
 
 
-class TicketAssignmentAction(BaseModel):
+class TicketAssignmentAction(StrictTicketRequest):
     assignee_user_id: uuid.UUID
 
 
-class TicketCommentAction(TicketActorAction):
+class TicketCommentAction(StrictTicketRequest):
     comment: str = Field(min_length=2, max_length=2000)
 
 
-class TicketReasonAction(TicketActorAction):
+class TicketReasonAction(StrictTicketRequest):
     reason: str = Field(min_length=2, max_length=2000)
 
 
-class TicketResolveAction(TicketActorAction):
+class TicketResolveAction(StrictTicketRequest):
     resolution_summary: str = Field(min_length=2, max_length=5000)
     comment: str | None = Field(default=None, max_length=2000)
 

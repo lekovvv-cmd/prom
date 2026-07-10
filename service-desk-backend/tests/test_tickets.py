@@ -63,18 +63,20 @@ def test_ticket_draft_create_update_list_and_history(
     auth_headers_for_user,
 ):
     requester_id = create_requester(client, db_session_factory)
+    other_requester_id = create_requester(client, db_session_factory)
+    requester_headers = auth_headers_for_user(requester_id)
     service_id, version_id = create_service_with_template(client)
 
     created = client.post(
         "/tickets/drafts",
         json={
             "service_id": service_id,
-            "requester_user_id": requester_id,
             "title": "Нужна аудитория",
             "description": "Для проектной встречи.",
             "priority": "medium",
             "field_values": {"room": "305"},
         },
+        headers=requester_headers,
     )
     assert created.status_code == 201, created.text
     payload = created.json()
@@ -84,9 +86,20 @@ def test_ticket_draft_create_update_list_and_history(
     assert payload["template_version_id"] == version_id
     assert payload["history"][0]["event_type"] == "ticket_created"
 
+    other_headers = auth_headers_for_user(other_requester_id)
+    foreign_update = client.patch(
+        f"/tickets/{ticket_id}",
+        json={"priority": "low"},
+        headers=other_headers,
+    )
+    assert foreign_update.status_code == 403
+    foreign_submit = client.post(f"/tickets/{ticket_id}/submit", headers=other_headers)
+    assert foreign_submit.status_code == 403
+
     updated = client.patch(
         f"/tickets/{ticket_id}",
         json={"priority": "high", "field_values": {"room": "408"}},
+        headers=requester_headers,
     )
     assert updated.status_code == 200, updated.text
     assert updated.json()["priority"] == "high"
@@ -96,9 +109,17 @@ def test_ticket_draft_create_update_list_and_history(
         "ticket_updated",
     ]
 
-    mine = client.get("/me/tickets", params={"requester_user_id": requester_id, "status": "draft"})
+    mine = client.get("/me/tickets", params={"status": "draft"}, headers=requester_headers)
     assert mine.status_code == 200
     assert [item["id"] for item in mine.json()] == [ticket_id]
+
+    other_mine = client.get(
+        "/me/tickets",
+        params={"requester_user_id": requester_id},
+        headers=auth_headers_for_user(other_requester_id),
+    )
+    assert other_mine.status_code == 200
+    assert other_mine.json() == []
 
     details = client.get(
         f"/tickets/{ticket_id}",
@@ -108,7 +129,11 @@ def test_ticket_draft_create_update_list_and_history(
     assert details.json()["id"] == ticket_id
 
 
-def test_ticket_draft_requires_active_service_desk_user(client: TestClient):
+def test_ticket_draft_requires_auth_and_rejects_requester_spoofing(
+    client: TestClient,
+    db_session_factory,
+    auth_headers_for_user,
+):
     category = client.post("/admin/categories", json={"title": "Категория"})
     assert category.status_code == 201
     service = client.post(
@@ -117,33 +142,48 @@ def test_ticket_draft_requires_active_service_desk_user(client: TestClient):
     )
     assert service.status_code == 201
 
-    created = client.post(
+    requester_id = create_requester(client, db_session_factory)
+    other_requester_id = create_requester(client, db_session_factory)
+    payload = {
+        "service_id": service.json()["id"],
+        "title": "Нет подмены",
+    }
+
+    assert client.post("/tickets/drafts", json=payload).status_code == 401
+
+    spoofed = client.post(
         "/tickets/drafts",
         json={
-            "service_id": service.json()["id"],
-            "requester_user_id": "00000000-0000-0000-0000-000000000001",
-            "title": "Нет доступа",
+            **payload,
+            "requester_user_id": other_requester_id,
         },
+        headers=auth_headers_for_user(requester_id),
     )
-
-    assert created.status_code == 403
-    assert created.json()["detail"] == "Нет доступа к Service Desk"
+    assert spoofed.status_code == 422
 
 
-def test_ticket_submit_validates_and_assigns_sequential_number(client: TestClient, db_session_factory):
+def test_ticket_submit_validates_and_assigns_sequential_number(
+    client: TestClient,
+    db_session_factory,
+    auth_headers_for_user,
+):
     requester_id = create_requester(client, db_session_factory)
+    requester_headers = auth_headers_for_user(requester_id)
     service_id, _ = create_service_with_template(client)
 
     missing_fields = client.post(
         "/tickets/drafts",
         json={
             "service_id": service_id,
-            "requester_user_id": requester_id,
             "title": "Нужна аудитория",
         },
+        headers=requester_headers,
     )
     assert missing_fields.status_code == 201, missing_fields.text
-    rejected = client.post(f"/tickets/{missing_fields.json()['id']}/submit")
+    rejected = client.post(
+        f"/tickets/{missing_fields.json()['id']}/submit",
+        headers=requester_headers,
+    )
     assert rejected.status_code == 422
     assert rejected.json()["detail"] == {
         "message": "Проверьте заполнение формы",
@@ -159,16 +199,19 @@ def test_ticket_submit_validates_and_assigns_sequential_number(client: TestClien
             "/tickets/drafts",
             json={
                 "service_id": service_id,
-                "requester_user_id": requester_id,
                 "title": "Нужна аудитория",
                 "description": "Для рабочей встречи.",
                 "field_values": {"room": room, "ignored": "not-in-template"},
             },
+            headers=requester_headers,
         )
         assert created.status_code == 201, created.text
         ticket_ids.append(created.json()["id"])
 
-    submitted = [client.post(f"/tickets/{ticket_id}/submit") for ticket_id in ticket_ids]
+    submitted = [
+        client.post(f"/tickets/{ticket_id}/submit", headers=requester_headers)
+        for ticket_id in ticket_ids
+    ]
     assert all(response.status_code == 200 for response in submitted)
     current_year = datetime.now(UTC).year
     assert [response.json()["number"] for response in submitted] == [
@@ -184,13 +227,18 @@ def test_ticket_submit_validates_and_assigns_sequential_number(client: TestClien
         "ticket_approved",
     ]
 
-    duplicate = client.post(f"/tickets/{ticket_ids[0]}/submit")
+    duplicate = client.post(f"/tickets/{ticket_ids[0]}/submit", headers=requester_headers)
     assert duplicate.status_code == 409
     assert duplicate.json()["detail"] == "Отправить можно только черновик заявки"
 
 
-def test_ticket_submit_rejects_unknown_dictionary_value(client: TestClient, db_session_factory):
+def test_ticket_submit_rejects_unknown_dictionary_value(
+    client: TestClient,
+    db_session_factory,
+    auth_headers_for_user,
+):
     requester_id = create_requester(client, db_session_factory)
+    requester_headers = auth_headers_for_user(requester_id)
     category = client.post("/admin/categories", json={"title": "Административные услуги"})
     service = client.post(
         "/admin/services",
@@ -226,13 +274,13 @@ def test_ticket_submit_rejects_unknown_dictionary_value(client: TestClient, db_s
         "/tickets/drafts",
         json={
             "service_id": service.json()["id"],
-            "requester_user_id": requester_id,
             "title": "Нужен допуск",
             "field_values": {"address": "unknown"},
         },
+        headers=requester_headers,
     )
     assert draft.status_code == 201, draft.text
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(f"/tickets/{draft.json()['id']}/submit", headers=requester_headers)
     assert submitted.status_code == 422
     assert submitted.json()["detail"]["errors"] == [
         {"field_key": "address", "message": "Адрес корпуса: Выберите значение из списка"}

@@ -262,12 +262,15 @@ def test_submit_snapshots_published_approval_workflow(
         "/tickets/drafts",
         json={
             "service_id": service_id,
-            "requester_user_id": requester_id,
             "title": "Заявка со snapshot",
             "description": "Нужно согласовать заявку.",
         },
+        headers=auth_headers_for_user(requester_id),
     )
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert submitted.status_code == 200, submitted.text
     payload = submitted.json()
     assert payload["status"] == "pending_approval"
@@ -353,12 +356,15 @@ def test_default_assignee_is_applied_after_successful_approval(
         "/tickets/drafts",
         json={
             "service_id": service.json()["id"],
-            "requester_user_id": requester_id,
             "title": "Заявка с исполнителем по умолчанию",
             "description": "Нужно автоматическое назначение.",
         },
+        headers=auth_headers_for_user(requester_id),
     )
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     stage = submitted.json()["approval_stages"][0]
     approval_id = approval_id_for_actor(stage, approver_id)
 
@@ -382,6 +388,7 @@ def test_default_assignee_is_applied_after_successful_approval(
 def test_service_default_assignee_is_used_without_version_override(
     client,
     db_session_factory,
+    auth_headers_for_user,
 ):
     default_assignee_id = create_approval_user(
         db_session_factory,
@@ -416,14 +423,17 @@ def test_service_default_assignee_is_used_without_version_override(
         "/tickets/drafts",
         json={
             "service_id": service.json()["id"],
-            "requester_user_id": requester_id,
             "title": "Service default assignment",
             "description": "Проверка default assignment на уровне услуги.",
         },
+        headers=auth_headers_for_user(requester_id),
     )
     assert draft.status_code == 201, draft.text
 
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert submitted.status_code == 200, submitted.text
     assert submitted.json()["status"] == "assigned"
     assert submitted.json()["assignee_user_id"] == default_assignee_id
@@ -481,12 +491,15 @@ def test_inactive_default_assignee_does_not_block_approval(
         "/tickets/drafts",
         json={
             "service_id": service.json()["id"],
-            "requester_user_id": requester_id,
             "title": "Заявка с неактивным исполнителем по умолчанию",
             "description": "Проверка пропуска назначения.",
         },
+        headers=auth_headers_for_user(requester_id),
     )
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     with db_session_factory() as db:
         default_assignee = db.get(ServiceDeskUser, uuid.UUID(default_assignee_id))
         assert default_assignee is not None
@@ -510,6 +523,7 @@ def test_inactive_default_assignee_does_not_block_approval(
 def create_decision_ticket(
     client: TestClient,
     db_session_factory,
+    auth_headers_for_user,
     stage_specs: list[tuple[str, int]],
 ) -> tuple[dict, list[list[str]], str]:
     suffix = uuid.uuid4().hex[:8]
@@ -560,12 +574,15 @@ def create_decision_ticket(
         "/tickets/drafts",
         json={
             "service_id": service_id,
-            "requester_user_id": requester_id,
             "title": f"Decision ticket {suffix}",
             "description": "Заявка для проверки решений.",
         },
+        headers=auth_headers_for_user(requester_id),
     )
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert submitted.status_code == 200, submitted.text
     return submitted.json(), approver_ids, requester_id
 
@@ -586,6 +603,7 @@ def test_any_stage_completes_on_first_approval_and_skips_remaining(
     ticket, approver_ids, requester_id = create_decision_ticket(
         client,
         db_session_factory,
+        auth_headers_for_user,
         [("any", 2)],
     )
     stage = ticket["approval_stages"][0]
@@ -651,6 +669,7 @@ def test_all_stage_waits_for_every_approver(
     ticket, approver_ids, _ = create_decision_ticket(
         client,
         db_session_factory,
+        auth_headers_for_user,
         [("all", 2)],
     )
     stage = ticket["approval_stages"][0]
@@ -684,6 +703,7 @@ def test_multistage_progression_and_reject_skip_future_stages(
     ticket, approver_ids, _ = create_decision_ticket(
         client,
         db_session_factory,
+        auth_headers_for_user,
         [("any", 1), ("all", 1), ("any", 1)],
     )
     stages = ticket["approval_stages"]

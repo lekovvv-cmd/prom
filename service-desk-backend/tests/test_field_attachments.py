@@ -43,12 +43,11 @@ def create_service_with_file_field(client) -> tuple[str, str]:
     return service.json()["id"], version_id
 
 
-def create_draft(client, service_id: str, requester_id: str) -> str:
+def create_draft(client, service_id: str, requester_headers: dict[str, str]) -> str:
     draft = client.post(
         "/tickets/drafts",
         json={
             "service_id": service_id,
-            "requester_user_id": requester_id,
             "title": "Ticket with required file",
             "description": "A document must be attached.",
             "field_values": {
@@ -56,6 +55,7 @@ def create_draft(client, service_id: str, requester_id: str) -> str:
                 "reason": "Verification",
             },
         },
+        headers=requester_headers,
     )
     assert draft.status_code == 201, draft.text
     return draft.json()["id"]
@@ -72,10 +72,13 @@ def test_dynamic_file_field_uses_private_attachment_metadata_on_submit(
     requester_id = create_requester(client, db_session_factory)
     other_user_id = create_requester(client, db_session_factory)
     service_id, _ = create_service_with_file_field(client)
-    ticket_id = create_draft(client, service_id, requester_id)
     requester_headers = auth_headers_for_user(requester_id)
+    ticket_id = create_draft(client, service_id, requester_headers)
 
-    submit_without_attachment = client.post(f"/tickets/{ticket_id}/submit")
+    submit_without_attachment = client.post(
+        f"/tickets/{ticket_id}/submit",
+        headers=requester_headers,
+    )
     assert submit_without_attachment.status_code == 422
     assert submit_without_attachment.json()["detail"]["errors"] == [
         {"field_key": "supporting_document", "message": "Supporting document: Заполните обязательное поле"}
@@ -134,7 +137,7 @@ def test_dynamic_file_field_uses_private_attachment_metadata_on_submit(
     )
     assert second_file.status_code == 422
 
-    submitted = client.post(f"/tickets/{ticket_id}/submit")
+    submitted = client.post(f"/tickets/{ticket_id}/submit", headers=requester_headers)
     assert submitted.status_code == 200, submitted.text
     assert submitted.json()["field_values"]["supporting_document"] == [
         {

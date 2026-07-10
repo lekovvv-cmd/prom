@@ -55,17 +55,24 @@ def create_published_service(
     return service.json()["id"], version.json()["id"]
 
 
-def create_draft(client, service_id: str, requester_user_id: str, *, priority: str, field_values=None):
+def create_draft(
+    client,
+    service_id: str,
+    requester_headers: dict[str, str],
+    *,
+    priority: str,
+    field_values=None,
+):
     draft = client.post(
         "/tickets/drafts",
         json={
             "service_id": service_id,
-            "requester_user_id": requester_user_id,
             "title": "Routing ticket",
             "description": "Проверка маршрутизации заявки.",
             "priority": priority,
             "field_values": field_values or {},
         },
+        headers=requester_headers,
     )
     assert draft.status_code == 201, draft.text
     return draft.json()
@@ -161,7 +168,9 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
     )
     assert second_rule.status_code == 201, second_rule.text
 
-    submitted = client.post(f"/tickets/{create_draft(client, service_id, requester_id, priority='critical')['id']}/submit")
+    requester_headers = auth_headers_for_user(requester_id)
+    draft = create_draft(client, service_id, requester_headers, priority="critical")
+    submitted = client.post(f"/tickets/{draft['id']}/submit", headers=requester_headers)
     assert submitted.status_code == 200, submitted.text
     payload = submitted.json()
     assert payload["status"] == "assigned"
@@ -257,11 +266,14 @@ def test_routing_field_value_can_set_priority_before_assignment(
     draft = create_draft(
         client,
         service_id,
-        requester_id,
+        auth_headers_for_user(requester_id),
         priority="medium",
         field_values={"room": "305"},
     )
-    submitted = client.post(f"/tickets/{draft['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert submitted.status_code == 200, submitted.text
     payload = submitted.json()
     assert payload["priority"] == "critical"

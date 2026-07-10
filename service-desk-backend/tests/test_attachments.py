@@ -49,7 +49,11 @@ def test_ticket_and_internal_comment_attachments_use_private_storage_and_access(
     tmp_path,
 ):
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
-    ticket_id, requester_id, assignee_id = create_waiting_requester_ticket(client, db_session_factory)
+    ticket_id, requester_id, assignee_id = create_waiting_requester_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
     requester_headers = auth_headers_for_user(requester_id)
     assignee_headers = auth_headers_for_user(assignee_id)
 
@@ -132,7 +136,11 @@ def test_attachment_upload_rejects_invalid_content_and_accepts_ooxml(
     tmp_path,
 ):
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
-    ticket_id, requester_id, _ = create_waiting_requester_ticket(client, db_session_factory)
+    ticket_id, requester_id, _ = create_waiting_requester_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
     requester_headers = auth_headers_for_user(requester_id)
 
     empty = client.post(
@@ -191,7 +199,11 @@ def test_oversized_attachment_stops_after_bounded_chunks_and_removes_partial_fil
 ):
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
     monkeypatch.setattr(settings, "max_attachment_size_bytes", UPLOAD_CHUNK_SIZE + 1)
-    ticket_id, requester_id, _ = create_waiting_requester_ticket(client, db_session_factory)
+    ticket_id, requester_id, _ = create_waiting_requester_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
     upload = OversizedUpload(total_size=10 * UPLOAD_CHUNK_SIZE)
 
     with db_session_factory() as db:
@@ -225,7 +237,11 @@ def test_attachment_upload_removes_physical_file_after_database_failure(
     tmp_path,
 ):
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
-    ticket_id, requester_id, _ = create_waiting_requester_ticket(client, db_session_factory)
+    ticket_id, requester_id, _ = create_waiting_requester_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
 
     def fail_add(self, attachment):
         raise RuntimeError("simulated database failure")

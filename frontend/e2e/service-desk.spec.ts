@@ -97,7 +97,6 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
     "/tickets/drafts",
     {
       service_id: service.id,
-      requester_user_id: currentUser.id,
       title: `E2E заявка ${suffix}`,
       description: "Проверка защищённого UI согласования."
     }

@@ -32,7 +32,11 @@ def create_comment_user(
         return str(user.id)
 
 
-def create_waiting_requester_ticket(client, db_session_factory) -> tuple[str, str, str]:
+def create_waiting_requester_ticket(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+) -> tuple[str, str, str]:
     requester_id = create_comment_user(db_session_factory, "comment-requester@utmn.ru")
     assignee_id = create_comment_user(
         db_session_factory,
@@ -54,11 +58,14 @@ def create_waiting_requester_ticket(client, db_session_factory) -> tuple[str, st
         "/tickets/drafts",
         json={
             "service_id": service.json()["id"],
-            "requester_user_id": requester_id,
             "title": "Comments ticket",
         },
+        headers=auth_headers_for_user(requester_id),
     )
-    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    submitted = client.post(
+        f"/tickets/{draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
     assert submitted.status_code == 200, submitted.text
     with db_session_factory() as db:
         ticket = db.get(ServiceDeskTicket, uuid.UUID(submitted.json()["id"]))
@@ -74,7 +81,11 @@ def test_public_and_internal_comments_have_separate_visibility_and_audit(
     db_session_factory,
     auth_headers_for_user,
 ):
-    ticket_id, requester_id, assignee_id = create_waiting_requester_ticket(client, db_session_factory)
+    ticket_id, requester_id, assignee_id = create_waiting_requester_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
     manager_id = create_comment_user(
         db_session_factory,
         "comment-manager@utmn.ru",
@@ -123,6 +134,15 @@ def test_public_and_internal_comments_have_separate_visibility_and_audit(
     assert not any(
         item["payload"].get("comment_id") == internal_id
         for item in requester_ticket.json()["history"]
+    )
+    requester_list = client.get("/me/tickets", headers=requester_headers)
+    assert requester_list.status_code == 200
+    assert [comment["visibility"] for comment in requester_list.json()[0]["comments"]] == [
+        "public"
+    ]
+    assert not any(
+        item["payload"].get("comment_id") == internal_id
+        for item in requester_list.json()[0]["history"]
     )
 
     manager_comments = client.get(f"/tickets/{ticket_id}/comments", headers=manager_headers)

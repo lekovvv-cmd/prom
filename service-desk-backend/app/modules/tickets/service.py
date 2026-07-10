@@ -36,8 +36,11 @@ class TicketService:
         self.routing_service = RoutingService(db, self.repository)
         self.policy = TicketPolicyService()
 
-    def create_draft(self, payload: schemas.TicketDraftCreate) -> ServiceDeskTicket:
-        requester = self._require_active_user(payload.requester_user_id)
+    def create_draft(
+        self,
+        payload: schemas.TicketDraftCreate,
+        actor: ServiceDeskUser,
+    ) -> schemas.TicketRead:
         service = self.catalog_repository.get_service(payload.service_id)
         if not service or not service.is_active or service.deleted_at is not None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
@@ -53,7 +56,7 @@ class TicketService:
         ticket = ServiceDeskTicket(
             service_id=payload.service_id,
             template_version_id=template_version.id,
-            requester_user_id=requester.id,
+            requester_user_id=actor.id,
             title=payload.title,
             description=payload.description,
             status=ServiceDeskTicketStatus.DRAFT,
@@ -64,15 +67,22 @@ class TicketService:
         self._write_history(
             ticket,
             "ticket_created",
-            requester.id,
+            actor.id,
             "Заявка создана как черновик",
             {"status": ticket.status.value},
         )
         self.db.commit()
-        return self._require_ticket(ticket.id)
+        return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
-    def update_draft(self, ticket_id: uuid.UUID, payload: schemas.TicketDraftUpdate) -> ServiceDeskTicket:
+    def update_draft(
+        self,
+        ticket_id: uuid.UUID,
+        payload: schemas.TicketDraftUpdate,
+        actor: ServiceDeskUser,
+    ) -> schemas.TicketRead:
         ticket = self._require_ticket(ticket_id)
+        if ticket.requester_user_id != actor.id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Редактировать черновик может только заявитель")
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
             raise HTTPException(status.HTTP_409_CONFLICT, "Редактировать можно только черновик заявки")
         data = payload.model_dump(exclude_unset=True)
@@ -81,24 +91,25 @@ class TicketService:
         self._write_history(
             ticket,
             "ticket_updated",
-            ticket.requester_user_id,
+            actor.id,
             "Черновик заявки обновлён",
             {"changed_fields": sorted(data.keys())},
         )
         self.db.commit()
-        return self._require_ticket(ticket.id)
+        return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
-    def submit_draft(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
+    def submit_draft(self, ticket_id: uuid.UUID, actor: ServiceDeskUser) -> schemas.TicketRead:
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+        if ticket.requester_user_id != actor.id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Отправить черновик может только заявитель")
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 "Отправить можно только черновик заявки",
             )
 
-        requester = self._require_active_user(ticket.requester_user_id)
         service = self.catalog_repository.get_service(ticket.service_id)
         if not service or not service.is_active or service.deleted_at is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, "Услуга больше недоступна")
@@ -132,7 +143,7 @@ class TicketService:
         self.lifecycle.perform_transition(
             ticket,
             ServiceDeskTicketAction.SUBMIT,
-            actor=requester,
+            actor=actor,
             metadata={"number": ticket.number},
             occurred_at=now,
         )
@@ -143,23 +154,22 @@ class TicketService:
             occurred_at=now,
         )
         self.db.commit()
-        return self._require_ticket(ticket.id)
+        return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
     def perform_action(
         self,
         ticket_id: uuid.UUID,
         action: ServiceDeskTicketAction,
-        actor_user_id: uuid.UUID,
+        actor: ServiceDeskUser,
         *,
         metadata: dict[str, Any] | None = None,
-    ) -> ServiceDeskTicket:
+    ) -> schemas.TicketRead:
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
-        actor = self._require_active_user(actor_user_id)
         self.lifecycle.perform_transition(ticket, action, actor=actor, metadata=metadata)
         self.db.commit()
-        return self._require_ticket(ticket.id)
+        return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
     def assign_ticket(
         self,
@@ -210,12 +220,12 @@ class TicketService:
 
     def list_user_tickets(
         self,
-        requester_user_id: uuid.UUID,
+        actor: ServiceDeskUser,
         *,
         status_filter: ServiceDeskTicketStatus | None = None,
-    ) -> list[ServiceDeskTicket]:
-        self._require_active_user(requester_user_id)
-        return self.repository.list_user_tickets(requester_user_id, status=status_filter)
+    ) -> list[schemas.TicketRead]:
+        tickets = self.repository.list_user_tickets(actor.id, status=status_filter)
+        return [self._read_for_actor(ticket, actor) for ticket in tickets]
 
     def get_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         return self._require_ticket(ticket_id)
