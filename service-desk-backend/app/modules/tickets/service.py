@@ -270,9 +270,21 @@ class TicketService:
         ticket: ServiceDeskTicket,
         actor: ServiceDeskUser,
     ) -> schemas.TicketRead:
-        return schemas.TicketRead.model_validate(ticket).model_copy(
-            update={"allowed_actions": self.policy.allowed_actions(ticket, actor)}
-        )
+        read = schemas.TicketRead.model_validate(ticket)
+        if not self.policy.can_view_internal_comments(ticket, actor):
+            read = read.model_copy(
+                update={
+                    "comments": [
+                        comment for comment in read.comments if comment.visibility == "public"
+                    ],
+                    "history": [
+                        item
+                        for item in read.history
+                        if item.payload.get("comment_visibility") != "internal"
+                    ],
+                }
+            )
+        return read.model_copy(update={"allowed_actions": self.policy.allowed_actions(ticket, actor)})
 
     def _require_active_user(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)

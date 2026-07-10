@@ -56,6 +56,17 @@ export type ServiceDeskTicketHistory = {
   created_at: string;
 };
 
+export type ServiceDeskTicketComment = {
+  id: string;
+  ticket_id: string;
+  author_user_id: string;
+  author: ServiceDeskTicketUser;
+  body: string;
+  visibility: "public" | "internal";
+  created_at: string;
+  updated_at: string | null;
+};
+
 export type ServiceDeskTicket = {
   id: string;
   number: string | null;
@@ -87,6 +98,7 @@ export type ServiceDeskTicket = {
   resolution_summary: string | null;
   cancellation_reason: string | null;
   approval_stages: ServiceDeskTicketApprovalStage[];
+  comments: ServiceDeskTicketComment[];
   allowed_actions: ServiceDeskAllowedAction[];
   created_at: string;
   updated_at: string;

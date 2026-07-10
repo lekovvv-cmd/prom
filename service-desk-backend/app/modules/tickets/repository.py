@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.enums import ServiceDeskTicketStatus
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.catalog.models import ServiceDeskService
+from app.modules.comments.models import ServiceDeskTicketComment
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketCounter, ServiceDeskTicketHistory
 
 
@@ -32,6 +33,9 @@ class TicketRepository:
                 joinedload(ServiceDeskTicket.service).joinedload(ServiceDeskService.category),
                 joinedload(ServiceDeskTicket.requester),
                 joinedload(ServiceDeskTicket.assignee),
+                joinedload(
+                    ServiceDeskTicket.comments.and_(ServiceDeskTicketComment.deleted_at.is_(None))
+                ).joinedload(ServiceDeskTicketComment.author),
                 joinedload(ServiceDeskTicket.approval_stages).joinedload(
                     ServiceDeskTicketApprovalStage.approvals
                 ).joinedload(ServiceDeskTicketApproval.approver),
@@ -76,6 +80,9 @@ class TicketRepository:
                 joinedload(ServiceDeskTicket.service).joinedload(ServiceDeskService.category),
                 joinedload(ServiceDeskTicket.requester),
                 joinedload(ServiceDeskTicket.assignee),
+                joinedload(
+                    ServiceDeskTicket.comments.and_(ServiceDeskTicketComment.deleted_at.is_(None))
+                ).joinedload(ServiceDeskTicketComment.author),
                 joinedload(ServiceDeskTicket.approval_stages).joinedload(
                     ServiceDeskTicketApprovalStage.approvals
                 ).joinedload(ServiceDeskTicketApproval.approver),

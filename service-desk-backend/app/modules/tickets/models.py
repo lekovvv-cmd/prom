@@ -15,6 +15,7 @@ from app.modules.templates.models import ServiceDeskTemplateVersion
 
 if TYPE_CHECKING:
     from app.modules.approvals.models import ServiceDeskTicketApprovalStage
+    from app.modules.comments.models import ServiceDeskTicketComment
 
 
 class ServiceDeskTicket(Base):
@@ -95,6 +96,11 @@ class ServiceDeskTicket(Base):
         back_populates="ticket",
         cascade="all, delete-orphan",
         order_by="ServiceDeskTicketApprovalStage.position",
+    )
+    comments: Mapped[list["ServiceDeskTicketComment"]] = relationship(
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="ServiceDeskTicketComment.created_at",
     )
 
 

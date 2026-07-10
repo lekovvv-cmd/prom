@@ -14,6 +14,7 @@ import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Spinner } from "../../../shared/ui/Spinner";
 import { Header } from "../../../widgets/header/ui/Header";
 import { ServiceDeskTicketApprovals } from "../../../widgets/service-desk-ticket-approvals/ui/ServiceDeskTicketApprovals";
+import { ServiceDeskTicketComments } from "../../../widgets/service-desk-ticket-comments/ui/ServiceDeskTicketComments";
 
 function formatFieldValue(value: unknown): string {
   if (value === null || value === undefined || value === "") {
@@ -90,6 +91,12 @@ export function ServiceDeskTicketDetailsPage() {
                 currentUserId={user.id}
                 ticket={ticket}
                 onTicketChanged={setTicket}
+              />
+
+              <ServiceDeskTicketComments
+                currentUser={user}
+                ticket={ticket}
+                onTicketChanged={loadTicket}
               />
 
               {fieldEntries.length > 0 && (

@@ -7,6 +7,8 @@ from app.api.deps import CurrentServiceDeskUser, get_db
 from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus
 from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.schemas import TicketApprovalStageRead
+from app.modules.comments import schemas as comment_schemas
+from app.modules.comments.service import TicketCommentService
 from app.modules.tickets import schemas
 from app.modules.tickets.service import TicketService
 
@@ -148,6 +150,56 @@ def cancel_ticket(
         payload.actor_user_id,
         metadata={"reason": payload.reason},
     )
+
+
+@router.get(
+    "/tickets/{ticket_id}/comments",
+    response_model=list[comment_schemas.TicketCommentRead],
+)
+def list_ticket_comments(
+    ticket_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketCommentService(db).list_comments(ticket_id, current_user)
+
+
+@router.post(
+    "/tickets/{ticket_id}/comments",
+    response_model=comment_schemas.TicketCommentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_ticket_comment(
+    ticket_id: uuid.UUID,
+    payload: comment_schemas.TicketCommentCreate,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketCommentService(db).create_comment(ticket_id, payload, current_user)
+
+
+@router.patch(
+    "/tickets/{ticket_id}/comments/{comment_id}",
+    response_model=comment_schemas.TicketCommentRead,
+)
+def update_ticket_comment(
+    ticket_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    payload: comment_schemas.TicketCommentUpdate,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketCommentService(db).update_comment(ticket_id, comment_id, payload, current_user)
+
+
+@router.delete("/tickets/{ticket_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_ticket_comment(
+    ticket_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    TicketCommentService(db).delete_comment(ticket_id, comment_id, current_user)
 
 
 @router.get(

@@ -66,6 +66,11 @@ class ServiceDeskPriority(StrEnum):
     CRITICAL = "critical"
 
 
+class ServiceDeskCommentVisibility(StrEnum):
+    PUBLIC = "public"
+    INTERNAL = "internal"
+
+
 class ServiceDeskTicketAction(StrEnum):
     SUBMIT = "submit"
     START_APPROVAL = "start_approval"

@@ -21,3 +21,4 @@ Stage 5.1: добавлены JWT-защищённые manual assign/reassign с
 Stage 5.2: добавлен default assignment на услуге/версии шаблона с проверкой active/be_assignee и history assignment_source=default.
 Stage 5.3: добавлены routing rules с capability manage_routing, priority evaluation, routing snapshot и действиями assign_user/set_priority.
 Stage 5.4: добавлен capability-guarded UI маршрутизации с CRUD/reorder правил, condition/action builder и выбором eligible исполнителей.
+Stage 6.1: добавлены public/internal комментарии с soft-delete audit, фильтрацией internal для requester и auto requester_reply из waiting_requester.

@@ -81,6 +81,19 @@ class TicketHistoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TicketCommentSummary(BaseModel):
+    id: uuid.UUID
+    ticket_id: uuid.UUID
+    author_user_id: uuid.UUID
+    author: TicketUserSummary
+    body: str
+    visibility: Literal["public", "internal"]
+    created_at: datetime
+    updated_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TicketRead(BaseModel):
     id: uuid.UUID
     number: str | None
@@ -109,6 +122,7 @@ class TicketRead(BaseModel):
     resolution_summary: str | None
     cancellation_reason: str | None
     approval_stages: list[TicketApprovalStageRead] = Field(default_factory=list)
+    comments: list[TicketCommentSummary] = Field(default_factory=list)
     allowed_actions: list[Literal["approve", "reject", "assign", "reassign"]] = Field(
         default_factory=list
     )

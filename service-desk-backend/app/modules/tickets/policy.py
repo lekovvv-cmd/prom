@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 
-from app.core.enums import ServiceDeskApprovalStatus, ServiceDeskTicketStatus
+from app.core.enums import ServiceDeskAccessType, ServiceDeskApprovalStatus, ServiceDeskTicketStatus
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.service import ServiceDeskAccessService
 from app.modules.tickets.models import ServiceDeskTicket
@@ -22,6 +22,18 @@ class TicketPolicyService:
     def require_view(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> None:
         if not self.can_view(ticket, actor):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к заявке")
+
+    def can_view_internal_comments(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> bool:
+        if actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
+            return True
+        if actor.id == ticket.assignee_user_id:
+            return True
+        capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
+        return "service_desk.view_all_tickets" in capabilities
+
+    def require_internal_comments(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> None:
+        if not self.can_view_internal_comments(ticket, actor):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к внутренним комментариям")
 
     def allowed_actions(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> list[str]:
         capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
