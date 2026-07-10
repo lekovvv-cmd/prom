@@ -25,9 +25,16 @@ from app.modules.tickets import models as ticket_models  # noqa: F401
 
 
 class ServiceDeskTestClient(TestClient):
-    def __init__(self, app, admin_headers: dict[str, str]) -> None:
+    def __init__(self, app, admin_headers_factory) -> None:
         super().__init__(app)
-        self.admin_headers = admin_headers
+        self._admin_headers_factory = admin_headers_factory
+        self._admin_headers: dict[str, str] | None = None
+
+    @property
+    def admin_headers(self) -> dict[str, str]:
+        if self._admin_headers is None:
+            self._admin_headers = self._admin_headers_factory()
+        return self._admin_headers
 
     def request(self, method, url, *args, **kwargs):
         if str(url).startswith("/admin") and kwargs.get("headers") is None:
@@ -53,27 +60,29 @@ def db_session_factory():
 
 @pytest.fixture()
 def client(db_session_factory):
-    identity_user_id = str(uuid.uuid4())
-    with db_session_factory() as db:
-        db.add(
-            ServiceDeskUser(
-                identity_user_id=identity_user_id,
-                email="test-service-desk-admin@utmn.ru",
-                display_name="Test Service Desk Admin",
-                access_type=ServiceDeskAccessType.SERVICE_DESK_ADMIN,
-                is_active=True,
+    def build_admin_headers() -> dict[str, str]:
+        identity_user_id = str(uuid.uuid4())
+        with db_session_factory() as db:
+            db.add(
+                ServiceDeskUser(
+                    identity_user_id=identity_user_id,
+                    email="test-service-desk-admin@utmn.ru",
+                    display_name="Test Service Desk Admin",
+                    access_type=ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+                    is_active=True,
+                )
             )
-        )
-        db.commit()
+            db.commit()
 
-    admin_token = jwt.encode(
-        {
-            "sub": identity_user_id,
-            "exp": datetime.now(UTC) + timedelta(minutes=5),
-        },
-        settings.jwt_secret,
-        algorithm=settings.jwt_algorithm,
-    )
+        admin_token = jwt.encode(
+            {
+                "sub": identity_user_id,
+                "exp": datetime.now(UTC) + timedelta(minutes=5),
+            },
+            settings.jwt_secret,
+            algorithm=settings.jwt_algorithm,
+        )
+        return {"Authorization": f"Bearer {admin_token}"}
 
     def override_get_db():
         db = db_session_factory()
@@ -85,7 +94,7 @@ def client(db_session_factory):
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db
     try:
-        yield ServiceDeskTestClient(app, {"Authorization": f"Bearer {admin_token}"})
+        yield ServiceDeskTestClient(app, build_admin_headers)
     finally:
         app.dependency_overrides.clear()
 
