@@ -7,6 +7,7 @@ from app.modules.sla.models import (
     ServiceDeskBusinessCalendar,
     ServiceDeskSlaBinding,
     ServiceDeskSlaPolicy,
+    ServiceDeskEscalationRule,
 )
 
 
@@ -73,3 +74,9 @@ class SlaRepository:
         self.db.add(binding)
         self.db.flush()
         return binding
+
+    def list_escalations(self, policy_id=None):
+        statement = select(ServiceDeskEscalationRule)
+        if policy_id:
+            statement = statement.where(ServiceDeskEscalationRule.sla_policy_id == policy_id)
+        return list(self.db.scalars(statement.order_by(ServiceDeskEscalationRule.threshold_percent)).all())

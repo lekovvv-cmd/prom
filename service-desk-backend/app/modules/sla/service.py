@@ -15,6 +15,7 @@ from app.modules.sla.models import (
     ServiceDeskSlaBinding,
     ServiceDeskSlaPolicy,
     ServiceDeskTicketSlaPause,
+    ServiceDeskEscalationRule,
 )
 from app.modules.sla.repository import SlaRepository
 from app.modules.sla.engine import add_business_minutes, add_business_seconds, business_seconds_between
@@ -120,6 +121,36 @@ class SlaService:
             setattr(binding, field, value.strip() if field == "name" else value)
         self.db.commit()
         return binding
+
+    def list_escalations(self, actor, policy_id=None):
+        self._require_manage_sla(actor)
+        return self.repository.list_escalations(policy_id)
+
+    def create_escalation(self, policy_id, payload, actor):
+        self._require_manage_sla(actor)
+        self._require_policy(policy_id)
+        rule = ServiceDeskEscalationRule(sla_policy_id=policy_id, **payload.model_dump())
+        self.db.add(rule)
+        self.db.commit()
+        return rule
+
+    def update_escalation(self, rule_id, payload, actor):
+        self._require_manage_sla(actor)
+        rule = self.db.get(ServiceDeskEscalationRule, rule_id)
+        if not rule:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Escalation rule not found")
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(rule, field, value)
+        self.db.commit()
+        return rule
+
+    def delete_escalation(self, rule_id, actor):
+        self._require_manage_sla(actor)
+        rule = self.db.get(ServiceDeskEscalationRule, rule_id)
+        if not rule:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Escalation rule not found")
+        self.db.delete(rule)
+        self.db.commit()
 
     def snapshot_ticket(self, ticket, service, *, occurred_at) -> None:
         for binding in self.repository.list_bindings(active_only=True):

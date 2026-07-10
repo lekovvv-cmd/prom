@@ -134,3 +134,27 @@ class ServiceDeskTicketSlaPause(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class ServiceDeskEscalationRule(Base):
+    __tablename__ = "service_desk_escalation_rules"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sla_policy_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("service_desk_sla_policies.id"), nullable=False, index=True)
+    metric: Mapped[str] = mapped_column(String(32), nullable=False)
+    threshold_percent: Mapped[int] = mapped_column(Integer, nullable=False)
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    recipient_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    recipient_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("service_desk_users.id"), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class ServiceDeskSlaEscalationEvent(Base):
+    __tablename__ = "service_desk_sla_escalation_events"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ticket_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("service_desk_tickets.id"), nullable=False, index=True)
+    rule_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("service_desk_escalation_rules.id"), nullable=False)
+    metric: Mapped[str] = mapped_column(String(32), nullable=False)
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    recipient_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    recipient_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)

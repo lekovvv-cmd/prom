@@ -83,3 +83,23 @@ def update_sla_binding(
     db: Session = Depends(get_db),
 ):
     return SlaService(db).update_binding(binding_id, payload, actor)
+
+
+@router.get("/escalations", response_model=list[schemas.EscalationRuleRead])
+def list_escalations(actor: CurrentServiceDeskUser, policy_id: uuid.UUID | None = None, db: Session = Depends(get_db)):
+    return SlaService(db).list_escalations(actor, policy_id)
+
+
+@router.post("/policies/{policy_id}/escalations", response_model=schemas.EscalationRuleRead, status_code=201)
+def create_escalation(policy_id: uuid.UUID, payload: schemas.EscalationRuleCreate, actor: CurrentServiceDeskUser, db: Session = Depends(get_db)):
+    return SlaService(db).create_escalation(policy_id, payload, actor)
+
+
+@router.patch("/escalations/{rule_id}", response_model=schemas.EscalationRuleRead)
+def update_escalation(rule_id: uuid.UUID, payload: schemas.EscalationRuleUpdate, actor: CurrentServiceDeskUser, db: Session = Depends(get_db)):
+    return SlaService(db).update_escalation(rule_id, payload, actor)
+
+
+@router.delete("/escalations/{rule_id}", status_code=204)
+def delete_escalation(rule_id: uuid.UUID, actor: CurrentServiceDeskUser, db: Session = Depends(get_db)):
+    SlaService(db).delete_escalation(rule_id, actor)

@@ -33,3 +33,4 @@ Stage 7.3: добавлены SLA policies и приоритетные bindings 
 Stage 7.4: добавлен timezone-aware business-time SLA engine с weekly intervals, breaks, calendar exceptions, DST/UTC conversion и расчётом first response/resolution due из immutable snapshot.
 Stage 7.5: добавлены policy-specific pause statuses, concurrency-safe SLA pause periods, lifecycle pause/resume, накопление paused time, business-time recalculation и auditable history; first response фиксируется по start/request clarification/public assignee comment.
 Stage 7.6: добавлен независимый idempotent SLA breach worker/CLI с row locking, active-pause filtering, response/resolution state и audit events.
+Stage 7.7: добавлены SLA escalation rules с произвольными thresholds, всеми recipient/action types и idempotent durable events для будущей notification delivery без fake email status.

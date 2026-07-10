@@ -172,3 +172,33 @@ class SlaBindingRead(SlaBindingCreate):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class EscalationRuleCreate(BaseModel):
+    metric: Literal["first_response", "resolution"]
+    threshold_percent: int = Field(gt=0)
+    action_type: Literal["create_in_app_notification", "email_notification_when_available"]
+    recipient_type: Literal["assignee", "requester", "service_desk_admin", "specific_user"]
+    recipient_user_id: uuid.UUID | None = None
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_recipient(self):
+        if (self.recipient_type == "specific_user") != (self.recipient_user_id is not None):
+            raise ValueError("recipient_user_id is required only for specific_user")
+        return self
+
+
+class EscalationRuleUpdate(BaseModel):
+    metric: Literal["first_response", "resolution"] | None = None
+    threshold_percent: int | None = Field(default=None, gt=0)
+    action_type: Literal["create_in_app_notification", "email_notification_when_available"] | None = None
+    recipient_type: Literal["assignee", "requester", "service_desk_admin", "specific_user"] | None = None
+    recipient_user_id: uuid.UUID | None = None
+    is_active: bool | None = None
+
+
+class EscalationRuleRead(EscalationRuleCreate):
+    id: uuid.UUID
+    sla_policy_id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)

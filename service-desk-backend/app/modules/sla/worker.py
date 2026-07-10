@@ -6,7 +6,12 @@ from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import ServiceDeskTicketStatus
-from app.modules.sla.models import ServiceDeskTicketSlaPause
+from app.modules.sla.engine import add_business_minutes
+from app.modules.sla.models import (
+    ServiceDeskEscalationRule,
+    ServiceDeskSlaEscalationEvent,
+    ServiceDeskTicketSlaPause,
+)
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 
 
@@ -66,8 +71,47 @@ class SlaWorker:
                 ticket.resolution_breached_at = occurred_at
                 self._history(ticket, "resolution", occurred_at)
                 counts["resolution_breaches"] += 1
+            self._evaluate_escalations(ticket, occurred_at)
         self.db.commit()
         return counts
+
+    def _evaluate_escalations(self, ticket: ServiceDeskTicket, occurred_at: datetime) -> None:
+        rules = self.db.scalars(select(ServiceDeskEscalationRule).where(
+            ServiceDeskEscalationRule.sla_policy_id == ticket.sla_policy_id,
+            ServiceDeskEscalationRule.is_active.is_(True),
+        )).all()
+        existing = set(self.db.scalars(select(ServiceDeskSlaEscalationEvent.rule_id).where(
+            ServiceDeskSlaEscalationEvent.ticket_id == ticket.id
+        )).all())
+        selected_at = datetime.fromisoformat(ticket.sla_snapshot["selected_at"])
+        for rule in rules:
+            if rule.id in existing:
+                continue
+            if rule.metric == "first_response" and ticket.first_response_at is not None:
+                continue
+            if rule.metric == "resolution" and ticket.resolved_at is not None:
+                continue
+            minutes = ticket.sla_snapshot[f"{rule.metric}_minutes"]
+            threshold = add_business_minutes(
+                selected_at, max(1, round(minutes * rule.threshold_percent / 100)), ticket.sla_snapshot
+            )
+            if threshold > _utc(occurred_at):
+                continue
+            recipient_user_id = (
+                rule.recipient_user_id if rule.recipient_type == "specific_user"
+                else ticket.assignee_user_id if rule.recipient_type == "assignee"
+                else ticket.requester_user_id if rule.recipient_type == "requester" else None
+            )
+            self.db.add(ServiceDeskSlaEscalationEvent(
+                ticket_id=ticket.id, rule_id=rule.id, metric=rule.metric,
+                action_type=rule.action_type, recipient_type=rule.recipient_type,
+                recipient_user_id=recipient_user_id,
+            ))
+            self.db.add(ServiceDeskTicketHistory(
+                ticket_id=ticket.id, event_type="sla_warning" if rule.threshold_percent < 100 else "sla_escalated",
+                actor_user_id=None, message="SLA escalation threshold reached",
+                payload={"metric": rule.metric, "threshold_percent": rule.threshold_percent, "rule_id": str(rule.id)},
+            ))
 
     def _history(self, ticket: ServiceDeskTicket, metric: str, occurred_at: datetime) -> None:
         self.db.add(ServiceDeskTicketHistory(

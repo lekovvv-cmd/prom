@@ -213,6 +213,18 @@ def test_sla_policy_binding_is_snapshotted_on_submit(
         headers=headers,
     )
     assert policy.status_code == 201, policy.text
+    escalation = client.post(
+        f"/admin/sla/policies/{policy.json()['id']}/escalations",
+        json={
+            "metric": "resolution",
+            "threshold_percent": 87,
+            "action_type": "create_in_app_notification",
+            "recipient_type": "assignee",
+        },
+        headers=headers,
+    )
+    assert escalation.status_code == 201, escalation.text
+    assert escalation.json()["threshold_percent"] == 87
     category = client.post("/admin/categories", json={"title": "SLA category"})
     service = client.post(
         "/admin/services",
