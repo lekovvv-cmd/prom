@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.deps import get_db
 from app.core.config import settings
 from app.core.database import Base
+from app.core.enums import ServiceDeskAccessType
 from app.main import create_app
 from app.modules.access import models as access_models  # noqa: F401
 from app.modules.attachments import models as attachment_models  # noqa: F401
@@ -21,6 +22,17 @@ from app.modules.comments import models as comment_models  # noqa: F401
 from app.modules.routing import models as routing_models  # noqa: F401
 from app.modules.templates import models as template_models  # noqa: F401
 from app.modules.tickets import models as ticket_models  # noqa: F401
+
+
+class ServiceDeskTestClient(TestClient):
+    def __init__(self, app, admin_headers: dict[str, str]) -> None:
+        super().__init__(app)
+        self.admin_headers = admin_headers
+
+    def request(self, method, url, *args, **kwargs):
+        if str(url).startswith("/admin") and kwargs.get("headers") is None:
+            kwargs["headers"] = self.admin_headers
+        return super().request(method, url, *args, **kwargs)
 
 
 @pytest.fixture()
@@ -41,6 +53,27 @@ def db_session_factory():
 
 @pytest.fixture()
 def client(db_session_factory):
+    identity_user_id = str(uuid.uuid4())
+    with db_session_factory() as db:
+        db.add(
+            ServiceDeskUser(
+                identity_user_id=identity_user_id,
+                email="test-service-desk-admin@utmn.ru",
+                display_name="Test Service Desk Admin",
+                access_type=ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+                is_active=True,
+            )
+        )
+        db.commit()
+
+    admin_token = jwt.encode(
+        {
+            "sub": identity_user_id,
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
 
     def override_get_db():
         db = db_session_factory()
@@ -52,7 +85,7 @@ def client(db_session_factory):
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db
     try:
-        yield TestClient(app)
+        yield ServiceDeskTestClient(app, {"Authorization": f"Bearer {admin_token}"})
     finally:
         app.dependency_overrides.clear()
 

@@ -3,11 +3,15 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_service_desk_capability
 from app.modules.catalog import schemas
 from app.modules.catalog.service import CatalogService
 
-router = APIRouter(prefix="/admin", tags=["admin-catalog"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin-catalog"],
+    dependencies=[Depends(require_service_desk_capability("service_desk.manage_catalog"))],
+)
 
 
 @router.get("/categories", response_model=list[schemas.CategoryRead])

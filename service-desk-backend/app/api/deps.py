@@ -40,3 +40,16 @@ def get_current_service_desk_user(
 
 
 CurrentServiceDeskUser = Annotated[ServiceDeskUser, Depends(get_current_service_desk_user)]
+
+
+def require_service_desk_capability(required_capability: str):
+    def dependency(current_user: CurrentServiceDeskUser) -> ServiceDeskUser:
+        capabilities = ServiceDeskAccessService.capabilities_for(current_user)
+        if required_capability not in capabilities:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"Нет capability {required_capability}",
+            )
+        return current_user
+
+    return dependency

@@ -3,11 +3,15 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import CurrentServiceDeskUser, get_db
+from app.api.deps import CurrentServiceDeskUser, get_db, require_service_desk_capability
 from app.modules.routing import schemas
 from app.modules.routing.service import RoutingService
 
-router = APIRouter(prefix="/admin/routing-rules", tags=["admin-routing"])
+router = APIRouter(
+    prefix="/admin/routing-rules",
+    tags=["admin-routing"],
+    dependencies=[Depends(require_service_desk_capability("service_desk.manage_routing"))],
+)
 
 
 @router.get("", response_model=list[schemas.RoutingRuleRead])

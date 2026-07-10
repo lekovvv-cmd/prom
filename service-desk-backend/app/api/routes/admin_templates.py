@@ -3,11 +3,15 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_service_desk_capability
 from app.modules.templates import schemas
 from app.modules.templates.service import TemplateService
 
-router = APIRouter(prefix="/admin", tags=["admin-templates"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin-templates"],
+    dependencies=[Depends(require_service_desk_capability("service_desk.manage_templates"))],
+)
 
 
 @router.get("/services/{service_id}/versions", response_model=list[schemas.TemplateVersionRead])
