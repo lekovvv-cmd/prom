@@ -8,7 +8,7 @@ from app.core.enums import (
     ServiceDeskTicketAction,
     ServiceDeskTicketStatus,
 )
-from app.modules.access.models import ServiceDeskUser
+from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 from app.modules.tickets.lifecycle import CANCELLABLE_STATUSES, TicketLifecycleService, transition_target
 from app.modules.tickets.models import ServiceDeskTicket
 from app.modules.tickets.repository import TicketRepository
@@ -41,6 +41,15 @@ TRANSITION_CASES = [
         ServiceDeskTicketAction.ASSIGN,
         ServiceDeskTicketStatus.ASSIGNED,
     ),
+    *[
+        (ticket_status, ServiceDeskTicketAction.REASSIGN, ticket_status)
+        for ticket_status in (
+            ServiceDeskTicketStatus.ASSIGNED,
+            ServiceDeskTicketStatus.IN_PROGRESS,
+            ServiceDeskTicketStatus.WAITING_REQUESTER,
+            ServiceDeskTicketStatus.WAITING_EXTERNAL,
+        )
+    ],
     (
         ServiceDeskTicketStatus.ASSIGNED,
         ServiceDeskTicketAction.START,
@@ -106,6 +115,7 @@ def create_user(
     email: str,
     *,
     access_type: ServiceDeskAccessType = ServiceDeskAccessType.MANAGER,
+    capabilities: tuple[str, ...] = (),
 ) -> str:
     with db_session_factory() as db:
         user = ServiceDeskUser(
@@ -116,6 +126,14 @@ def create_user(
             is_active=True,
         )
         db.add(user)
+        db.flush()
+        for capability in capabilities:
+            db.add(
+                ServiceDeskUserCapability(
+                    service_desk_user_id=user.id,
+                    capability=capability,
+                )
+            )
         db.commit()
         db.refresh(user)
         return str(user.id)
@@ -276,3 +294,109 @@ def test_requester_can_cancel_submitted_ticket_with_reason(client, db_session_fa
     assert cancelled.json()["cancellation_reason"] == "Потребность отпала"
     assert cancelled.json()["cancelled_at"] is not None
     assert cancelled.json()["history"][-1]["event_type"] == "ticket_cancelled"
+
+
+def test_assign_and_reassign_require_capabilities_and_write_history(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    ticket_id, _ = create_submitted_ticket(client, db_session_factory)
+    assigner_id = create_user(
+        db_session_factory,
+        "assignment-manager@utmn.ru",
+        capabilities=("service_desk.access", "service_desk.assign"),
+    )
+    unprivileged_id = create_user(
+        db_session_factory,
+        "assignment-unprivileged@utmn.ru",
+        capabilities=("service_desk.access",),
+    )
+    first_assignee_id = create_user(
+        db_session_factory,
+        "assignment-first@utmn.ru",
+        capabilities=("service_desk.access", "service_desk.be_assignee"),
+    )
+    second_assignee_id = create_user(
+        db_session_factory,
+        "assignment-second@utmn.ru",
+        capabilities=("service_desk.access", "service_desk.be_assignee"),
+    )
+    ineligible_id = create_user(
+        db_session_factory,
+        "assignment-ineligible@utmn.ru",
+        capabilities=("service_desk.access",),
+    )
+    inactive_id = create_user(
+        db_session_factory,
+        "assignment-inactive@utmn.ru",
+        capabilities=("service_desk.access", "service_desk.be_assignee"),
+    )
+    with db_session_factory() as db:
+        inactive = db.get(ServiceDeskUser, uuid.UUID(inactive_id))
+        assert inactive is not None
+        inactive.is_active = False
+        db.commit()
+
+    forbidden = client.post(
+        f"/tickets/{ticket_id}/assign",
+        json={"assignee_user_id": first_assignee_id},
+        headers=auth_headers_for_user(unprivileged_id),
+    )
+    assert forbidden.status_code == 403
+
+    ineligible = client.post(
+        f"/tickets/{ticket_id}/assign",
+        json={"assignee_user_id": ineligible_id},
+        headers=auth_headers_for_user(assigner_id),
+    )
+    assert ineligible.status_code == 422
+
+    inactive = client.post(
+        f"/tickets/{ticket_id}/assign",
+        json={"assignee_user_id": inactive_id},
+        headers=auth_headers_for_user(assigner_id),
+    )
+    assert inactive.status_code == 422
+
+    assigned = client.post(
+        f"/tickets/{ticket_id}/assign",
+        json={"assignee_user_id": first_assignee_id},
+        headers=auth_headers_for_user(assigner_id),
+    )
+    assert assigned.status_code == 200, assigned.text
+    assert assigned.json()["status"] == "assigned"
+    assert assigned.json()["assignee_user_id"] == first_assignee_id
+    assert assigned.json()["assigned_at"] is not None
+    assert assigned.json()["allowed_actions"] == ["reassign"]
+    assert assigned.json()["history"][-1]["event_type"] == "ticket_assigned"
+    assert assigned.json()["history"][-1]["payload"] == {
+        "from_status": "approved",
+        "to_status": "assigned",
+        "assignee_user_id": first_assignee_id,
+        "assignment_source": "manual",
+    }
+
+    duplicate = client.post(
+        f"/tickets/{ticket_id}/assign",
+        json={"assignee_user_id": second_assignee_id},
+        headers=auth_headers_for_user(assigner_id),
+    )
+    assert duplicate.status_code == 409
+
+    reassigned = client.post(
+        f"/tickets/{ticket_id}/reassign",
+        json={"assignee_user_id": second_assignee_id},
+        headers=auth_headers_for_user(assigner_id),
+    )
+    assert reassigned.status_code == 200, reassigned.text
+    assert reassigned.json()["status"] == "assigned"
+    assert reassigned.json()["assignee_user_id"] == second_assignee_id
+    assert reassigned.json()["history"][-1]["event_type"] == "ticket_reassigned"
+    assert reassigned.json()["history"][-1]["payload"] == {
+        "from_status": "assigned",
+        "to_status": "assigned",
+        "assignee_user_id": second_assignee_id,
+        "previous_assignee_user_id": first_assignee_id,
+        "assignment_source": "manual",
+    }

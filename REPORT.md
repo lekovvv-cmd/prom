@@ -17,3 +17,4 @@ Stage 4.2: добавлен immutable snapshot approval workflow в заявку
 Stage 4.3–4.4: добавлены approve/reject решения, ANY/ALL evaluation и multi-stage progression со skip логикой.
 Stage 4.5 prerequisite: добавлены JWT access bridge, Service Desk `/me` capabilities и связанные dev user projections.
 Stage 4.5: добавлены backend `allowed_actions`, защищённые approval actions, карточка согласования и Service Desk browser E2E.
+Stage 5.1: добавлены JWT-защищённые manual assign/reassign с проверкой capability исполнителя и history assignment_source.

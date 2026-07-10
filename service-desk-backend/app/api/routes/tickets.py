@@ -32,6 +32,26 @@ def submit_ticket_draft(ticket_id: uuid.UUID, db: Session = Depends(get_db)):
     return TicketService(db).submit_draft(ticket_id)
 
 
+@router.post("/tickets/{ticket_id}/assign", response_model=schemas.TicketRead)
+def assign_ticket(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketAssignmentAction,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).assign_ticket(ticket_id, payload, current_user)
+
+
+@router.post("/tickets/{ticket_id}/reassign", response_model=schemas.TicketRead)
+def reassign_ticket(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketAssignmentAction,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).reassign_ticket(ticket_id, payload, current_user)
+
+
 @router.post("/tickets/{ticket_id}/start", response_model=schemas.TicketRead)
 def start_ticket(
     ticket_id: uuid.UUID,

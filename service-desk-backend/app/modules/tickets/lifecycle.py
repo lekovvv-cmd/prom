@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -13,6 +14,14 @@ from app.core.enums import (
 from app.modules.access.models import ServiceDeskUser
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.repository import TicketRepository
+
+
+REASSIGNABLE_STATUSES = {
+    ServiceDeskTicketStatus.ASSIGNED,
+    ServiceDeskTicketStatus.IN_PROGRESS,
+    ServiceDeskTicketStatus.WAITING_REQUESTER,
+    ServiceDeskTicketStatus.WAITING_EXTERNAL,
+}
 
 
 TRANSITION_TARGETS: dict[
@@ -40,6 +49,10 @@ TRANSITION_TARGETS: dict[
         ServiceDeskTicketStatus.APPROVED,
         ServiceDeskTicketAction.ASSIGN,
     ): ServiceDeskTicketStatus.ASSIGNED,
+    **{
+        (ticket_status, ServiceDeskTicketAction.REASSIGN): ticket_status
+        for ticket_status in REASSIGNABLE_STATUSES
+    },
     (
         ServiceDeskTicketStatus.ASSIGNED,
         ServiceDeskTicketAction.START,
@@ -94,6 +107,11 @@ SYSTEM_ACTIONS = {
     ServiceDeskTicketAction.ASSIGN,
 }
 
+ASSIGNMENT_ACTIONS = {
+    ServiceDeskTicketAction.ASSIGN,
+    ServiceDeskTicketAction.REASSIGN,
+}
+
 ASSIGNEE_ACTIONS = {
     ServiceDeskTicketAction.START,
     ServiceDeskTicketAction.REQUEST_CLARIFICATION,
@@ -109,6 +127,7 @@ ACTION_EVENTS = {
     ServiceDeskTicketAction.COMPLETE_APPROVAL: ("ticket_approved", "Согласование заявки завершено"),
     ServiceDeskTicketAction.REJECT_APPROVAL: ("ticket_rejected", "Заявка отклонена"),
     ServiceDeskTicketAction.ASSIGN: ("ticket_assigned", "Исполнитель назначен"),
+    ServiceDeskTicketAction.REASSIGN: ("ticket_reassigned", "Исполнитель переназначен"),
     ServiceDeskTicketAction.START: ("ticket_started", "Заявка взята в работу"),
     ServiceDeskTicketAction.REQUEST_CLARIFICATION: (
         "clarification_requested",
@@ -194,6 +213,13 @@ class TicketLifecycleService:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
 
         is_admin = actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+        if action in ASSIGNMENT_ACTIONS:
+            can_assign = is_admin or any(
+                capability.capability == "service_desk.assign" for capability in actor.capabilities
+            )
+            if not can_assign:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет capability service_desk.assign")
+            return
         if action == ServiceDeskTicketAction.SUBMIT:
             if actor.id != ticket.requester_user_id:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "Отправить заявку может только заявитель")
@@ -226,6 +252,8 @@ class TicketLifecycleService:
             ServiceDeskTicketAction.RESOLVE: "resolution_summary",
             ServiceDeskTicketAction.REJECT_APPROVAL: "comment",
             ServiceDeskTicketAction.CANCEL: "reason",
+            ServiceDeskTicketAction.ASSIGN: "assignee_user_id",
+            ServiceDeskTicketAction.REASSIGN: "assignee_user_id",
         }
         field = required_fields.get(action)
         if field and (not isinstance(payload.get(field), str) or not payload[field].strip()):
@@ -248,6 +276,7 @@ class TicketLifecycleService:
             ServiceDeskTicketAction.COMPLETE_APPROVAL: "approved_at",
             ServiceDeskTicketAction.REJECT_APPROVAL: "rejected_at",
             ServiceDeskTicketAction.ASSIGN: "assigned_at",
+            ServiceDeskTicketAction.REASSIGN: "assigned_at",
             ServiceDeskTicketAction.START: "work_started_at",
             ServiceDeskTicketAction.RESOLVE: "resolved_at",
             ServiceDeskTicketAction.CLOSE: "closed_at",
@@ -260,3 +289,5 @@ class TicketLifecycleService:
             ticket.resolution_summary = payload["resolution_summary"].strip()
         if action == ServiceDeskTicketAction.CANCEL:
             ticket.cancellation_reason = payload["reason"].strip()
+        if action in ASSIGNMENT_ACTIONS:
+            ticket.assignee_user_id = uuid.UUID(str(payload["assignee_user_id"]))

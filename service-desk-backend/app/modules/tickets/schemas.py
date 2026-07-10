@@ -52,6 +52,10 @@ class TicketActorAction(BaseModel):
     actor_user_id: uuid.UUID
 
 
+class TicketAssignmentAction(BaseModel):
+    assignee_user_id: uuid.UUID
+
+
 class TicketCommentAction(TicketActorAction):
     comment: str = Field(min_length=2, max_length=2000)
 
@@ -104,7 +108,9 @@ class TicketRead(BaseModel):
     resolution_summary: str | None
     cancellation_reason: str | None
     approval_stages: list[TicketApprovalStageRead] = Field(default_factory=list)
-    allowed_actions: list[Literal["approve", "reject"]] = Field(default_factory=list)
+    allowed_actions: list[Literal["approve", "reject", "assign", "reassign"]] = Field(
+        default_factory=list
+    )
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

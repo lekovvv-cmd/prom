@@ -10,6 +10,7 @@
 | `pending_approval` | `complete_approval` | `approved` | система после завершения обязательных этапов |
 | `pending_approval` | `reject_approval` | `rejected` | согласующий после проверки approval policy |
 | `approved` | `assign` | `assigned` | routing/default/manual assignment после проверки capability |
+| `assigned`, `in_progress`, `waiting_requester`, `waiting_external` | `reassign` | same status | manager/admin с `service_desk.assign` |
 | `assigned` | `start` | `in_progress` | назначенный исполнитель |
 | `in_progress` | `request_clarification` | `waiting_requester` | назначенный исполнитель |
 | `waiting_requester` | `requester_reply` | `in_progress` | заявитель через публичный ответ |

@@ -73,6 +73,7 @@ class ServiceDeskTicketAction(StrEnum):
     COMPLETE_APPROVAL = "complete_approval"
     REJECT_APPROVAL = "reject_approval"
     ASSIGN = "assign"
+    REASSIGN = "reassign"
     START = "start"
     REQUEST_CLARIFICATION = "request_clarification"
     REQUESTER_REPLY = "requester_reply"

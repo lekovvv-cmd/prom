@@ -25,11 +25,22 @@ class TicketPolicyService:
 
     def allowed_actions(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> list[str]:
         capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
+        actions: list[str] = []
+        if "service_desk.assign" in capabilities:
+            if ticket.status == ServiceDeskTicketStatus.APPROVED:
+                actions.append("assign")
+            elif ticket.status in {
+                ServiceDeskTicketStatus.ASSIGNED,
+                ServiceDeskTicketStatus.IN_PROGRESS,
+                ServiceDeskTicketStatus.WAITING_REQUESTER,
+                ServiceDeskTicketStatus.WAITING_EXTERNAL,
+            }:
+                actions.append("reassign")
         if (
             ticket.status != ServiceDeskTicketStatus.PENDING_APPROVAL
             or "service_desk.approve" not in capabilities
         ):
-            return []
+            return actions
 
         has_active_approval = any(
             stage.status == ServiceDeskApprovalStatus.PENDING
@@ -39,4 +50,4 @@ class TicketPolicyService:
             for stage in ticket.approval_stages
             for approval in stage.approvals
         )
-        return ["approve", "reject"] if has_active_approval else []
+        return [*actions, "approve", "reject"] if has_active_approval else actions
