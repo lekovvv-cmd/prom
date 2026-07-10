@@ -1,7 +1,11 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
+from app.modules.sla.worker import SlaWorker
+from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
+from sqlalchemy import select
 
 
 def create_sla_user(client, db_session_factory, *, can_manage_sla: bool) -> str:
@@ -268,3 +272,19 @@ def test_sla_policy_binding_is_snapshotted_on_submit(
     assert changed.status_code == 200
     details = client.get(f"/tickets/{draft.json()['id']}", headers=headers)
     assert details.json()["sla_snapshot"]["first_response_minutes"] == 30
+
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(draft.json()["id"]))
+        now = datetime.now(UTC)
+        ticket.first_response_due_at = now - timedelta(minutes=1)
+        ticket.resolution_due_at = now - timedelta(minutes=1)
+        db.commit()
+        first = SlaWorker(db).run_once(now=now)
+        second = SlaWorker(db).run_once(now=now + timedelta(minutes=1))
+        assert first["response_breaches"] == first["resolution_breaches"] == 1
+        assert second["response_breaches"] == second["resolution_breaches"] == 0
+        events = db.scalars(select(ServiceDeskTicketHistory).where(
+            ServiceDeskTicketHistory.ticket_id == ticket.id,
+            ServiceDeskTicketHistory.event_type == "sla_breached",
+        )).all()
+        assert {event.payload["metric"] for event in events} == {"first_response", "resolution"}
