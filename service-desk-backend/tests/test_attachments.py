@@ -34,6 +34,20 @@ def test_ticket_and_internal_comment_attachments_use_private_storage_and_access(
     assert listed.status_code == 200, listed.text
     assert [item["id"] for item in listed.json()] == [ticket_attachment["id"]]
 
+    unauthenticated_download = client.get(
+        f"/tickets/{ticket_id}/attachments/{ticket_attachment['id']}/download"
+    )
+    assert unauthenticated_download.status_code == 401
+
+    downloaded = client.get(
+        f"/tickets/{ticket_id}/attachments/{ticket_attachment['id']}/download",
+        headers=requester_headers,
+    )
+    assert downloaded.status_code == 200, downloaded.text
+    assert downloaded.content == b"ticket attachment"
+    assert "attachment; filename=\"request.txt\"" in downloaded.headers["content-disposition"]
+    assert downloaded.headers["x-content-type-options"] == "nosniff"
+
     internal_comment = client.post(
         f"/tickets/{ticket_id}/comments",
         json={"body": "Internal attachment context", "visibility": "internal"},
@@ -55,6 +69,11 @@ def test_ticket_and_internal_comment_attachments_use_private_storage_and_access(
         headers=requester_headers,
     )
     assert requester_internal_list.status_code == 403
+    requester_internal_download = client.get(
+        f"/tickets/{ticket_id}/attachments/{internal_upload.json()['id']}/download",
+        headers=requester_headers,
+    )
+    assert requester_internal_download.status_code == 403
     requester_ticket = client.get(f"/tickets/{ticket_id}", headers=requester_headers)
     assert not any(
         item["payload"].get("attachment_id") == internal_upload.json()["id"]

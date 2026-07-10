@@ -200,6 +200,30 @@ class AttachmentService:
             )
         return result
 
+    def get_downloadable_attachment(
+        self,
+        ticket_id: uuid.UUID,
+        attachment_id: uuid.UUID,
+        actor: ServiceDeskUser,
+    ) -> tuple[ServiceDeskAttachment, Path]:
+        ticket = self._require_ticket(ticket_id)
+        attachment = self.repository.get(attachment_id)
+        if not attachment or attachment.ticket_id != ticket.id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+        self.policy.require_view(ticket, actor)
+
+        if attachment.owner_type == ServiceDeskAttachmentOwnerType.COMMENT:
+            comment = self.comment_repository.get_for_update(attachment.owner_id)
+            if not comment or comment.ticket_id != ticket.id:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
+            if comment.visibility == ServiceDeskCommentVisibility.INTERNAL:
+                self.policy.require_internal_comments(ticket, actor)
+
+        path = self._storage_path(attachment.storage_key)
+        if not path.is_file():
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment content not found")
+        return attachment, path
+
     async def _store(
         self,
         *,

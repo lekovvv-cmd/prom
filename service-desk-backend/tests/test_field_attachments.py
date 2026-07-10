@@ -113,6 +113,13 @@ def test_dynamic_file_field_uses_private_attachment_metadata_on_submit(
     assert attachment["field_key"] == "supporting_document"
     assert len(list(Path(tmp_path).rglob("*.pdf"))) == 1
 
+    downloaded = client.get(
+        f"/tickets/{ticket_id}/attachments/{attachment['id']}/download",
+        headers=requester_headers,
+    )
+    assert downloaded.status_code == 200, downloaded.text
+    assert downloaded.content == b"%PDF-1.4"
+
     listed = client.get(
         f"/tickets/{ticket_id}/fields/supporting_document/attachments",
         headers=requester_headers,

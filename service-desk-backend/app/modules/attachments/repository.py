@@ -17,6 +17,9 @@ class AttachmentRepository:
         self.db.refresh(attachment)
         return attachment
 
+    def get(self, attachment_id: uuid.UUID) -> ServiceDeskAttachment | None:
+        return self.db.get(ServiceDeskAttachment, attachment_id)
+
     def list_for_owner(
         self,
         owner_type: ServiceDeskAttachmentOwnerType,

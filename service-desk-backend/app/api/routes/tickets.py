@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentServiceDeskUser, get_db
@@ -228,6 +229,26 @@ async def upload_ticket_attachment(
     db: Session = Depends(get_db),
 ):
     return await AttachmentService(db).upload_ticket_attachment(ticket_id, file, current_user)
+
+
+@router.get("/tickets/{ticket_id}/attachments/{attachment_id}/download", response_class=FileResponse)
+def download_ticket_attachment(
+    ticket_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    attachment, path = AttachmentService(db).get_downloadable_attachment(
+        ticket_id,
+        attachment_id,
+        current_user,
+    )
+    return FileResponse(
+        path,
+        media_type=attachment.content_type or "application/octet-stream",
+        filename=attachment.file_name,
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.get(
