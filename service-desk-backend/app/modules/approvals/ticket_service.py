@@ -18,6 +18,7 @@ from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.approvals.repository import ApprovalWorkflowRepository
 from app.modules.approvals.service import ApprovalWorkflowService
+from app.modules.routing.service import RoutingService
 from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.modules.tickets.lifecycle import TicketLifecycleService
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
@@ -41,6 +42,7 @@ class TicketApprovalService:
         self.ticket_repository = ticket_repository
         self.lifecycle = TicketLifecycleService(ticket_repository)
         self.assignee_policy = AssigneePolicy(db)
+        self.routing_service = RoutingService(db, ticket_repository)
 
     def initialize_snapshot(
         self,
@@ -60,6 +62,7 @@ class TicketApprovalService:
                 actor=None,
                 occurred_at=now,
             )
+            self.routing_service.apply_snapshot_assignment(ticket, occurred_at=now)
             self._apply_default_assignment(ticket, template_version, now)
             return
 
@@ -251,6 +254,7 @@ class TicketApprovalService:
         template_version = self.db.get(ServiceDeskTemplateVersion, context.ticket.template_version_id)
         if not template_version:
             raise HTTPException(status.HTTP_409_CONFLICT, "Шаблон заявки не найден")
+        self.routing_service.apply_snapshot_assignment(context.ticket, occurred_at=now)
         self._apply_default_assignment(context.ticket, template_version, now)
 
     def _apply_default_assignment(
@@ -259,6 +263,8 @@ class TicketApprovalService:
         template_version: ServiceDeskTemplateVersion,
         now: datetime,
     ) -> None:
+        if ticket.assignee_user_id is not None:
+            return
         default_assignee_user_id = (
             template_version.default_assignee_user_id
             or template_version.service.default_assignee_user_id

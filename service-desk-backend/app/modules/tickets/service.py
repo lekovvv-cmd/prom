@@ -12,6 +12,7 @@ from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.models import ServiceDeskTicketApprovalStage
 from app.modules.approvals.ticket_service import TicketApprovalService
 from app.modules.catalog.repository import CatalogRepository
+from app.modules.routing.service import RoutingService
 from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.modules.templates.repository import TemplateRepository
 from app.modules.templates.validation import validate_template_payload
@@ -30,6 +31,7 @@ class TicketService:
         self.template_repository = TemplateRepository(db)
         self.lifecycle = TicketLifecycleService(self.repository)
         self.ticket_approval_service = TicketApprovalService(db, self.repository)
+        self.routing_service = RoutingService(db, self.repository)
         self.policy = TicketPolicyService()
 
     def create_draft(self, payload: schemas.TicketDraftCreate) -> ServiceDeskTicket:
@@ -131,6 +133,7 @@ class TicketService:
             metadata={"number": ticket.number},
             occurred_at=now,
         )
+        self.routing_service.snapshot_ticket(ticket, service, occurred_at=now)
         self.ticket_approval_service.initialize_snapshot(
             ticket,
             template_version,
