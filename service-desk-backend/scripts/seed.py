@@ -62,6 +62,9 @@ DEMO_SERVICE_DESK_USERS = (
             "service_desk.approve",
             "service_desk.assign",
             "service_desk.view_reports",
+            "service_desk.manage_catalog",
+            "service_desk.manage_templates",
+            "service_desk.manage_approval_workflows",
         ),
     },
     {

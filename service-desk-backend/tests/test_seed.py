@@ -46,4 +46,7 @@ def test_seed_models_exist_after_script(client, db_session_factory):
         assert {item.capability for item in manager.capabilities} >= {
             "service_desk.access",
             "service_desk.approve",
+            "service_desk.manage_catalog",
+            "service_desk.manage_templates",
+            "service_desk.manage_approval_workflows",
         }
