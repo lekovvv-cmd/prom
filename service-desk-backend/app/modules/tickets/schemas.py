@@ -114,6 +114,15 @@ class TicketRead(BaseModel):
     field_values: dict[str, Any]
     routing_snapshot: dict[str, Any] | None
     sla_snapshot: dict[str, Any] | None
+    sla_policy_id: uuid.UUID | None
+    first_response_due_at: datetime | None
+    resolution_due_at: datetime | None
+    first_response_at: datetime | None
+    response_breached_at: datetime | None
+    resolution_breached_at: datetime | None
+    is_response_breached: bool
+    is_resolution_breached: bool
+    paused_seconds: int
     submitted_at: datetime | None
     approval_started_at: datetime | None
     approved_at: datetime | None

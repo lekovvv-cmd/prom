@@ -30,3 +30,4 @@ Stage 6.4: добавлено JWT-защищённое скачивание вл
 Stage 7.1: добавлены SLA business calendars с IANA timezone, несколькими непересекающимися рабочими интервалами и capability-защищённым admin API.
 Stage 7.2: добавлены SLA calendar exceptions типов holiday/working_day/custom_hours с атомарным управлением через calendar API и проверкой непротиворечивых интервалов на дату.
 Stage 7.3: добавлены SLA policies и приоритетные bindings по версии шаблона/service/category/priority/field value, admin API и immutable SLA snapshot заявки при submit.
+Stage 7.4: добавлен timezone-aware business-time SLA engine с weekly intervals, breaks, calendar exceptions, DST/UTC conversion и расчётом first response/resolution due из immutable snapshot.

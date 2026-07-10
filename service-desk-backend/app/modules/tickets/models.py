@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
@@ -79,6 +79,15 @@ class ServiceDeskTicket(Base):
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sla_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    sla_policy_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)
+    first_response_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    resolution_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    first_response_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    response_breached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_breached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_response_breached: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_resolution_breached: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    paused_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     routing_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     resolution_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

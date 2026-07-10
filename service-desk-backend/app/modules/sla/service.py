@@ -16,6 +16,7 @@ from app.modules.sla.models import (
     ServiceDeskSlaPolicy,
 )
 from app.modules.sla.repository import SlaRepository
+from app.modules.sla.engine import add_business_minutes
 
 
 class SlaService:
@@ -138,9 +139,24 @@ class SlaService:
                     "business_calendar_timezone": calendar.timezone,
                     "first_response_minutes": policy.first_response_minutes,
                     "resolution_minutes": policy.resolution_minutes,
+                    "business_hours": [
+                        {"weekday": item.weekday, "start_time": item.start_time.isoformat(), "end_time": item.end_time.isoformat()}
+                        for item in calendar.business_hours
+                    ],
+                    "calendar_exceptions": [
+                        {"date": item.date.isoformat(), "type": item.type, "start_time": item.start_time.isoformat() if item.start_time else None, "end_time": item.end_time.isoformat() if item.end_time else None}
+                        for item in calendar.exceptions
+                    ],
                     "conditions": binding.conditions,
                     "selected_at": occurred_at.isoformat(),
                 }
+                ticket.sla_policy_id = policy.id
+                ticket.first_response_due_at = add_business_minutes(
+                    occurred_at, policy.first_response_minutes, ticket.sla_snapshot
+                )
+                ticket.resolution_due_at = add_business_minutes(
+                    occurred_at, policy.resolution_minutes, ticket.sla_snapshot
+                )
                 return
 
     @staticmethod
