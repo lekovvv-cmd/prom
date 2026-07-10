@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     service_code: str = "service-desk"
     env: str = "development"
     database_url: str = "postgresql+psycopg://service_desk:service_desk@localhost:5433/service_desk"
+    jwt_secret: str = "change-me-in-production-at-least-32-bytes"
+    jwt_algorithm: str = "HS256"
     frontend_origin: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(

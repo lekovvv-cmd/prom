@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, date, datetime
 
 from app.core.database import SessionLocal
@@ -15,12 +16,21 @@ from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 
 
+DEMO_IDENTITY_USER_IDS = {
+    "admin@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000001"),
+    "manager@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000002"),
+    "employee@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000003"),
+    "analyst@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000004"),
+}
+
+
 def upsert_user(
     repo: UserRepository,
     *,
     email: str,
     full_name: str,
     role: UserRole,
+    user_id: uuid.UUID | None = None,
     department: str | None = None,
     position: str | None = None,
     competencies: str | None = None,
@@ -36,6 +46,7 @@ def upsert_user(
         user.about = about
         return user
     return repo.create(
+        user_id=user_id,
         email=email,
         full_name=full_name,
         role=role,
@@ -81,6 +92,7 @@ def main() -> None:
         admin = upsert_user(
             repo,
             email="admin@utmn.ru",
+            user_id=DEMO_IDENTITY_USER_IDS["admin@utmn.ru"],
             full_name="Администратор ШПИУ",
             role=UserRole.ADMIN,
             department="ШПИУ",
@@ -89,6 +101,7 @@ def main() -> None:
         manager = upsert_user(
             repo,
             email="manager@utmn.ru",
+            user_id=DEMO_IDENTITY_USER_IDS["manager@utmn.ru"],
             full_name="Руководитель проекта",
             role=UserRole.PROJECT_MANAGER,
             department="ШПИУ",
@@ -99,6 +112,7 @@ def main() -> None:
         employee = upsert_user(
             repo,
             email="employee@utmn.ru",
+            user_id=DEMO_IDENTITY_USER_IDS["employee@utmn.ru"],
             full_name="Сотрудник ШПИУ",
             role=UserRole.EMPLOYEE,
             department="ШПИУ",
@@ -109,6 +123,7 @@ def main() -> None:
         analyst = upsert_user(
             repo,
             email="analyst@utmn.ru",
+            user_id=DEMO_IDENTITY_USER_IDS["analyst@utmn.ru"],
             full_name="Аналитик ШПИУ",
             role=UserRole.EMPLOYEE,
             department="Аналитика",

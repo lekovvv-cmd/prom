@@ -45,6 +45,7 @@ jobs:
     env:
       SERVICE_DESK_DATABASE_URL: sqlite:///ci_service_desk.db
       SERVICE_DESK_FRONTEND_ORIGIN: http://localhost:5173
+      SERVICE_DESK_JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
     steps:
       - uses: actions/checkout@v4
 

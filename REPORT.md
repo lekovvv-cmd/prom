@@ -15,3 +15,4 @@ Stage 3.4: добавлена единая lifecycle state machine с action end
 Stage 4.1: добавлена настройка approval workflow на draft-шаблоне с этапами ANY/ALL и согласующими.
 Stage 4.2: добавлен immutable snapshot approval workflow в заявку при submit и автопереход по approval mode.
 Stage 4.3–4.4: добавлены approve/reject решения, ANY/ALL evaluation и multi-stage progression со skip логикой.
+Stage 4.5 prerequisite: добавлены JWT access bridge, Service Desk `/me` capabilities и связанные dev user projections.

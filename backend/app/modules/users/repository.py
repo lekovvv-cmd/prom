@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -36,6 +38,7 @@ class UserRepository:
     def create(
         self,
         *,
+        user_id: uuid.UUID | None = None,
         email: str,
         full_name: str,
         role: UserRole = UserRole.EMPLOYEE,
@@ -45,6 +48,7 @@ class UserRepository:
         about: str | None = None,
     ) -> User:
         user = User(
+            id=user_id or uuid.uuid4(),
             email=email,
             full_name=full_name,
             role=role,

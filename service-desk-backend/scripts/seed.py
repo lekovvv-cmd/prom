@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,12 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.core.database import SessionLocal, utc_now  # noqa: E402
-from app.core.enums import TemplateFieldType, TemplateVersionStatus  # noqa: E402
+from app.core.enums import (  # noqa: E402
+    ServiceDeskAccessType,
+    TemplateFieldType,
+    TemplateVersionStatus,
+)
+from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability  # noqa: E402
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService  # noqa: E402
 from app.modules.templates.models import (  # noqa: E402
     ServiceDeskDictionary,
@@ -32,6 +38,58 @@ ROOT_CATEGORIES = [
     "Практика: Организация и договоры",
     "Практика: Сопровождение",
 ]
+
+DEMO_SERVICE_DESK_USERS = (
+    {
+        "identity_user_id": "00000000-0000-0000-0000-000000000001",
+        "email": "admin@utmn.ru",
+        "display_name": "Администратор ШПИУ",
+        "department": "ШПИУ",
+        "position": "Администратор Service Desk",
+        "access_type": ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+        "capabilities": (),
+    },
+    {
+        "identity_user_id": "00000000-0000-0000-0000-000000000002",
+        "email": "manager@utmn.ru",
+        "display_name": "Руководитель проекта",
+        "department": "ШПИУ",
+        "position": "Руководитель проектных инициатив",
+        "access_type": ServiceDeskAccessType.MANAGER,
+        "capabilities": (
+            "service_desk.access",
+            "service_desk.create_request",
+            "service_desk.approve",
+            "service_desk.assign",
+            "service_desk.view_reports",
+        ),
+    },
+    {
+        "identity_user_id": "00000000-0000-0000-0000-000000000003",
+        "email": "employee@utmn.ru",
+        "display_name": "Сотрудник ШПИУ",
+        "department": "ШПИУ",
+        "position": "Методист проектных программ",
+        "access_type": ServiceDeskAccessType.MANAGER,
+        "capabilities": (
+            "service_desk.access",
+            "service_desk.be_assignee",
+        ),
+    },
+    {
+        "identity_user_id": "00000000-0000-0000-0000-000000000004",
+        "email": "analyst@utmn.ru",
+        "display_name": "Аналитик ШПИУ",
+        "department": "Аналитика",
+        "position": "Аналитик данных",
+        "access_type": ServiceDeskAccessType.MANAGER,
+        "capabilities": (
+            "service_desk.access",
+            "service_desk.create_request",
+            "service_desk.be_assignee",
+        ),
+    },
+)
 
 SERVICES_BY_CATEGORY = {
     "Сопровождение учебного процесса": [
@@ -208,11 +266,50 @@ TEMPLATE_FIELDS = {
 
 def main(session_factory: Callable[[], Session] | sessionmaker[Session] = SessionLocal) -> None:
     with session_factory() as db:
+        seed_service_desk_users(db)
         seed_dictionaries(db)
         categories = seed_categories(db)
         services = seed_services(db, categories)
         seed_templates(db, services)
         db.commit()
+
+
+def seed_service_desk_users(db: Session) -> None:
+    for payload in DEMO_SERVICE_DESK_USERS:
+        user = db.scalar(
+            select(ServiceDeskUser).where(
+                ServiceDeskUser.identity_user_id == payload["identity_user_id"]
+            )
+        )
+        if not user:
+            user = ServiceDeskUser(
+                id=uuid.uuid5(uuid.NAMESPACE_URL, f"prom:{payload['identity_user_id']}"),
+                identity_user_id=payload["identity_user_id"],
+                email=payload["email"],
+                display_name=payload["display_name"],
+                department=payload["department"],
+                position=payload["position"],
+                access_type=payload["access_type"],
+            )
+            db.add(user)
+            db.flush()
+        else:
+            user.email = payload["email"]
+            user.display_name = payload["display_name"]
+            user.department = payload["department"]
+            user.position = payload["position"]
+            user.access_type = payload["access_type"]
+            user.is_active = True
+
+        existing_capabilities = {item.capability for item in user.capabilities}
+        for capability in payload["capabilities"]:
+            if capability not in existing_capabilities:
+                db.add(
+                    ServiceDeskUserCapability(
+                        service_desk_user_id=user.id,
+                        capability=capability,
+                    )
+                )
 
 
 def seed_dictionaries(db: Session) -> None:
