@@ -6,6 +6,7 @@ import { useServiceDeskAccess } from "../../../app/providers/ServiceDeskAccessPr
 import utmnLogo from "../../../shared/assets/utmn-logo.png";
 import { Button } from "../../../shared/ui/Button";
 import { ServiceDeskNotificationCenter } from "../../service-desk-notifications/ui/ServiceDeskNotificationCenter";
+import { ServiceDeskContextualCounters } from "../../service-desk-notifications/ui/ServiceDeskContextualCounters";
 
 const roleLabels = {
   admin: "Админ",
@@ -65,6 +66,7 @@ export function Header() {
           </>
         )}
       </nav>
+      {serviceDeskUser && <ServiceDeskContextualCounters />}
       <div className="header-auth">
         {token ? (
           <>

@@ -1,5 +1,5 @@
 import { serviceDeskApiClient } from "../../../shared/api/client";
-import type { ServiceDeskNotification } from "../model/types";
+import type { ServiceDeskContextualCounters, ServiceDeskNotification } from "../model/types";
 
 export function getServiceDeskNotifications() {
   return serviceDeskApiClient.request<ServiceDeskNotification[]>("/notifications");
@@ -19,4 +19,8 @@ export function markAllServiceDeskNotificationsRead() {
   return serviceDeskApiClient.request<{ marked_read: number }>("/notifications/read-all", {
     method: "POST"
   });
+}
+
+export function getServiceDeskContextualCounters() {
+  return serviceDeskApiClient.request<ServiceDeskContextualCounters>("/notifications/contextual-counters");
 }

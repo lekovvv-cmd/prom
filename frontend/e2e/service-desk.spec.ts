@@ -110,6 +110,8 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
 
   await page.goto(`/service-desk/tickets/${ticket.id}`);
   await expect(page.getByRole("heading", { level: 1, name: ticket.number })).toBeVisible();
+  await expect(page.getByLabel("Счётчики Service Desk").getByText("Моё согласование")).toBeVisible();
+  await expect(page.getByLabel("Счётчики Service Desk").getByText("SLA breaches")).toBeVisible();
   await expect(page.getByRole("heading", { name: `E2E заявка ${suffix}` })).toBeVisible();
   await expect(page.getByText("На согласовании")).toBeVisible();
   await expect(page.getByRole("button", { name: "Согласовать" })).toBeVisible();

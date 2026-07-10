@@ -9,3 +9,10 @@ export type ServiceDeskNotification = {
   created_at: string;
   read_at: string | null;
 };
+
+export type ServiceDeskContextualCounters = {
+  waiting_my_approval: number;
+  assigned_to_me: number;
+  awaiting_my_response: number;
+  sla_breaches: number | null;
+};

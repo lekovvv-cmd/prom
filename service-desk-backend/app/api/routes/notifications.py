@@ -5,9 +5,15 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentServiceDeskUser, get_db
 from app.modules.notifications import schemas
+from app.modules.notifications.counters import ServiceDeskCounterService
 from app.modules.notifications.service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["service-desk-notifications"])
+
+
+@router.get("/contextual-counters", response_model=schemas.ServiceDeskCounters)
+def contextual_counters(actor: CurrentServiceDeskUser, db: Session = Depends(get_db)):
+    return ServiceDeskCounterService(db).for_actor(actor)
 
 
 @router.get("", response_model=list[schemas.NotificationRead])

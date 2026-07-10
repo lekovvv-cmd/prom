@@ -24,3 +24,10 @@ class UnreadCount(BaseModel):
 
 class ReadAllResult(BaseModel):
     marked_read: int
+
+
+class ServiceDeskCounters(BaseModel):
+    waiting_my_approval: int
+    assigned_to_me: int
+    awaiting_my_response: int
+    sla_breaches: int | None
