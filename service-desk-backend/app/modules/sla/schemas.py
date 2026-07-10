@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime, time
 from enum import StrEnum
+from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -100,6 +101,71 @@ class BusinessCalendarRead(BaseModel):
     is_active: bool
     business_hours: list[BusinessHoursRead]
     exceptions: list[CalendarExceptionRead]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SlaPolicyCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    is_active: bool = True
+    business_calendar_id: uuid.UUID
+    first_response_minutes: int = Field(gt=0)
+    resolution_minutes: int = Field(gt=0)
+
+
+class SlaPolicyUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    is_active: bool | None = None
+    business_calendar_id: uuid.UUID | None = None
+    first_response_minutes: int | None = Field(default=None, gt=0)
+    resolution_minutes: int | None = Field(default=None, gt=0)
+
+
+class SlaPolicyRead(SlaPolicyCreate):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SlaBindingCondition(BaseModel):
+    field: Literal["template_version_id", "service_id", "category_id", "priority", "field_value"]
+    value: Any
+    field_key: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_field_key(self):
+        if self.field == "field_value" and not self.field_key:
+            raise ValueError("field_value requires field_key")
+        if self.field != "field_value" and self.field_key is not None:
+            raise ValueError("field_key is only allowed for field_value")
+        return self
+
+
+class SlaBindingCreate(BaseModel):
+    policy_id: uuid.UUID
+    name: str = Field(min_length=2, max_length=255)
+    priority: int = Field(default=100, ge=0, le=1_000_000)
+    is_active: bool = True
+    conditions: list[SlaBindingCondition] = Field(min_length=1)
+
+
+class SlaBindingUpdate(BaseModel):
+    policy_id: uuid.UUID | None = None
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    priority: int | None = Field(default=None, ge=0, le=1_000_000)
+    is_active: bool | None = None
+    conditions: list[SlaBindingCondition] | None = Field(default=None, min_length=1)
+
+
+class SlaBindingRead(SlaBindingCreate):
+    id: uuid.UUID
     created_at: datetime
     updated_at: datetime
 

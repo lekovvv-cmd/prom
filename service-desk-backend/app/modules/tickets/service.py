@@ -5,7 +5,12 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus, TemplateFieldType, TemplateVersionStatus
+from app.core.enums import (
+    ServiceDeskTicketAction,
+    ServiceDeskTicketStatus,
+    TemplateFieldType,
+    TemplateVersionStatus,
+)
 from app.modules.access.models import ServiceDeskUser
 from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals import schemas as approval_schemas
@@ -14,6 +19,7 @@ from app.modules.approvals.ticket_service import TicketApprovalService
 from app.modules.attachments.service import AttachmentService
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.routing.service import RoutingService
+from app.modules.sla.service import SlaService
 from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.modules.templates.repository import TemplateRepository
 from app.modules.templates.validation import validate_template_payload
@@ -34,6 +40,7 @@ class TicketService:
         self.ticket_approval_service = TicketApprovalService(db, self.repository)
         self.attachment_service = AttachmentService(db)
         self.routing_service = RoutingService(db, self.repository)
+        self.sla_service = SlaService(db)
         self.policy = TicketPolicyService()
 
     def create_draft(
@@ -82,9 +89,13 @@ class TicketService:
     ) -> schemas.TicketRead:
         ticket = self._require_ticket(ticket_id)
         if ticket.requester_user_id != actor.id:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Редактировать черновик может только заявитель")
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Редактировать черновик может только заявитель"
+            )
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Редактировать можно только черновик заявки")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "Редактировать можно только черновик заявки"
+            )
         data = payload.model_dump(exclude_unset=True)
         for field, value in data.items():
             setattr(ticket, field, value)
@@ -103,7 +114,9 @@ class TicketService:
         if not ticket:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
         if ticket.requester_user_id != actor.id:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Отправить черновик может только заявитель")
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Отправить черновик может только заявитель"
+            )
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -148,6 +161,7 @@ class TicketService:
             occurred_at=now,
         )
         self.routing_service.snapshot_ticket(ticket, service, occurred_at=now)
+        self.sla_service.snapshot_ticket(ticket, service, occurred_at=now)
         self.ticket_approval_service.initialize_snapshot(
             ticket,
             template_version,
@@ -297,7 +311,9 @@ class TicketService:
                     ],
                 }
             )
-        return read.model_copy(update={"allowed_actions": self.policy.allowed_actions(ticket, actor)})
+        return read.model_copy(
+            update={"allowed_actions": self.policy.allowed_actions(ticket, actor)}
+        )
 
     def _require_active_user(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)

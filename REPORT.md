@@ -29,3 +29,4 @@ Stage 6.3: добавлены вложения dynamic file-полей с при
 Stage 6.4: добавлено JWT-защищённое скачивание вложений с проверкой доступа к ticket и отдельной защитой internal comment files.
 Stage 7.1: добавлены SLA business calendars с IANA timezone, несколькими непересекающимися рабочими интервалами и capability-защищённым admin API.
 Stage 7.2: добавлены SLA calendar exceptions типов holiday/working_day/custom_hours с атомарным управлением через calendar API и проверкой непротиворечивых интервалов на дату.
+Stage 7.3: добавлены SLA policies и приоритетные bindings по версии шаблона/service/category/priority/field value, admin API и immutable SLA snapshot заявки при submit.

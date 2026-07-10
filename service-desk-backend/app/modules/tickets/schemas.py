@@ -113,6 +113,7 @@ class TicketRead(BaseModel):
     priority: ServiceDeskPriority
     field_values: dict[str, Any]
     routing_snapshot: dict[str, Any] | None
+    sla_snapshot: dict[str, Any] | None
     submitted_at: datetime | None
     approval_started_at: datetime | None
     approved_at: datetime | None
