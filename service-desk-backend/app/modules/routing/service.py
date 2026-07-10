@@ -31,6 +31,10 @@ class RoutingService:
         self._require_manage_routing(actor)
         return self.repository.list_rules()
 
+    def list_eligible_assignees(self, actor: ServiceDeskUser) -> list[ServiceDeskUser]:
+        self._require_manage_routing(actor)
+        return self.assignee_policy.list_eligible_assignees()
+
     def create_rule(
         self,
         payload: schemas.RoutingRuleCreate,

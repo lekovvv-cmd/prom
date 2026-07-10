@@ -1,7 +1,8 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.service import ServiceDeskAccessService
@@ -19,6 +20,19 @@ class AssigneePolicy:
             return None
         capabilities = set(ServiceDeskAccessService.capabilities_for(user))
         return user if "service_desk.be_assignee" in capabilities else None
+
+    def list_eligible_assignees(self) -> list[ServiceDeskUser]:
+        statement = (
+            select(ServiceDeskUser)
+            .options(selectinload(ServiceDeskUser.capabilities))
+            .where(ServiceDeskUser.is_active.is_(True))
+            .order_by(ServiceDeskUser.display_name.asc(), ServiceDeskUser.email.asc())
+        )
+        return [
+            user
+            for user in self.db.scalars(statement).all()
+            if "service_desk.be_assignee" in ServiceDeskAccessService.capabilities_for(user)
+        ]
 
     def require_eligible_assignee(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)

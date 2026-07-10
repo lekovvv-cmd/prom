@@ -72,3 +72,11 @@ class RoutingRuleRead(RoutingRuleDefinition):
 
 class RoutingRulesReorder(BaseModel):
     rule_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class RoutingAssigneeRead(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)

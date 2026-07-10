@@ -11,6 +11,7 @@ import { MyProjectDetailsPage } from "../../pages/my-project-details/ui/MyProjec
 import { MyProjectsPage } from "../../pages/my-projects/ui/MyProjectsPage";
 import { MyResponsesPage } from "../../pages/my-responses/ui/MyResponsesPage";
 import { ProfilePage } from "../../pages/profile/ui/ProfilePage";
+import { ServiceDeskAdminRoutingPage } from "../../pages/service-desk-admin-routing/ui/ServiceDeskAdminRoutingPage";
 import { ServiceDeskTicketDetailsPage } from "../../pages/service-desk-ticket-details/ui/ServiceDeskTicketDetailsPage";
 import { ProjectDetailsPage } from "../../pages/project-details/ui/ProjectDetailsPage";
 import { ProjectsListPage } from "../../pages/projects-list/ui/ProjectsListPage";
@@ -101,6 +102,18 @@ function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
   return children;
 }
 
+function ServiceDeskRoutingAdminRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useServiceDeskAccess();
+  const canManageRouting =
+    user?.access_type === "service_desk_admin" || user?.capabilities.includes("service_desk.manage_routing");
+
+  if (!canManageRouting) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return children;
+}
+
 export function AppRouter() {
   return (
     <Routes>
@@ -113,6 +126,16 @@ export function AppRouter() {
         element={
           <ServiceDeskRoute>
             <ServiceDeskTicketDetailsPage />
+          </ServiceDeskRoute>
+        }
+      />
+      <Route
+        path="/service-desk/admin/routing"
+        element={
+          <ServiceDeskRoute>
+            <ServiceDeskRoutingAdminRoute>
+              <ServiceDeskAdminRoutingPage />
+            </ServiceDeskRoutingAdminRoute>
           </ServiceDeskRoute>
         }
       />

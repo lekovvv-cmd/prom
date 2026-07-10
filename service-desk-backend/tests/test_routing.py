@@ -103,6 +103,14 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
     )
     admin_headers = auth_headers_for_user(routing_admin_id)
 
+    candidates = client.get("/admin/routing-rules/candidates", headers=admin_headers)
+    assert candidates.status_code == 200, candidates.text
+    assert {candidate["id"] for candidate in candidates.json()} >= {
+        routed_assignee_id,
+        lower_priority_assignee_id,
+        default_assignee_id,
+    }
+
     forbidden = client.post(
         "/admin/routing-rules",
         json={

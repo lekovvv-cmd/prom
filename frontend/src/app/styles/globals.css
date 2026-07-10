@@ -2732,12 +2732,167 @@ button.chip {
   font-size: 12px;
 }
 
+/* Service Desk routing administration */
+.service-desk-routing-page-actions,
+.service-desk-routing-card-heading,
+.service-desk-routing-rule-actions,
+.service-desk-routing-condition,
+.service-desk-routing-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.service-desk-routing-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.service-desk-routing-form-card {
+  position: sticky;
+  top: 18px;
+}
+
+.service-desk-routing-list,
+.service-desk-routing-form,
+.service-desk-routing-form-section {
+  display: grid;
+  gap: 14px;
+}
+
+.service-desk-routing-card-heading {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.service-desk-routing-card-heading h2,
+.service-desk-routing-card-heading h3 {
+  margin: 0;
+}
+
+.service-desk-routing-card-heading h2 {
+  font-size: 17px;
+}
+
+.service-desk-routing-card-heading h3 {
+  font-size: 14px;
+}
+
+.service-desk-routing-card-heading p {
+  max-width: 430px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.service-desk-routing-form-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.service-desk-routing-check {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.service-desk-routing-check input {
+  width: 16px;
+  height: 16px;
+}
+
+.service-desk-routing-condition-list {
+  display: grid;
+  gap: 8px;
+}
+
+.service-desk-routing-condition {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(100px, 1fr) auto;
+  align-items: end;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.service-desk-routing-condition-with-key {
+  grid-template-columns: minmax(110px, 0.7fr) minmax(100px, 0.65fr) minmax(100px, 1fr) auto;
+}
+
+.service-desk-routing-condition .field {
+  min-width: 0;
+}
+
+.service-desk-routing-rule-card {
+  display: grid;
+  gap: 15px;
+}
+
+.service-desk-routing-priority {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #215768;
+  background: #e9f7fb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.service-desk-routing-rule-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.service-desk-routing-rule-summary > div {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.service-desk-routing-rule-summary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.service-desk-routing-rule-summary p,
+.service-desk-routing-rule-summary ul {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.service-desk-routing-rule-summary ul {
+  display: grid;
+  gap: 3px;
+  padding-left: 18px;
+}
+
 @media (max-width: 1000px) {
   .service-desk-ticket-layout {
     grid-template-columns: 1fr;
   }
 
   .service-desk-ticket-side {
+    position: static;
+  }
+
+  .service-desk-routing-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-routing-form-card {
     position: static;
   }
 }
@@ -2757,5 +2912,18 @@ button.chip {
   .service-desk-history li {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .service-desk-routing-page-actions,
+  .service-desk-routing-card-heading,
+  .service-desk-routing-rule-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .service-desk-routing-condition,
+  .service-desk-routing-condition-with-key,
+  .service-desk-routing-rule-summary {
+    grid-template-columns: 1fr;
   }
 }

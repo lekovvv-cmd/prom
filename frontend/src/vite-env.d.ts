@@ -7,6 +7,8 @@ declare module "lucide-react" {
 
   export const Archive: Icon;
   export const ArchiveRestore: Icon;
+  export const ArrowDown: Icon;
+  export const ArrowUp: Icon;
   export const BarChart3: Icon;
   export const CalendarCheck: Icon;
   export const Check: Icon;
@@ -23,6 +25,8 @@ declare module "lucide-react" {
   export const Minus: Icon;
   export const Paperclip: Icon;
   export const Plus: Icon;
+  export const RefreshCw: Icon;
+  export const Save: Icon;
   export const Send: Icon;
   export const Table2: Icon;
   export const Trash2: Icon;

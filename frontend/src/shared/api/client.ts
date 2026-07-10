@@ -182,6 +182,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
     const message = normalizeApiErrorMessage(payload);
     throw new ApiError(message, response.status);
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return payload as T;
 }
 

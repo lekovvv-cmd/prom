@@ -29,4 +29,18 @@ describe("createApiClient", () => {
     const headers = init?.headers as Headers;
     expect(headers.get("Authorization")).toBe("Bearer token-123");
   });
+
+  it("returns undefined for successful no-content responses", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createApiClient("http://service-desk.local", {
+      getToken: () => null,
+      setToken: vi.fn()
+    });
+
+    await expect(client.request<void>("/admin/routing-rules/rule-1", { method: "DELETE" })).resolves.toBe(
+      undefined
+    );
+  });
 });

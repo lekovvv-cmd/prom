@@ -18,6 +18,14 @@ def list_routing_rules(
     return RoutingService(db).list_rules(actor)
 
 
+@router.get("/candidates", response_model=list[schemas.RoutingAssigneeRead])
+def list_routing_candidates(
+    actor: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return RoutingService(db).list_eligible_assignees(actor)
+
+
 @router.post("", response_model=schemas.RoutingRuleRead, status_code=status.HTTP_201_CREATED)
 def create_routing_rule(
     payload: schemas.RoutingRuleCreate,
