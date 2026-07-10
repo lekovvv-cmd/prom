@@ -11,7 +11,9 @@ Stage 2.5: добавлен preview шаблона с resolved options из inli
 Stage 2.6: добавлен idempotent seed каталога/справочников/шаблонов Service Desk из ТЗ и скриншотов.
 Stage 3.1: добавлены draft-заявки Service Desk со списком, деталями, редактированием и history.
 Stage 3.2: добавлена отправка draft с backend-валидацией формы и concurrency-safe номером SD-YYYY-NNNNNN.
+Stage 3.3 partial: backend ticket details и `/me/tickets` list реализованы; frontend details добавлен, отдельный frontend ticket list отсутствует.
 Stage 3.4: добавлена единая lifecycle state machine с action endpoints, timestamps, причинами и immutable history.
+Stage 3.5: добавлены history read model и timeline истории на frontend ticket details.
 Stage 4.1: добавлена настройка approval workflow на draft-шаблоне с этапами ANY/ALL и согласующими.
 Stage 4.2: добавлен immutable snapshot approval workflow в заявку при submit и автопереход по approval mode.
 Stage 4.3–4.4: добавлены approve/reject решения, ANY/ALL evaluation и multi-stage progression со skip логикой.
