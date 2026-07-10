@@ -8,7 +8,7 @@ from app.core.enums import (
 )
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.tickets.models import ServiceDeskTicket
-from tests.test_lifecycle import create_submitted_ticket
+from test_lifecycle import create_submitted_ticket
 
 
 def test_contextual_counters_are_actor_aware(

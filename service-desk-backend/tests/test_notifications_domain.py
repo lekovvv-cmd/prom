@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.modules.notifications.domain import NotificationEventType
 from app.modules.notifications.models import ServiceDeskNotification
 from app.modules.notifications.service import NotificationDispatcher, ticket_notification
-from tests.test_lifecycle import create_submitted_ticket
+from test_lifecycle import create_submitted_ticket
 
 
 def test_submit_produces_transactional_in_app_notification(

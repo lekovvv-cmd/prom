@@ -4,7 +4,7 @@ from sqlalchemy import delete, func, select
 
 from app.modules.notifications.models import ServiceDeskNotification, ServiceDeskNotificationOutbox
 from app.modules.notifications.worker import NotificationOutboxWorker
-from tests.test_lifecycle import create_submitted_ticket
+from test_lifecycle import create_submitted_ticket
 
 
 def test_business_event_persists_sent_in_app_outbox_atomically(

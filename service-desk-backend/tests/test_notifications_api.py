@@ -1,7 +1,7 @@
 import uuid
 
 from app.modules.notifications.models import ServiceDeskNotification
-from tests.test_lifecycle import create_submitted_ticket, create_user
+from test_lifecycle import create_submitted_ticket, create_user
 
 
 def test_notification_api_is_current_user_scoped_and_read_is_idempotent(

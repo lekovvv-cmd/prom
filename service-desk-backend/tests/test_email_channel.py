@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.modules.notifications.models import ServiceDeskNotification, ServiceDeskNotificationOutbox
 from app.modules.notifications.worker import NotificationOutboxWorker
-from tests.test_lifecycle import create_submitted_ticket
+from test_lifecycle import create_submitted_ticket
 
 
 def test_email_required_event_is_blocked_external_while_in_app_is_delivered(
