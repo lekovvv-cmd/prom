@@ -27,3 +27,4 @@ Stage 6.1: добавлены public/internal комментарии с soft-del
 Stage 6.2: добавлены private local-storage вложения ticket/comment с owner metadata, MIME/extension/size/count validation и visibility-aware API.
 Stage 6.3: добавлены вложения dynamic file-полей с привязкой к ключу шаблона, field-level validation и проверкой required file по фактическим metadata при submit.
 Stage 6.4: добавлено JWT-защищённое скачивание вложений с проверкой доступа к ticket и отдельной защитой internal comment files.
+Stage 7.1: добавлены SLA business calendars с IANA timezone, несколькими непересекающимися рабочими интервалами и capability-защищённым admin API.

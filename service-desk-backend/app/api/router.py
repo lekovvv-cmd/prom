@@ -5,6 +5,7 @@ from app.api.routes import (
     admin_approvals,
     admin_catalog,
     admin_routing,
+    admin_sla,
     admin_templates,
     catalog,
     health,
@@ -19,4 +20,5 @@ api_router.include_router(admin_catalog.router)
 api_router.include_router(admin_templates.router)
 api_router.include_router(admin_approvals.router)
 api_router.include_router(admin_routing.router)
+api_router.include_router(admin_sla.router)
 api_router.include_router(tickets.router)

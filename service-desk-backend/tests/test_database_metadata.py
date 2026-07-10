@@ -9,6 +9,7 @@ from app.modules.approvals.models import (
     ServiceDeskTicketApprovalStage,
 )
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
+from app.modules.sla.models import ServiceDeskBusinessCalendar, ServiceDeskBusinessHours
 from app.modules.templates.models import (
     ServiceDeskDictionary,
     ServiceDeskDictionaryItem,
@@ -39,6 +40,8 @@ def test_service_desk_access_tables_are_registered():
     assert ServiceDeskTicket.__tablename__ in Base.metadata.tables
     assert ServiceDeskTicketCounter.__tablename__ in Base.metadata.tables
     assert ServiceDeskTicketHistory.__tablename__ in Base.metadata.tables
+    assert ServiceDeskBusinessCalendar.__tablename__ in Base.metadata.tables
+    assert ServiceDeskBusinessHours.__tablename__ in Base.metadata.tables
 
 
 def test_service_desk_access_model_keeps_roles_separate_from_projects():
