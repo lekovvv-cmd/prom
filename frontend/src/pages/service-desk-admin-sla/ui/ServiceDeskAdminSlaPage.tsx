@@ -27,12 +27,12 @@ export function ServiceDeskAdminSlaPage() {
   useEffect(() => { void load(); }, [load]);
 
   async function calendarSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const data = new FormData(event.currentTarget);
-    await createSlaCalendar({ name: String(data.get("name")), timezone: String(data.get("timezone")), is_active: true, business_hours: [0,1,2,3,4].flatMap((weekday) => [{ weekday, start_time: String(data.get("morningStart")), end_time: String(data.get("morningEnd")) }, { weekday, start_time: String(data.get("eveningStart")), end_time: String(data.get("eveningEnd")) }]), exceptions: [] }); event.currentTarget.reset(); await load();
+    event.preventDefault(); const form = event.currentTarget; const data = new FormData(form);
+    await createSlaCalendar({ name: String(data.get("name")), timezone: String(data.get("timezone")), is_active: true, business_hours: [0,1,2,3,4].flatMap((weekday) => [{ weekday, start_time: String(data.get("morningStart")), end_time: String(data.get("morningEnd")) }, { weekday, start_time: String(data.get("eveningStart")), end_time: String(data.get("eveningEnd")) }]), exceptions: [] }); form.reset(); await load();
   }
   async function policySubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const data = new FormData(event.currentTarget);
-    await createSlaPolicy({ name: String(data.get("name")), business_calendar_id: String(data.get("calendar")), first_response_minutes: Number(data.get("response")), resolution_minutes: Number(data.get("resolution")), is_active: true, pause_statuses: ["waiting_requester", "waiting_external"].filter((status) => data.get(status)) as SlaPolicy["pause_statuses"] }); event.currentTarget.reset(); await load();
+    event.preventDefault(); const form = event.currentTarget; const data = new FormData(form);
+    await createSlaPolicy({ name: String(data.get("name")), business_calendar_id: String(data.get("calendar")), first_response_minutes: Number(data.get("response")), resolution_minutes: Number(data.get("resolution")), is_active: true, pause_statuses: ["waiting_requester", "waiting_external"].filter((status) => data.get(status)) as SlaPolicy["pause_statuses"] }); form.reset(); await load();
   }
   async function bindingSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const data = new FormData(event.currentTarget); await createSlaBinding({ name: String(data.get("name")), policy_id: String(data.get("policy")), priority: Number(data.get("priority")), is_active: true, conditions: [{ field: String(data.get("field")), value: String(data.get("value")) }] }); await load();
