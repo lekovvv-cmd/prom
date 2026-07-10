@@ -125,3 +125,17 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
   await expect(page.getByRole("button", { name: "Согласовать" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Отклонить" })).toHaveCount(0);
 });
+
+test("Service Desk SLA admin creates a business calendar", async ({ page, request }) => {
+  const token = await loginAsManager(page);
+  const suffix = Date.now();
+  await page.goto("/service-desk/admin/sla");
+  await expect(page.getByRole("heading", { name: "SLA Service Desk" })).toBeVisible();
+  await page.getByLabel("Название").first().fill(`E2E SLA ${suffix}`);
+  await page.getByRole("button", { name: /Создать календарь/ }).click();
+  await expect(page.getByText(`E2E SLA ${suffix}`)).toBeVisible();
+  const calendars = await serviceDeskRequest<Array<{ name: string }>>(
+    request, token, "get", "/admin/sla/calendars"
+  );
+  expect(calendars.some((item) => item.name === `E2E SLA ${suffix}`)).toBeTruthy();
+});

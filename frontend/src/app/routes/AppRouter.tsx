@@ -12,6 +12,7 @@ import { MyProjectsPage } from "../../pages/my-projects/ui/MyProjectsPage";
 import { MyResponsesPage } from "../../pages/my-responses/ui/MyResponsesPage";
 import { ProfilePage } from "../../pages/profile/ui/ProfilePage";
 import { ServiceDeskAdminRoutingPage } from "../../pages/service-desk-admin-routing/ui/ServiceDeskAdminRoutingPage";
+import { ServiceDeskAdminSlaPage } from "../../pages/service-desk-admin-sla/ui/ServiceDeskAdminSlaPage";
 import { ServiceDeskTicketDetailsPage } from "../../pages/service-desk-ticket-details/ui/ServiceDeskTicketDetailsPage";
 import { ProjectDetailsPage } from "../../pages/project-details/ui/ProjectDetailsPage";
 import { ProjectsListPage } from "../../pages/projects-list/ui/ProjectsListPage";
@@ -114,6 +115,12 @@ function ServiceDeskRoutingAdminRoute({ children }: { children: React.ReactNode 
   return children;
 }
 
+function ServiceDeskSlaAdminRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useServiceDeskAccess();
+  const allowed = user?.access_type === "service_desk_admin" || user?.capabilities.includes("service_desk.manage_sla");
+  return allowed ? children : <Navigate to="/projects" replace />;
+}
+
 export function AppRouter() {
   return (
     <Routes>
@@ -139,6 +146,7 @@ export function AppRouter() {
           </ServiceDeskRoute>
         }
       />
+      <Route path="/service-desk/admin/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminSlaPage /></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
       <Route
         path="/profile"
         element={

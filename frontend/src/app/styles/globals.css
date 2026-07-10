@@ -2804,6 +2804,16 @@ button.chip {
   align-items: center;
 }
 
+.service-desk-sla-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.service-desk-sla-grid .card h2 { margin-top: 0; }
+.service-desk-sla-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .service-desk-sla-grid { grid-template-columns: 1fr; } }
+
 .service-desk-routing-layout {
   display: grid;
   grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);

@@ -65,6 +65,7 @@ DEMO_SERVICE_DESK_USERS = (
             "service_desk.manage_catalog",
             "service_desk.manage_templates",
             "service_desk.manage_approval_workflows",
+            "service_desk.manage_sla",
         ),
     },
     {
