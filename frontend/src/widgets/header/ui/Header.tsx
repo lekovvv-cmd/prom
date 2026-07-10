@@ -2,8 +2,10 @@ import { BarChart3, FolderKanban, LogIn, LogOut, MessageSquare, Table2, UserRoun
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
+import { useServiceDeskAccess } from "../../../app/providers/ServiceDeskAccessProvider";
 import utmnLogo from "../../../shared/assets/utmn-logo.png";
 import { Button } from "../../../shared/ui/Button";
+import { ServiceDeskNotificationCenter } from "../../service-desk-notifications/ui/ServiceDeskNotificationCenter";
 
 const roleLabels = {
   admin: "Админ",
@@ -13,6 +15,7 @@ const roleLabels = {
 
 export function Header() {
   const { canManageProjects, isAdmin, logout, token, user } = useAuth();
+  const { user: serviceDeskUser } = useServiceDeskAccess();
 
   return (
     <header className="app-header">
@@ -30,6 +33,7 @@ export function Header() {
         </NavLink>
         {token && user?.role !== "admin" && (
           <>
+            {serviceDeskUser && <ServiceDeskNotificationCenter />}
             <NavLink to="/my/projects">
               <FolderKanban size={15} />
               Мои проекты

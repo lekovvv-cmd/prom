@@ -160,6 +160,109 @@ button {
   font-size: 14px;
 }
 
+.notification-center {
+  position: relative;
+}
+
+.notification-trigger {
+  position: relative;
+  justify-content: center;
+  min-width: 40px;
+  padding: 9px;
+}
+
+.notification-count {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 18px;
+  padding: 1px 5px;
+  color: #fff;
+  background: var(--danger);
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(430px, calc(100vw - 24px));
+  max-height: min(620px, calc(100vh - 100px));
+  overflow: auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 20px 45px rgba(17, 24, 39, 0.16);
+}
+
+.notification-panel-header,
+.notification-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notification-panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-panel-header > div,
+.notification-item > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.notification-panel-header small,
+.notification-item small {
+  color: var(--muted);
+}
+
+.notification-item {
+  display: grid;
+  gap: 12px;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-item.is-unread {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.notification-item p,
+.notification-error p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.45;
+}
+
+.notification-actions {
+  justify-content: flex-end;
+}
+
+.notification-actions .button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.notification-error {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 20px;
+}
+
 .user-chip {
   max-width: 220px;
   overflow: hidden;

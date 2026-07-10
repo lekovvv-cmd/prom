@@ -114,6 +114,15 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
   await expect(page.getByText("На согласовании")).toBeVisible();
   await expect(page.getByRole("button", { name: "Согласовать" })).toBeVisible();
 
+  await page.getByRole("button", { name: "Уведомления Service Desk" }).click();
+  const notificationCenter = page.getByRole("region", { name: "Центр уведомлений" });
+  await expect(notificationCenter.getByText("Требуется согласование")).toBeVisible();
+  await expect(notificationCenter.getByRole("link", { name: "Открыть заявку" }).first()).toHaveAttribute(
+    "href", `/service-desk/tickets/${ticket.id}`
+  );
+  await notificationCenter.getByRole("button", { name: "Прочитать все" }).click();
+  await expect(notificationCenter.getByText("Всё прочитано")).toBeVisible();
+
   await page.getByRole("button", { name: "Согласовать" }).click();
   const dialog = page.getByRole("dialog", { name: "Согласовать заявку" });
   await dialog.getByLabel("Комментарий").fill("E2E: согласовано");

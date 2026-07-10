@@ -1,0 +1,22 @@
+import { serviceDeskApiClient } from "../../../shared/api/client";
+import type { ServiceDeskNotification } from "../model/types";
+
+export function getServiceDeskNotifications() {
+  return serviceDeskApiClient.request<ServiceDeskNotification[]>("/notifications");
+}
+
+export function getServiceDeskUnreadCount() {
+  return serviceDeskApiClient.request<{ count: number }>("/notifications/unread-count");
+}
+
+export function markServiceDeskNotificationRead(notificationId: string) {
+  return serviceDeskApiClient.request<ServiceDeskNotification>(`/notifications/${notificationId}/read`, {
+    method: "POST"
+  });
+}
+
+export function markAllServiceDeskNotificationsRead() {
+  return serviceDeskApiClient.request<{ marked_read: number }>("/notifications/read-all", {
+    method: "POST"
+  });
+}

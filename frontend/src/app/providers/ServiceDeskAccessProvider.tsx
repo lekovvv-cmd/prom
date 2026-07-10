@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
 
 import { getCurrentServiceDeskUser } from "../../entities/service-desk-user/api/serviceDeskUserApi";
 import type { ServiceDeskUser } from "../../entities/service-desk-user/model/types";
@@ -19,15 +18,13 @@ export function ServiceDeskAccessProvider({
   children: React.ReactNode;
   token: string | null;
 }) {
-  const { pathname } = useLocation();
   const [user, setUser] = useState<ServiceDeskUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isServiceDeskZone = pathname.startsWith("/service-desk");
 
   useEffect(() => {
     let isCurrent = true;
-    if (!token || !isServiceDeskZone) {
+    if (!token) {
       setUser(null);
       setError(null);
       setIsLoading(false);
@@ -62,9 +59,9 @@ export function ServiceDeskAccessProvider({
     return () => {
       isCurrent = false;
     };
-  }, [isServiceDeskZone, token]);
+  }, [token]);
 
-  const isResolving = Boolean(token && isServiceDeskZone && !user && !error);
+  const isResolving = Boolean(token && !user && !error);
   const value = useMemo(
     () => ({ user, isLoading: isLoading || isResolving, error }),
     [error, isLoading, isResolving, user]

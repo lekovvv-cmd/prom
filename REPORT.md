@@ -38,3 +38,4 @@ Stage 7.8: добавлен capability-guarded PROM SLA admin UI для calendar
 Stage 7 CI checkpoint: Service Desk migrations/seed, pytest, ruff, frontend tests/build и browser E2E (Service Desk + Projects MVP) пройдены; GitHub Actions green.
 Stage 8.1: добавлен собственный Service Desk notification domain с типизированными событиями, server-side recipient selection, транзакционным InAppChannel и интеграцией lifecycle/approval/assignment/comments/SLA; duplicate delivery одного event защищена уникальным ключом.
 Stage 8.2: добавлен authenticated API списка/unread count/read/read-all, полностью scoped через CurrentServiceDeskUser, с idempotent read_at и запретом доступа к foreign notifications.
+Stage 8.3: в PROM Header добавлен responsive notification center с badge, loading/error/empty states, read/read-all, ticket navigation и безопасным отображением событий без ticket_id; добавлены frontend и browser E2E проверки.
