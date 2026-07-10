@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import mimetypes
+import codecs
 import re
 import uuid
+import zipfile
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
@@ -25,35 +26,32 @@ from app.modules.tickets.policy import TicketPolicyService
 from app.modules.tickets.repository import TicketRepository
 
 
-ALLOWED_EXTENSIONS = {
-    ".pdf",
-    ".doc",
-    ".docx",
-    ".xls",
-    ".xlsx",
-    ".ppt",
-    ".pptx",
-    ".txt",
-    ".csv",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".zip",
+UPLOAD_CHUNK_SIZE = 64 * 1024
+MAX_ARCHIVE_ENTRIES = 10_000
+
+CONTENT_TYPE_BY_EXTENSION = {
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".txt": "text/plain",
+    ".csv": "text/csv",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".zip": "application/zip",
 }
-ALLOWED_CONTENT_TYPES = {
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "text/plain",
-    "text/csv",
-    "image/png",
-    "image/jpeg",
-    "application/zip",
+ALLOWED_EXTENSIONS = set(CONTENT_TYPE_BY_EXTENSION)
+ALLOWED_CONTENT_TYPES = set(CONTENT_TYPE_BY_EXTENSION.values())
+OOXML_MAIN_PART_BY_EXTENSION = {
+    ".docx": "word/document.xml",
+    ".xlsx": "xl/workbook.xml",
+    ".pptx": "ppt/presentation.xml",
 }
+OLE_COMPOUND_FILE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
 
 class AttachmentService:
@@ -245,46 +243,46 @@ class AttachmentService:
             normalized_extensions = {str(item).lower().lstrip(".") for item in allowed_extensions}
             if extension.lstrip(".") not in normalized_extensions:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid file extension for template field")
-        payload = await file.read()
-        if not payload:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Нельзя прикрепить пустой файл")
-        if len(payload) > settings.max_attachment_size_bytes:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Файл превышает допустимый размер")
-
         storage_key = f"{owner_type.value}/{owner_id}/{uuid.uuid4().hex}{extension}"
         path = self._storage_path(storage_key)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(payload)
-        attachment = self.repository.add(
-            ServiceDeskAttachment(
-                owner_type=owner_type,
-                owner_id=owner_id,
-                ticket_id=ticket.id,
-                field_key=field_key,
-                file_name=file_name,
-                storage_key=storage_key,
-                content_type=file.content_type,
-                size_bytes=len(payload),
-                uploaded_by_user_id=actor.id,
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            size_bytes = await self._stream_upload(file, path)
+            self._validate_file_content(path, extension)
+            attachment = self.repository.add(
+                ServiceDeskAttachment(
+                    owner_type=owner_type,
+                    owner_id=owner_id,
+                    ticket_id=ticket.id,
+                    field_key=field_key,
+                    file_name=file_name,
+                    storage_key=storage_key,
+                    content_type=CONTENT_TYPE_BY_EXTENSION[extension],
+                    size_bytes=size_bytes,
+                    uploaded_by_user_id=actor.id,
+                )
             )
-        )
-        self.ticket_repository.add_history(
-            ServiceDeskTicketHistory(
-                ticket_id=ticket.id,
-                event_type="attachment_uploaded",
-                actor_user_id=actor.id,
-                message="Добавлено вложение",
-                payload={
-                    "attachment_id": str(attachment.id),
-                    "owner_type": owner_type.value,
-                    "owner_id": str(owner_id),
-                    "field_key": field_key,
-                    "file_name": file_name,
-                    "comment_visibility": comment_visibility.value if comment_visibility else None,
-                },
+            self.ticket_repository.add_history(
+                ServiceDeskTicketHistory(
+                    ticket_id=ticket.id,
+                    event_type="attachment_uploaded",
+                    actor_user_id=actor.id,
+                    message="Добавлено вложение",
+                    payload={
+                        "attachment_id": str(attachment.id),
+                        "owner_type": owner_type.value,
+                        "owner_id": str(owner_id),
+                        "field_key": field_key,
+                        "file_name": file_name,
+                        "comment_visibility": comment_visibility.value if comment_visibility else None,
+                    },
+                )
             )
-        )
-        self.db.commit()
+            self.db.commit()
+        except BaseException:
+            self._rollback_best_effort()
+            self._remove_file_best_effort(path)
+            raise
         return attachment
 
     @staticmethod
@@ -293,12 +291,105 @@ class AttachmentService:
         extension = Path(file_name).suffix.lower()
         if extension not in ALLOWED_EXTENSIONS:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Недопустимое расширение файла")
-        if file.content_type and file.content_type not in ALLOWED_CONTENT_TYPES:
+        declared_content_type = (file.content_type or "").partition(";")[0].strip().lower()
+        if declared_content_type and declared_content_type not in ALLOWED_CONTENT_TYPES:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Недопустимый MIME-тип файла")
-        guessed_type, _ = mimetypes.guess_type(file_name)
-        if guessed_type and file.content_type and guessed_type != file.content_type:
+        if declared_content_type and declared_content_type != CONTENT_TYPE_BY_EXTENSION[extension]:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "MIME-тип не соответствует расширению")
         return file_name, extension
+
+    @staticmethod
+    async def _stream_upload(file: UploadFile, path: Path) -> int:
+        total_size = 0
+        with path.open("xb") as destination:
+            while chunk := await file.read(UPLOAD_CHUNK_SIZE):
+                total_size += len(chunk)
+                if total_size > settings.max_attachment_size_bytes:
+                    raise HTTPException(
+                        status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        "Файл превышает допустимый размер",
+                    )
+                destination.write(chunk)
+        if total_size == 0:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Нельзя прикрепить пустой файл")
+        return total_size
+
+    @staticmethod
+    def _validate_file_content(path: Path, extension: str) -> None:
+        if extension == ".pdf":
+            valid = AttachmentService._starts_with(path, b"%PDF-")
+        elif extension in {".doc", ".xls", ".ppt"}:
+            # Legacy Office formats share the OLE Compound File signature.
+            valid = AttachmentService._starts_with(path, OLE_COMPOUND_FILE_SIGNATURE)
+        elif extension == ".png":
+            valid = AttachmentService._starts_with(path, b"\x89PNG\r\n\x1a\n")
+        elif extension in {".jpg", ".jpeg"}:
+            valid = AttachmentService._starts_with(path, b"\xff\xd8\xff")
+        elif extension in {".txt", ".csv"}:
+            valid = AttachmentService._is_utf8_text(path)
+        elif extension in OOXML_MAIN_PART_BY_EXTENSION:
+            valid = AttachmentService._is_valid_zip(
+                path,
+                required_parts={
+                    "[Content_Types].xml",
+                    "_rels/.rels",
+                    OOXML_MAIN_PART_BY_EXTENSION[extension],
+                },
+            )
+        elif extension == ".zip":
+            valid = AttachmentService._is_valid_zip(path)
+        else:  # pragma: no cover - guarded by the extension allowlist
+            valid = False
+
+        if not valid:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Содержимое файла не соответствует его расширению",
+            )
+
+    @staticmethod
+    def _starts_with(path: Path, signature: bytes) -> bool:
+        with path.open("rb") as source:
+            return source.read(len(signature)) == signature
+
+    @staticmethod
+    def _is_utf8_text(path: Path) -> bool:
+        decoder = codecs.getincrementaldecoder("utf-8")()
+        try:
+            with path.open("rb") as source:
+                while chunk := source.read(UPLOAD_CHUNK_SIZE):
+                    if b"\x00" in chunk:
+                        return False
+                    decoder.decode(chunk)
+            decoder.decode(b"", final=True)
+        except UnicodeDecodeError:
+            return False
+        return True
+
+    @staticmethod
+    def _is_valid_zip(path: Path, required_parts: set[str] | None = None) -> bool:
+        try:
+            with zipfile.ZipFile(path) as archive:
+                entries = archive.infolist()
+                if len(entries) > MAX_ARCHIVE_ENTRIES:
+                    return False
+                names = {entry.filename for entry in entries}
+        except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile):
+            return False
+        return not required_parts or required_parts.issubset(names)
+
+    def _rollback_best_effort(self) -> None:
+        try:
+            self.db.rollback()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _remove_file_best_effort(path: Path) -> None:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     @staticmethod
     def _sanitize_file_name(file_name: str) -> str:

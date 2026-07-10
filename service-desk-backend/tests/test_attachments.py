@@ -1,8 +1,44 @@
+import asyncio
+import io
+import uuid
+import zipfile
 from pathlib import Path
 
+import pytest
+from fastapi import HTTPException
+
 from app.core.config import settings
+from app.core.enums import ServiceDeskAttachmentOwnerType
+from app.modules.attachments.repository import AttachmentRepository
+from app.modules.attachments.service import UPLOAD_CHUNK_SIZE, AttachmentService
 
 from test_comments import create_waiting_requester_ticket
+
+
+def _ooxml_file(main_part: str) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types />")
+        archive.writestr("_rels/.rels", "<Relationships />")
+        archive.writestr(main_part, "<document />")
+    return buffer.getvalue()
+
+
+class OversizedUpload:
+    filename = "oversized.txt"
+    content_type = "text/plain"
+
+    def __init__(self, total_size: int) -> None:
+        self.remaining = total_size
+        self.bytes_returned = 0
+        self.read_sizes: list[int] = []
+
+    async def read(self, size: int = -1) -> bytes:
+        self.read_sizes.append(size)
+        returned = min(size, self.remaining)
+        self.remaining -= returned
+        self.bytes_returned += returned
+        return b"a" * returned
 
 
 def test_ticket_and_internal_comment_attachments_use_private_storage_and_access(
@@ -86,3 +122,120 @@ def test_ticket_and_internal_comment_attachments_use_private_storage_and_access(
         headers=requester_headers,
     )
     assert bad_mime.status_code == 422
+
+
+def test_attachment_upload_rejects_invalid_content_and_accepts_ooxml(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    ticket_id, requester_id, _ = create_waiting_requester_ticket(client, db_session_factory)
+    requester_headers = auth_headers_for_user(requester_id)
+
+    empty = client.post(
+        f"/tickets/{ticket_id}/attachments",
+        files={"file": ("empty.txt", b"", "text/plain")},
+        headers=requester_headers,
+    )
+    assert empty.status_code == 422
+
+    mismatched_content = client.post(
+        f"/tickets/{ticket_id}/attachments",
+        files={"file": ("fake.pdf", b"plain text", "application/pdf")},
+        headers=requester_headers,
+    )
+    assert mismatched_content.status_code == 422
+
+    spoofed_content_type = client.post(
+        f"/tickets/{ticket_id}/attachments",
+        files={"file": ("fake.png", b"not a png", "image/png")},
+        headers=requester_headers,
+    )
+    assert spoofed_content_type.status_code == 422
+
+    for file_name, content_type, main_part in (
+        (
+            "document.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "word/document.xml",
+        ),
+        (
+            "workbook.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "xl/workbook.xml",
+        ),
+        (
+            "presentation.pptx",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "ppt/presentation.xml",
+        ),
+    ):
+        uploaded = client.post(
+            f"/tickets/{ticket_id}/attachments",
+            files={"file": (file_name, _ooxml_file(main_part), content_type)},
+            headers=requester_headers,
+        )
+        assert uploaded.status_code == 201, uploaded.text
+        assert uploaded.json()["content_type"] == content_type
+
+
+def test_oversized_attachment_stops_after_bounded_chunks_and_removes_partial_file(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "max_attachment_size_bytes", UPLOAD_CHUNK_SIZE + 1)
+    ticket_id, requester_id, _ = create_waiting_requester_ticket(client, db_session_factory)
+    upload = OversizedUpload(total_size=10 * UPLOAD_CHUNK_SIZE)
+
+    with db_session_factory() as db:
+        service = AttachmentService(db)
+        ticket = service._require_ticket(uuid.UUID(ticket_id))
+        actor = ticket.requester
+        with pytest.raises(HTTPException) as error:
+            asyncio.run(
+                service._store(
+                    owner_type=ServiceDeskAttachmentOwnerType.TICKET,
+                    owner_id=ticket.id,
+                    ticket=ticket,
+                    file=upload,
+                    actor=actor,
+                    comment_visibility=None,
+                )
+            )
+
+    assert error.value.status_code == 422
+    assert upload.read_sizes == [UPLOAD_CHUNK_SIZE, UPLOAD_CHUNK_SIZE]
+    assert upload.bytes_returned == 2 * UPLOAD_CHUNK_SIZE
+    assert upload.remaining > 0
+    assert not list(Path(tmp_path).rglob("*.*"))
+
+
+def test_attachment_upload_removes_physical_file_after_database_failure(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    ticket_id, requester_id, _ = create_waiting_requester_ticket(client, db_session_factory)
+
+    def fail_add(self, attachment):
+        raise RuntimeError("simulated database failure")
+
+    monkeypatch.setattr(AttachmentRepository, "add", fail_add)
+    with pytest.raises(RuntimeError, match="simulated database failure"):
+        client.post(
+            f"/tickets/{ticket_id}/attachments",
+            files={"file": ("request.txt", b"ticket attachment", "text/plain")},
+            headers=auth_headers_for_user(requester_id),
+        )
+
+    assert not list(Path(tmp_path).rglob("*.*"))
