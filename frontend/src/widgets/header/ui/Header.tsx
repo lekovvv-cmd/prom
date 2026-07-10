@@ -32,9 +32,9 @@ export function Header() {
           <FolderKanban size={15} />
           Витрина
         </NavLink>
+        {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
         {token && user?.role !== "admin" && (
           <>
-            {serviceDeskUser && <ServiceDeskNotificationCenter />}
             <NavLink to="/my/projects">
               <FolderKanban size={15} />
               Мои проекты

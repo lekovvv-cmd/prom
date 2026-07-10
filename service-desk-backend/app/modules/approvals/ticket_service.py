@@ -18,6 +18,8 @@ from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.approvals.repository import ApprovalWorkflowRepository
 from app.modules.approvals.service import ApprovalWorkflowService
+from app.modules.notifications.domain import NotificationEventType
+from app.modules.notifications.service import NotificationDispatcher, ticket_notification
 from app.modules.routing.service import RoutingService
 from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.modules.tickets.lifecycle import TicketLifecycleService
@@ -241,6 +243,15 @@ class TicketApprovalService:
                         "stage_title": next_stage.title,
                         "position": next_stage.position,
                     },
+                )
+            )
+            NotificationDispatcher(self.db).dispatch(
+                ticket_notification(
+                    NotificationEventType.APPROVAL_REQUESTED,
+                    context.ticket.id,
+                    recipient_user_ids=tuple(
+                        approval.approver_user_id for approval in next_stage.approvals
+                    ),
                 )
             )
             return

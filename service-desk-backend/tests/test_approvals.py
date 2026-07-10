@@ -710,6 +710,16 @@ def test_multistage_progression_and_reject_skip_future_stages(
     first_approval_id = approval_id_for_actor(stages[0], approver_ids[0][0])
     second_approval_id = approval_id_for_actor(stages[1], approver_ids[1][0])
 
+    before_activation = client.get(
+        "/notifications",
+        headers=auth_headers_for_user(approver_ids[1][0]),
+    )
+    assert before_activation.status_code == 200
+    assert not any(
+        item["event_type"] == "approval_requested"
+        for item in before_activation.json()
+    )
+
     premature = client.post(
         f"/tickets/{ticket['id']}/approvals/{second_approval_id}/approve",
         json={},
@@ -726,6 +736,18 @@ def test_multistage_progression_and_reject_skip_future_stages(
     assert first.json()["status"] == "pending_approval"
     assert first.json()["approval_stages"][1]["started_at"] is not None
     assert first.json()["history"][-1]["event_type"] == "approval_stage_started"
+    after_activation = client.get(
+        "/notifications",
+        headers=auth_headers_for_user(approver_ids[1][0]),
+    )
+    assert after_activation.status_code == 200
+    approval_requests = [
+        item
+        for item in after_activation.json()
+        if item["event_type"] == "approval_requested"
+    ]
+    assert len(approval_requests) == 1
+    assert approval_requests[0]["ticket_id"] == ticket["id"]
 
     missing_reason = client.post(
         f"/tickets/{ticket['id']}/approvals/{second_approval_id}/reject",
