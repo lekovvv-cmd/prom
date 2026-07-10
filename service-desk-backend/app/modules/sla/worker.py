@@ -6,6 +6,10 @@ from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import ServiceDeskTicketStatus
+from app.core.enums import ServiceDeskAccessType
+from app.modules.access.models import ServiceDeskUser
+from app.modules.notifications.domain import NotificationEventType
+from app.modules.notifications.service import NotificationDispatcher, ticket_notification
 from app.modules.sla.engine import add_business_minutes
 from app.modules.sla.models import (
     ServiceDeskEscalationRule,
@@ -60,6 +64,7 @@ class SlaWorker:
                 ticket.is_response_breached = True
                 ticket.response_breached_at = occurred_at
                 self._history(ticket, "first_response", occurred_at)
+                self._notify(ticket, NotificationEventType.SLA_BREACHED)
                 counts["response_breaches"] += 1
             if (
                 ticket.resolved_at is None
@@ -70,6 +75,7 @@ class SlaWorker:
                 ticket.is_resolution_breached = True
                 ticket.resolution_breached_at = occurred_at
                 self._history(ticket, "resolution", occurred_at)
+                self._notify(ticket, NotificationEventType.SLA_BREACHED)
                 counts["resolution_breaches"] += 1
             self._evaluate_escalations(ticket, occurred_at)
         self.db.commit()
@@ -112,6 +118,18 @@ class SlaWorker:
                 actor_user_id=None, message="SLA escalation threshold reached",
                 payload={"metric": rule.metric, "threshold_percent": rule.threshold_percent, "rule_id": str(rule.id)},
             ))
+            if rule.action_type == "create_in_app_notification":
+                recipient_ids = [recipient_user_id] if recipient_user_id else []
+                if rule.recipient_type == "service_desk_admin":
+                    recipient_ids = list(self.db.scalars(select(ServiceDeskUser.id).where(
+                        ServiceDeskUser.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+                        ServiceDeskUser.is_active.is_(True),
+                    )).all())
+                NotificationDispatcher(self.db).dispatch(ticket_notification(
+                    NotificationEventType.SLA_WARNING if rule.threshold_percent < 100 else NotificationEventType.SLA_BREACHED,
+                    ticket.id,
+                    recipient_user_ids=tuple(recipient_ids),
+                ))
 
     def _history(self, ticket: ServiceDeskTicket, metric: str, occurred_at: datetime) -> None:
         self.db.add(ServiceDeskTicketHistory(
@@ -122,3 +140,6 @@ class SlaWorker:
             payload={"metric": metric, "due_at": getattr(ticket, f"{metric}_due_at").isoformat()},
             created_at=occurred_at,
         ))
+
+    def _notify(self, ticket: ServiceDeskTicket, event_type: NotificationEventType) -> None:
+        NotificationDispatcher(self.db).dispatch(ticket_notification(event_type, ticket.id))

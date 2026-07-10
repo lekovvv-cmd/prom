@@ -12,6 +12,8 @@ from app.core.enums import (
     ServiceDeskTicketStatus,
 )
 from app.modules.access.models import ServiceDeskUser
+from app.modules.notifications.domain import NotificationEventType
+from app.modules.notifications.service import NotificationDispatcher, ticket_notification
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.repository import TicketRepository
 
@@ -144,6 +146,23 @@ ACTION_EVENTS = {
     ServiceDeskTicketAction.CANCEL: ("ticket_cancelled", "Заявка отменена"),
 }
 
+ACTION_NOTIFICATION_EVENTS = {
+    ServiceDeskTicketAction.SUBMIT: NotificationEventType.TICKET_SUBMITTED,
+    ServiceDeskTicketAction.START_APPROVAL: NotificationEventType.APPROVAL_REQUESTED,
+    ServiceDeskTicketAction.SKIP_APPROVAL: NotificationEventType.APPROVAL_APPROVED,
+    ServiceDeskTicketAction.COMPLETE_APPROVAL: NotificationEventType.APPROVAL_APPROVED,
+    ServiceDeskTicketAction.REJECT_APPROVAL: NotificationEventType.APPROVAL_REJECTED,
+    ServiceDeskTicketAction.ASSIGN: NotificationEventType.TICKET_ASSIGNED,
+    ServiceDeskTicketAction.REASSIGN: NotificationEventType.TICKET_REASSIGNED,
+    ServiceDeskTicketAction.START: NotificationEventType.TICKET_STARTED,
+    ServiceDeskTicketAction.REQUEST_CLARIFICATION: NotificationEventType.CLARIFICATION_REQUESTED,
+    ServiceDeskTicketAction.REQUESTER_REPLY: NotificationEventType.REQUESTER_REPLIED,
+    ServiceDeskTicketAction.WAIT_EXTERNAL: NotificationEventType.TICKET_WAITING_EXTERNAL,
+    ServiceDeskTicketAction.RESOLVE: NotificationEventType.TICKET_RESOLVED,
+    ServiceDeskTicketAction.CLOSE: NotificationEventType.TICKET_CLOSED,
+    ServiceDeskTicketAction.CANCEL: NotificationEventType.TICKET_CANCELLED,
+}
+
 
 def transition_target(
     current_status: ServiceDeskTicketStatus,
@@ -197,6 +216,11 @@ class TicketLifecycleService:
                 },
             )
         )
+        notification_event_type = ACTION_NOTIFICATION_EVENTS.get(action)
+        if notification_event_type:
+            NotificationDispatcher(self.repository.db).dispatch(
+                ticket_notification(notification_event_type, ticket.id)
+            )
         return ticket
 
     @staticmethod

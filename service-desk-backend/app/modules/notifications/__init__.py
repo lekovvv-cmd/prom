@@ -1,0 +1,1 @@
+"""Service Desk notification domain."""
