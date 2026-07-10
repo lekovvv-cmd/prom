@@ -133,7 +133,7 @@ test("Service Desk SLA admin creates a business calendar", async ({ page, reques
   await expect(page.getByRole("heading", { name: "SLA Service Desk" })).toBeVisible();
   await page.getByLabel("Название").first().fill(`E2E SLA ${suffix}`);
   await page.getByRole("button", { name: /Создать календарь/ }).click();
-  await expect(page.getByText(`E2E SLA ${suffix}`)).toBeVisible();
+  await expect(page.getByRole("strong").filter({ hasText: `E2E SLA ${suffix}` })).toBeVisible();
   const calendars = await serviceDeskRequest<Array<{ name: string }>>(
     request, token, "get", "/admin/sla/calendars"
   );
