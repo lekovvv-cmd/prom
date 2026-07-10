@@ -26,6 +26,7 @@ class ServiceDeskAttachment(Base):
         nullable=False,
         index=True,
     )
+    field_key: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     storage_key: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
     content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)

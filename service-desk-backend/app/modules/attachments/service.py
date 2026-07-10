@@ -9,11 +9,17 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.enums import ServiceDeskAttachmentOwnerType, ServiceDeskCommentVisibility
+from app.core.enums import (
+    ServiceDeskAttachmentOwnerType,
+    ServiceDeskCommentVisibility,
+    ServiceDeskTicketStatus,
+    TemplateFieldType,
+)
 from app.modules.access.models import ServiceDeskUser
 from app.modules.attachments.models import ServiceDeskAttachment
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.comments.repository import TicketCommentRepository
+from app.modules.templates.repository import TemplateRepository
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.policy import TicketPolicyService
 from app.modules.tickets.repository import TicketRepository
@@ -56,6 +62,7 @@ class AttachmentService:
         self.repository = AttachmentRepository(db)
         self.ticket_repository = TicketRepository(db)
         self.comment_repository = TicketCommentRepository(db)
+        self.template_repository = TemplateRepository(db)
         self.policy = TicketPolicyService()
 
     async def upload_ticket_attachment(
@@ -122,6 +129,77 @@ class AttachmentService:
             self.policy.require_internal_comments(ticket, actor)
         return self.repository.list_for_owner(ServiceDeskAttachmentOwnerType.COMMENT, comment.id)
 
+    async def upload_field_attachment(
+        self,
+        ticket_id: uuid.UUID,
+        field_key: str,
+        file: UploadFile,
+        actor: ServiceDeskUser,
+    ) -> ServiceDeskAttachment:
+        ticket = self._require_ticket(ticket_id)
+        if ticket.status != ServiceDeskTicketStatus.DRAFT:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Files for template fields are only accepted in a draft")
+        if actor.id != ticket.requester_user_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the requester can upload template field files")
+        field = self.template_repository.get_field_by_key(ticket.template_version_id, field_key)
+        if not field:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Template field not found")
+        if field.field_type != TemplateFieldType.FILE:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Attachment is available only for a file field")
+
+        rules = field.validation or {}
+        configured_limit = rules.get("max_files", settings.max_attachments_per_owner)
+        try:
+            max_files = min(int(configured_limit), settings.max_attachments_per_owner)
+        except (TypeError, ValueError):
+            max_files = settings.max_attachments_per_owner
+        if max_files < 1:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Template field file limit must be positive")
+        if self.repository.count_for_field_value(ticket.id, field.key) >= max_files:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Template field file limit exceeded")
+
+        allowed_extensions = rules.get("allowed_extensions")
+        return await self._store(
+            owner_type=ServiceDeskAttachmentOwnerType.FIELD_VALUE,
+            owner_id=ticket.id,
+            ticket=ticket,
+            file=file,
+            actor=actor,
+            comment_visibility=None,
+            field_key=field.key,
+            allowed_extensions=allowed_extensions if isinstance(allowed_extensions, list) else None,
+        )
+
+    def list_field_attachments(
+        self,
+        ticket_id: uuid.UUID,
+        field_key: str,
+        actor: ServiceDeskUser,
+    ) -> list[ServiceDeskAttachment]:
+        ticket = self._require_ticket(ticket_id)
+        self.policy.require_view(ticket, actor)
+        field = self.template_repository.get_field_by_key(ticket.template_version_id, field_key)
+        if not field:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Template field not found")
+        if field.field_type != TemplateFieldType.FILE:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Attachment is available only for a file field")
+        return self.repository.list_for_field_value(ticket.id, field.key)
+
+    def field_value_payload(self, ticket_id: uuid.UUID) -> dict[str, list[dict[str, object]]]:
+        result: dict[str, list[dict[str, object]]] = {}
+        for attachment in self.repository.list_for_field_value(ticket_id):
+            if not attachment.field_key:
+                continue
+            result.setdefault(attachment.field_key, []).append(
+                {
+                    "id": str(attachment.id),
+                    "name": attachment.file_name,
+                    "content_type": attachment.content_type,
+                    "size_bytes": attachment.size_bytes,
+                }
+            )
+        return result
+
     async def _store(
         self,
         *,
@@ -131,10 +209,18 @@ class AttachmentService:
         file: UploadFile,
         actor: ServiceDeskUser,
         comment_visibility: ServiceDeskCommentVisibility | None,
+        field_key: str | None = None,
+        allowed_extensions: list[object] | None = None,
+        max_attachments: int | None = None,
     ) -> ServiceDeskAttachment:
-        if self.repository.count_for_owner(owner_type, owner_id) >= settings.max_attachments_per_owner:
+        limit = max_attachments or settings.max_attachments_per_owner
+        if self.repository.count_for_owner(owner_type, owner_id) >= limit:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Превышен лимит вложений")
         file_name, extension = self._validate_file_metadata(file)
+        if allowed_extensions:
+            normalized_extensions = {str(item).lower().lstrip(".") for item in allowed_extensions}
+            if extension.lstrip(".") not in normalized_extensions:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid file extension for template field")
         payload = await file.read()
         if not payload:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Нельзя прикрепить пустой файл")
@@ -150,6 +236,7 @@ class AttachmentService:
                 owner_type=owner_type,
                 owner_id=owner_id,
                 ticket_id=ticket.id,
+                field_key=field_key,
                 file_name=file_name,
                 storage_key=storage_key,
                 content_type=file.content_type,
@@ -167,6 +254,7 @@ class AttachmentService:
                     "attachment_id": str(attachment.id),
                     "owner_type": owner_type.value,
                     "owner_id": str(owner_id),
+                    "field_key": field_key,
                     "file_name": file_name,
                     "comment_visibility": comment_visibility.value if comment_visibility else None,
                 },

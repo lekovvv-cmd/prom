@@ -23,3 +23,4 @@ Stage 5.3: добавлены routing rules с capability manage_routing, priori
 Stage 5.4: добавлен capability-guarded UI маршрутизации с CRUD/reorder правил, condition/action builder и выбором eligible исполнителей.
 Stage 6.1: добавлены public/internal комментарии с soft-delete audit, фильтрацией internal для requester и auto requester_reply из waiting_requester.
 Stage 6.2: добавлены private local-storage вложения ticket/comment с owner metadata, MIME/extension/size/count validation и visibility-aware API.
+Stage 6.3: добавлены вложения dynamic file-полей с привязкой к ключу шаблона, field-level validation и проверкой required file по фактическим metadata при submit.

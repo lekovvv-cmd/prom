@@ -5,12 +5,13 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus, TemplateVersionStatus
+from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus, TemplateFieldType, TemplateVersionStatus
 from app.modules.access.models import ServiceDeskUser
 from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.models import ServiceDeskTicketApprovalStage
 from app.modules.approvals.ticket_service import TicketApprovalService
+from app.modules.attachments.service import AttachmentService
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.routing.service import RoutingService
 from app.modules.templates.models import ServiceDeskTemplateVersion
@@ -31,6 +32,7 @@ class TicketService:
         self.template_repository = TemplateRepository(db)
         self.lifecycle = TicketLifecycleService(self.repository)
         self.ticket_approval_service = TicketApprovalService(db, self.repository)
+        self.attachment_service = AttachmentService(db)
         self.routing_service = RoutingService(db, self.repository)
         self.policy = TicketPolicyService()
 
@@ -107,9 +109,10 @@ class TicketService:
         if template_version.status == TemplateVersionStatus.DRAFT:
             raise HTTPException(status.HTTP_409_CONFLICT, "Форма услуги ещё не опубликована")
 
+        field_values = self._field_values_with_uploaded_files(ticket, template_version)
         validation = validate_template_payload(
             template_version,
-            ticket.field_values,
+            field_values,
             dictionary_options=self._dictionary_options(template_version),
         )
         errors = self._validate_system_fields(ticket, template_version.system_settings)
@@ -319,6 +322,18 @@ class TicketService:
                 continue
             options[code] = {item.value for item in dictionary.items if item.is_active}
         return options
+
+    def _field_values_with_uploaded_files(
+        self,
+        ticket: ServiceDeskTicket,
+        template_version: ServiceDeskTemplateVersion,
+    ) -> dict[str, Any]:
+        field_values = dict(ticket.field_values)
+        uploaded_files = self.attachment_service.field_value_payload(ticket.id)
+        for field in template_version.fields:
+            if field.field_type == TemplateFieldType.FILE:
+                field_values[field.key] = uploaded_files.get(field.key, [])
+        return field_values
 
     @staticmethod
     def _validate_system_fields(

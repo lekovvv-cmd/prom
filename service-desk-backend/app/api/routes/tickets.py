@@ -231,6 +231,34 @@ async def upload_ticket_attachment(
 
 
 @router.get(
+    "/tickets/{ticket_id}/fields/{field_key}/attachments",
+    response_model=list[attachment_schemas.ServiceDeskAttachmentRead],
+)
+def list_field_attachments(
+    ticket_id: uuid.UUID,
+    field_key: str,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return AttachmentService(db).list_field_attachments(ticket_id, field_key, current_user)
+
+
+@router.post(
+    "/tickets/{ticket_id}/fields/{field_key}/attachments",
+    response_model=attachment_schemas.ServiceDeskAttachmentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_field_attachment(
+    ticket_id: uuid.UUID,
+    field_key: str,
+    current_user: CurrentServiceDeskUser,
+    file: UploadFile = File(),
+    db: Session = Depends(get_db),
+):
+    return await AttachmentService(db).upload_field_attachment(ticket_id, field_key, file, current_user)
+
+
+@router.get(
     "/tickets/{ticket_id}/comments/{comment_id}/attachments",
     response_model=list[attachment_schemas.ServiceDeskAttachmentRead],
 )

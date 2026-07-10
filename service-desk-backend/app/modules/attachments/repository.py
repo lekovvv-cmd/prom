@@ -35,3 +35,24 @@ class AttachmentRepository:
             ServiceDeskAttachment.owner_id == owner_id,
         )
         return int(self.db.scalar(statement) or 0)
+
+    def list_for_field_value(
+        self,
+        ticket_id: uuid.UUID,
+        field_key: str | None = None,
+    ) -> list[ServiceDeskAttachment]:
+        statement = select(ServiceDeskAttachment).where(
+            ServiceDeskAttachment.owner_type == ServiceDeskAttachmentOwnerType.FIELD_VALUE,
+            ServiceDeskAttachment.ticket_id == ticket_id,
+        )
+        if field_key is not None:
+            statement = statement.where(ServiceDeskAttachment.field_key == field_key)
+        return list(self.db.scalars(statement.order_by(ServiceDeskAttachment.created_at.asc())).all())
+
+    def count_for_field_value(self, ticket_id: uuid.UUID, field_key: str) -> int:
+        statement = select(func.count()).select_from(ServiceDeskAttachment).where(
+            ServiceDeskAttachment.owner_type == ServiceDeskAttachmentOwnerType.FIELD_VALUE,
+            ServiceDeskAttachment.ticket_id == ticket_id,
+            ServiceDeskAttachment.field_key == field_key,
+        )
+        return int(self.db.scalar(statement) or 0)

@@ -11,6 +11,7 @@ class ServiceDeskAttachmentRead(BaseModel):
     owner_type: ServiceDeskAttachmentOwnerType
     owner_id: uuid.UUID
     ticket_id: uuid.UUID
+    field_key: str | None
     file_name: str
     content_type: str | None
     size_bytes: int
