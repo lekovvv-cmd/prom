@@ -35,3 +35,4 @@ Stage 7.5: добавлены policy-specific pause statuses, concurrency-safe S
 Stage 7.6: добавлен независимый idempotent SLA breach worker/CLI с row locking, active-pause filtering, response/resolution state и audit events.
 Stage 7.7: добавлены SLA escalation rules с произвольными thresholds, всеми recipient/action types и idempotent durable events для будущей notification delivery без fake email status.
 Stage 7.8: добавлен capability-guarded PROM SLA admin UI для calendars/hours, policies/durations/pause statuses, bindings и escalation rules.
+Stage 7 CI checkpoint: Service Desk migrations/seed, pytest, ruff, frontend tests/build и browser E2E (Service Desk + Projects MVP) пройдены; GitHub Actions green.
