@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -120,3 +122,31 @@ EVENT_COPY: dict[NotificationEventType, tuple[str, str]] = {
 def ticket_notification(event_type: NotificationEventType, ticket_id: uuid.UUID, *, recipient_user_ids=None) -> NotificationEvent:
     title, body = EVENT_COPY[event_type]
     return NotificationEvent(event_type, ticket_id, title, body, recipient_user_ids=recipient_user_ids)
+
+
+class NotificationService:
+    def __init__(self, db: Session) -> None:
+        self.db = db
+        self.repository = NotificationRepository(db)
+
+    def list_current_user(self, actor: ServiceDeskUser, *, unread_only: bool = False):
+        return self.repository.list_for_recipient(actor.id, unread_only=unread_only)
+
+    def unread_count(self, actor: ServiceDeskUser) -> int:
+        return self.repository.unread_count(actor.id)
+
+    def mark_read(self, notification_id: uuid.UUID, actor: ServiceDeskUser):
+        notification = self.repository.get_owned(notification_id, actor.id)
+        if notification is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Уведомление не найдено")
+        if not notification.is_read:
+            notification.is_read = True
+            notification.read_at = datetime.now(UTC)
+            self.db.commit()
+            self.db.refresh(notification)
+        return notification
+
+    def mark_all_read(self, actor: ServiceDeskUser) -> int:
+        count = self.repository.mark_all_read(actor.id, datetime.now(UTC))
+        self.db.commit()
+        return count

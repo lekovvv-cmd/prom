@@ -37,3 +37,4 @@ Stage 7.7: добавлены SLA escalation rules с произвольными
 Stage 7.8: добавлен capability-guarded PROM SLA admin UI для calendars/hours, policies/durations/pause statuses, bindings и escalation rules.
 Stage 7 CI checkpoint: Service Desk migrations/seed, pytest, ruff, frontend tests/build и browser E2E (Service Desk + Projects MVP) пройдены; GitHub Actions green.
 Stage 8.1: добавлен собственный Service Desk notification domain с типизированными событиями, server-side recipient selection, транзакционным InAppChannel и интеграцией lifecycle/approval/assignment/comments/SLA; duplicate delivery одного event защищена уникальным ключом.
+Stage 8.2: добавлен authenticated API списка/unread count/read/read-all, полностью scoped через CurrentServiceDeskUser, с idempotent read_at и запретом доступа к foreign notifications.
