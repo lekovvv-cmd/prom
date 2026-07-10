@@ -13,7 +13,10 @@ class SlaRepository:
     def list_calendars(self) -> list[ServiceDeskBusinessCalendar]:
         statement = (
             select(ServiceDeskBusinessCalendar)
-            .options(selectinload(ServiceDeskBusinessCalendar.business_hours))
+            .options(
+                selectinload(ServiceDeskBusinessCalendar.business_hours),
+                selectinload(ServiceDeskBusinessCalendar.exceptions),
+            )
             .order_by(ServiceDeskBusinessCalendar.name.asc())
         )
         return list(self.db.scalars(statement).all())
@@ -21,7 +24,10 @@ class SlaRepository:
     def get_calendar(self, calendar_id: uuid.UUID) -> ServiceDeskBusinessCalendar | None:
         statement = (
             select(ServiceDeskBusinessCalendar)
-            .options(selectinload(ServiceDeskBusinessCalendar.business_hours))
+            .options(
+                selectinload(ServiceDeskBusinessCalendar.business_hours),
+                selectinload(ServiceDeskBusinessCalendar.exceptions),
+            )
             .where(ServiceDeskBusinessCalendar.id == calendar_id)
         )
         return self.db.scalar(statement)

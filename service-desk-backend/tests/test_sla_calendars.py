@@ -90,3 +90,89 @@ def test_business_calendars_require_capability_and_validate_working_intervals(
         headers=admin_headers,
     )
     assert invalid_timezone.status_code == 422
+
+
+def test_calendar_exceptions_are_validated_and_replaced(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    admin_id = create_sla_user(client, db_session_factory, can_manage_sla=True)
+    admin_headers = auth_headers_for_user(admin_id)
+    payload = {
+        "name": "Calendar with exceptions",
+        "timezone": "Asia/Yekaterinburg",
+        "business_hours": [
+            {"weekday": 0, "start_time": "09:00:00", "end_time": "18:00:00"}
+        ],
+        "exceptions": [
+            {
+                "date": "2026-12-31",
+                "type": "holiday",
+                "description": "New Year holiday",
+            },
+            {
+                "date": "2027-01-09",
+                "type": "custom_hours",
+                "start_time": "10:00:00",
+                "end_time": "13:00:00",
+            },
+            {
+                "date": "2027-01-09",
+                "type": "custom_hours",
+                "start_time": "14:00:00",
+                "end_time": "16:00:00",
+            },
+        ],
+    }
+
+    created = client.post("/admin/sla/calendars", json=payload, headers=admin_headers)
+    assert created.status_code == 201, created.text
+    calendar = created.json()
+    assert [(item["date"], item["type"]) for item in calendar["exceptions"]] == [
+        ("2026-12-31", "holiday"),
+        ("2027-01-09", "custom_hours"),
+        ("2027-01-09", "custom_hours"),
+    ]
+
+    mixed_types = client.patch(
+        f"/admin/sla/calendars/{calendar['id']}",
+        json={
+            "exceptions": [
+                {"date": "2027-01-10", "type": "working_day"},
+                {
+                    "date": "2027-01-10",
+                    "type": "custom_hours",
+                    "start_time": "10:00:00",
+                    "end_time": "16:00:00",
+                },
+            ]
+        },
+        headers=admin_headers,
+    )
+    assert mixed_types.status_code == 422
+
+    invalid_holiday_times = client.patch(
+        f"/admin/sla/calendars/{calendar['id']}",
+        json={
+            "exceptions": [
+                {
+                    "date": "2027-01-10",
+                    "type": "holiday",
+                    "start_time": "10:00:00",
+                }
+            ]
+        },
+        headers=admin_headers,
+    )
+    assert invalid_holiday_times.status_code == 422
+
+    replaced = client.patch(
+        f"/admin/sla/calendars/{calendar['id']}",
+        json={"exceptions": [{"date": "2027-01-10", "type": "working_day"}]},
+        headers=admin_headers,
+    )
+    assert replaced.status_code == 200, replaced.text
+    assert [(item["date"], item["type"]) for item in replaced.json()["exceptions"]] == [
+        ("2027-01-10", "working_day")
+    ]
