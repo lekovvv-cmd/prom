@@ -285,3 +285,189 @@ def test_submit_snapshots_published_approval_workflow(client, db_session_factory
     snapshot = client.get(f"/tickets/{payload['id']}/approvals")
     assert snapshot.status_code == 200, snapshot.text
     assert [stage["title"] for stage in snapshot.json()] == ["Первый этап", "Второй этап"]
+
+
+def create_decision_ticket(
+    client: TestClient,
+    db_session_factory,
+    stage_specs: list[tuple[str, int]],
+) -> tuple[dict, list[list[str]], str]:
+    suffix = uuid.uuid4().hex[:8]
+    category = client.post("/admin/categories", json={"title": f"Decision category {suffix}"})
+    service = client.post(
+        "/admin/services",
+        json={"category_id": category.json()["id"], "title": f"Decision service {suffix}"},
+    )
+    service_id = service.json()["id"]
+    version = client.post(f"/admin/services/{service_id}/versions")
+    version_id = version.json()["id"]
+    configured = client.put(
+        f"/admin/template-versions/{version_id}/approval-workflow",
+        json={"approval_mode": "workflow", "name": f"Decision workflow {suffix}"},
+    )
+    workflow_id = configured.json()["workflow"]["id"]
+    approver_ids: list[list[str]] = []
+
+    for stage_index, (decision_rule, approver_count) in enumerate(stage_specs):
+        created_stage = client.post(
+            f"/admin/approval-workflows/{workflow_id}/stages",
+            json={"title": f"Этап {stage_index + 1}", "decision_rule": decision_rule},
+        )
+        stage_id = created_stage.json()["workflow"]["stages"][-1]["id"]
+        stage_approver_ids: list[str] = []
+        for approver_index in range(approver_count):
+            approver_id = create_approval_user(
+                db_session_factory,
+                f"decision-{suffix}-{stage_index}-{approver_index}@utmn.ru",
+                can_approve=True,
+            )
+            added = client.post(
+                f"/admin/approval-stages/{stage_id}/approvers",
+                json={"service_desk_user_id": approver_id},
+            )
+            assert added.status_code == 201, added.text
+            stage_approver_ids.append(approver_id)
+        approver_ids.append(stage_approver_ids)
+
+    published = client.post(f"/admin/template-versions/{version_id}/publish")
+    assert published.status_code == 200, published.text
+    requester_id = create_approval_user(
+        db_session_factory,
+        f"decision-requester-{suffix}@utmn.ru",
+        can_approve=False,
+    )
+    draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "requester_user_id": requester_id,
+            "title": f"Decision ticket {suffix}",
+            "description": "Заявка для проверки решений.",
+        },
+    )
+    submitted = client.post(f"/tickets/{draft.json()['id']}/submit")
+    assert submitted.status_code == 200, submitted.text
+    return submitted.json(), approver_ids, requester_id
+
+
+def approval_id_for_actor(stage: dict, actor_user_id: str) -> str:
+    return next(
+        approval["id"]
+        for approval in stage["approvals"]
+        if approval["approver_user_id"] == actor_user_id
+    )
+
+
+def test_any_stage_completes_on_first_approval_and_skips_remaining(client, db_session_factory):
+    ticket, approver_ids, requester_id = create_decision_ticket(
+        client,
+        db_session_factory,
+        [("any", 2)],
+    )
+    stage = ticket["approval_stages"][0]
+    approval_id = approval_id_for_actor(stage, approver_ids[0][0])
+
+    forbidden = client.post(
+        f"/tickets/{ticket['id']}/approvals/{approval_id}/approve",
+        json={"actor_user_id": requester_id},
+    )
+    assert forbidden.status_code == 403
+
+    approved = client.post(
+        f"/tickets/{ticket['id']}/approvals/{approval_id}/approve",
+        json={"actor_user_id": approver_ids[0][0], "comment": "Согласовано"},
+    )
+    assert approved.status_code == 200, approved.text
+    payload = approved.json()
+    assert payload["status"] == "approved"
+    assert payload["approval_stages"][0]["status"] == "approved"
+    assert [item["status"] for item in payload["approval_stages"][0]["approvals"]] == [
+        "approved",
+        "skipped",
+    ]
+    assert [item["event_type"] for item in payload["history"]][-2:] == [
+        "approval_approved",
+        "ticket_approved",
+    ]
+
+    duplicate = client.post(
+        f"/tickets/{ticket['id']}/approvals/{approval_id}/approve",
+        json={"actor_user_id": approver_ids[0][0]},
+    )
+    assert duplicate.status_code == 409
+
+
+def test_all_stage_waits_for_every_approver(client, db_session_factory):
+    ticket, approver_ids, _ = create_decision_ticket(
+        client,
+        db_session_factory,
+        [("all", 2)],
+    )
+    stage = ticket["approval_stages"][0]
+    first_approval_id = approval_id_for_actor(stage, approver_ids[0][0])
+    second_approval_id = approval_id_for_actor(stage, approver_ids[0][1])
+
+    first = client.post(
+        f"/tickets/{ticket['id']}/approvals/{first_approval_id}/approve",
+        json={"actor_user_id": approver_ids[0][0]},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "pending_approval"
+    assert first.json()["approval_stages"][0]["status"] == "pending"
+
+    second = client.post(
+        f"/tickets/{ticket['id']}/approvals/{second_approval_id}/approve",
+        json={"actor_user_id": approver_ids[0][1]},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["status"] == "approved"
+    assert second.json()["approval_stages"][0]["completed_at"] is not None
+
+
+def test_multistage_progression_and_reject_skip_future_stages(client, db_session_factory):
+    ticket, approver_ids, _ = create_decision_ticket(
+        client,
+        db_session_factory,
+        [("any", 1), ("all", 1), ("any", 1)],
+    )
+    stages = ticket["approval_stages"]
+    first_approval_id = approval_id_for_actor(stages[0], approver_ids[0][0])
+    second_approval_id = approval_id_for_actor(stages[1], approver_ids[1][0])
+
+    premature = client.post(
+        f"/tickets/{ticket['id']}/approvals/{second_approval_id}/approve",
+        json={"actor_user_id": approver_ids[1][0]},
+    )
+    assert premature.status_code == 409
+
+    first = client.post(
+        f"/tickets/{ticket['id']}/approvals/{first_approval_id}/approve",
+        json={"actor_user_id": approver_ids[0][0]},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "pending_approval"
+    assert first.json()["approval_stages"][1]["started_at"] is not None
+    assert first.json()["history"][-1]["event_type"] == "approval_stage_started"
+
+    missing_reason = client.post(
+        f"/tickets/{ticket['id']}/approvals/{second_approval_id}/reject",
+        json={"actor_user_id": approver_ids[1][0], "comment": ""},
+    )
+    assert missing_reason.status_code == 422
+
+    rejected = client.post(
+        f"/tickets/{ticket['id']}/approvals/{second_approval_id}/reject",
+        json={"actor_user_id": approver_ids[1][0], "comment": "Не хватает обоснования"},
+    )
+    assert rejected.status_code == 200, rejected.text
+    payload = rejected.json()
+    assert payload["status"] == "rejected"
+    assert payload["rejected_at"] is not None
+    assert [stage["status"] for stage in payload["approval_stages"]] == [
+        "approved",
+        "rejected",
+        "skipped",
+    ]
+    assert payload["approval_stages"][2]["approvals"][0]["status"] == "skipped"
+    assert payload["history"][-1]["event_type"] == "ticket_rejected"
+    assert payload["history"][-1]["payload"]["comment"] == "Не хватает обоснования"

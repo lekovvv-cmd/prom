@@ -107,3 +107,61 @@ class ApprovalWorkflowRepository:
             .order_by(ServiceDeskTicketApprovalStage.position.asc())
         )
         return list(self.db.scalars(stmt).unique().all())
+
+    def get_ticket_approval_context_ids(
+        self,
+        approval_id: uuid.UUID,
+    ) -> tuple[uuid.UUID, uuid.UUID] | None:
+        stmt = (
+            select(
+                ServiceDeskTicketApproval.ticket_approval_stage_id,
+                ServiceDeskTicketApprovalStage.ticket_id,
+            )
+            .join(
+                ServiceDeskTicketApprovalStage,
+                ServiceDeskTicketApprovalStage.id
+                == ServiceDeskTicketApproval.ticket_approval_stage_id,
+            )
+            .where(ServiceDeskTicketApproval.id == approval_id)
+        )
+        row = self.db.execute(stmt).one_or_none()
+        return (row[0], row[1]) if row else None
+
+    def get_ticket_stage_for_update(
+        self,
+        stage_id: uuid.UUID,
+    ) -> ServiceDeskTicketApprovalStage | None:
+        stmt = (
+            select(ServiceDeskTicketApprovalStage)
+            .where(ServiceDeskTicketApprovalStage.id == stage_id)
+            .with_for_update()
+        )
+        return self.db.scalar(stmt)
+
+    def list_stage_approvals_for_update(
+        self,
+        stage_id: uuid.UUID,
+    ) -> list[ServiceDeskTicketApproval]:
+        stmt = (
+            select(ServiceDeskTicketApproval)
+            .where(ServiceDeskTicketApproval.ticket_approval_stage_id == stage_id)
+            .order_by(ServiceDeskTicketApproval.created_at.asc())
+            .with_for_update()
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def list_later_stages_for_update(
+        self,
+        ticket_id: uuid.UUID,
+        position: int,
+    ) -> list[ServiceDeskTicketApprovalStage]:
+        stmt = (
+            select(ServiceDeskTicketApprovalStage)
+            .where(
+                ServiceDeskTicketApprovalStage.ticket_id == ticket_id,
+                ServiceDeskTicketApprovalStage.position > position,
+            )
+            .order_by(ServiceDeskTicketApprovalStage.position.asc())
+            .with_for_update()
+        )
+        return list(self.db.scalars(stmt).all())

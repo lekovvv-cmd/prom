@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus
+from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.schemas import TicketApprovalStageRead
 from app.modules.tickets import schemas
 from app.modules.tickets.service import TicketService
@@ -135,6 +136,32 @@ def cancel_ticket(
 )
 def get_ticket_approvals(ticket_id: uuid.UUID, db: Session = Depends(get_db)):
     return TicketService(db).get_approval_snapshot(ticket_id)
+
+
+@router.post(
+    "/tickets/{ticket_id}/approvals/{approval_id}/approve",
+    response_model=schemas.TicketRead,
+)
+def approve_ticket(
+    ticket_id: uuid.UUID,
+    approval_id: uuid.UUID,
+    payload: approval_schemas.TicketApprovalDecision,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).approve_ticket(ticket_id, approval_id, payload)
+
+
+@router.post(
+    "/tickets/{ticket_id}/approvals/{approval_id}/reject",
+    response_model=schemas.TicketRead,
+)
+def reject_ticket(
+    ticket_id: uuid.UUID,
+    approval_id: uuid.UUID,
+    payload: approval_schemas.TicketApprovalRejection,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).reject_ticket(ticket_id, approval_id, payload)
 
 
 @router.get("/me/tickets", response_model=list[schemas.TicketRead])

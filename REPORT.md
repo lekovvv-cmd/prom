@@ -14,3 +14,4 @@ Stage 3.2: добавлена отправка draft с backend-валидаци
 Stage 3.4: добавлена единая lifecycle state machine с action endpoints, timestamps, причинами и immutable history.
 Stage 4.1: добавлена настройка approval workflow на draft-шаблоне с этапами ANY/ALL и согласующими.
 Stage 4.2: добавлен immutable snapshot approval workflow в заявку при submit и автопереход по approval mode.
+Stage 4.3–4.4: добавлены approve/reject решения, ANY/ALL evaluation и multi-stage progression со skip логикой.
