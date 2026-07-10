@@ -1,12 +1,14 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentServiceDeskUser, get_db
 from app.core.enums import ServiceDeskTicketAction, ServiceDeskTicketStatus
 from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.schemas import TicketApprovalStageRead
+from app.modules.attachments import schemas as attachment_schemas
+from app.modules.attachments.service import AttachmentService
 from app.modules.comments import schemas as comment_schemas
 from app.modules.comments.service import TicketCommentService
 from app.modules.tickets import schemas
@@ -200,6 +202,60 @@ def delete_ticket_comment(
     db: Session = Depends(get_db),
 ):
     TicketCommentService(db).delete_comment(ticket_id, comment_id, current_user)
+
+
+@router.get(
+    "/tickets/{ticket_id}/attachments",
+    response_model=list[attachment_schemas.ServiceDeskAttachmentRead],
+)
+def list_ticket_attachments(
+    ticket_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return AttachmentService(db).list_ticket_attachments(ticket_id, current_user)
+
+
+@router.post(
+    "/tickets/{ticket_id}/attachments",
+    response_model=attachment_schemas.ServiceDeskAttachmentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_ticket_attachment(
+    ticket_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    file: UploadFile = File(),
+    db: Session = Depends(get_db),
+):
+    return await AttachmentService(db).upload_ticket_attachment(ticket_id, file, current_user)
+
+
+@router.get(
+    "/tickets/{ticket_id}/comments/{comment_id}/attachments",
+    response_model=list[attachment_schemas.ServiceDeskAttachmentRead],
+)
+def list_comment_attachments(
+    ticket_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return AttachmentService(db).list_comment_attachments(ticket_id, comment_id, current_user)
+
+
+@router.post(
+    "/tickets/{ticket_id}/comments/{comment_id}/attachments",
+    response_model=attachment_schemas.ServiceDeskAttachmentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_comment_attachment(
+    ticket_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    file: UploadFile = File(),
+    db: Session = Depends(get_db),
+):
+    return await AttachmentService(db).upload_comment_attachment(ticket_id, comment_id, file, current_user)
 
 
 @router.get(

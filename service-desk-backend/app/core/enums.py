@@ -71,6 +71,12 @@ class ServiceDeskCommentVisibility(StrEnum):
     INTERNAL = "internal"
 
 
+class ServiceDeskAttachmentOwnerType(StrEnum):
+    TICKET = "service_desk_ticket"
+    COMMENT = "service_desk_comment"
+    FIELD_VALUE = "service_desk_field_value"
+
+
 class ServiceDeskTicketAction(StrEnum):
     SUBMIT = "submit"
     START_APPROVAL = "start_approval"

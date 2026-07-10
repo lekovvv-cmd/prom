@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.database import Base
 from app.main import create_app
 from app.modules.access import models as access_models  # noqa: F401
+from app.modules.attachments import models as attachment_models  # noqa: F401
 from app.modules.access.models import ServiceDeskUser
 from app.modules.approvals import models as approval_models  # noqa: F401
 from app.modules.catalog import models as catalog_models  # noqa: F401

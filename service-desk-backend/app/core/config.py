@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production-at-least-32-bytes"
     jwt_algorithm: str = "HS256"
     frontend_origin: str = "http://localhost:5173"
+    storage_dir: str = "storage/service-desk"
+    max_attachment_size_bytes: int = 10 * 1024 * 1024
+    max_attachments_per_owner: int = 10
 
     model_config = SettingsConfigDict(
         env_file=".env",
