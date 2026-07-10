@@ -181,7 +181,12 @@ class TicketService:
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
-        self.lifecycle.perform_transition(ticket, action, actor=actor, metadata=metadata)
+        previous_status = ticket.status
+        now = datetime.now(UTC)
+        self.lifecycle.perform_transition(ticket, action, actor=actor, metadata=metadata, occurred_at=now)
+        self.sla_service.handle_transition(ticket, previous_status, actor=actor, occurred_at=now)
+        if action in {ServiceDeskTicketAction.START, ServiceDeskTicketAction.REQUEST_CLARIFICATION}:
+            self.sla_service.mark_first_response(ticket, actor=actor, occurred_at=now)
         self.db.commit()
         return self._read_for_actor(self._require_ticket(ticket.id), actor)
 

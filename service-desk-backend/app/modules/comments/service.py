@@ -20,6 +20,7 @@ from app.modules.tickets.lifecycle import TicketLifecycleService
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.policy import TicketPolicyService
 from app.modules.tickets.repository import TicketRepository
+from app.modules.sla.service import SlaService
 
 
 FINAL_COMMENT_STATUSES = {
@@ -35,6 +36,7 @@ class TicketCommentService:
         self.ticket_repository = TicketRepository(db)
         self.policy = TicketPolicyService()
         self.lifecycle = TicketLifecycleService(self.ticket_repository)
+        self.sla_service = SlaService(db)
 
     def list_comments(
         self,
@@ -69,15 +71,26 @@ class TicketCommentService:
             )
         )
         self._write_history(ticket, "comment_added", actor, comment)
+        now = datetime.now(UTC)
+        if (
+            payload.visibility == ServiceDeskCommentVisibility.PUBLIC
+            and actor.id == ticket.assignee_user_id
+        ):
+            self.sla_service.mark_first_response(ticket, actor=actor, occurred_at=now)
         if (
             payload.visibility == ServiceDeskCommentVisibility.PUBLIC
             and actor.id == ticket.requester_user_id
             and ticket.status == ServiceDeskTicketStatus.WAITING_REQUESTER
         ):
+            previous_status = ticket.status
             self.lifecycle.perform_transition(
                 ticket,
                 ServiceDeskTicketAction.REQUESTER_REPLY,
                 actor=actor,
+                occurred_at=now,
+            )
+            self.sla_service.handle_transition(
+                ticket, previous_status, actor=actor, occurred_at=now
             )
         self.db.commit()
         return comment

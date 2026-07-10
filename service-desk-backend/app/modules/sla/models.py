@@ -90,6 +90,7 @@ class ServiceDeskSlaPolicy(Base):
     )
     first_response_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     resolution_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    pause_statuses: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
@@ -120,3 +121,16 @@ class ServiceDeskSlaBinding(Base):
     )
 
     policy: Mapped[ServiceDeskSlaPolicy] = relationship()
+
+
+class ServiceDeskTicketSlaPause(Base):
+    __tablename__ = "service_desk_ticket_sla_pauses"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ticket_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("service_desk_tickets.id"), nullable=False, index=True
+    )
+    reason_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)

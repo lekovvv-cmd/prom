@@ -14,9 +14,10 @@ from app.modules.sla.models import (
     ServiceDeskCalendarException,
     ServiceDeskSlaBinding,
     ServiceDeskSlaPolicy,
+    ServiceDeskTicketSlaPause,
 )
 from app.modules.sla.repository import SlaRepository
-from app.modules.sla.engine import add_business_minutes
+from app.modules.sla.engine import add_business_minutes, add_business_seconds, business_seconds_between
 
 
 class SlaService:
@@ -139,6 +140,7 @@ class SlaService:
                     "business_calendar_timezone": calendar.timezone,
                     "first_response_minutes": policy.first_response_minutes,
                     "resolution_minutes": policy.resolution_minutes,
+                    "pause_statuses": policy.pause_statuses,
                     "business_hours": [
                         {"weekday": item.weekday, "start_time": item.start_time.isoformat(), "end_time": item.end_time.isoformat()}
                         for item in calendar.business_hours
@@ -158,6 +160,46 @@ class SlaService:
                     occurred_at, policy.resolution_minutes, ticket.sla_snapshot
                 )
                 return
+
+    def handle_transition(self, ticket, previous_status, *, actor, occurred_at) -> None:
+        if not ticket.sla_snapshot or ticket.resolved_at:
+            return
+        pause_statuses = set(ticket.sla_snapshot.get("pause_statuses", []))
+        was_paused = previous_status.value in pause_statuses
+        is_paused = ticket.status.value in pause_statuses
+        active = self.db.query(ServiceDeskTicketSlaPause).filter_by(
+            ticket_id=ticket.id, ended_at=None
+        ).with_for_update().one_or_none()
+        if is_paused and not was_paused:
+            if active is None:
+                self.db.add(ServiceDeskTicketSlaPause(
+                    ticket_id=ticket.id, reason_status=ticket.status.value, started_at=occurred_at
+                ))
+                self._sla_history(ticket, "sla_paused", actor, {"reason_status": ticket.status.value})
+        elif was_paused and not is_paused and active is not None:
+            duration = max(0, int((occurred_at - active.started_at).total_seconds()))
+            active.ended_at = occurred_at
+            active.duration_seconds = duration
+            ticket.paused_seconds += duration
+            lost = business_seconds_between(active.started_at, occurred_at, ticket.sla_snapshot)
+            if ticket.resolution_due_at and lost:
+                ticket.resolution_due_at = add_business_seconds(
+                    ticket.resolution_due_at, lost, ticket.sla_snapshot
+                )
+            self._sla_history(ticket, "sla_resumed", actor, {"duration_seconds": duration})
+
+    def mark_first_response(self, ticket, *, actor, occurred_at) -> None:
+        if ticket.sla_snapshot and ticket.first_response_at is None:
+            ticket.first_response_at = occurred_at
+            self._sla_history(ticket, "sla_first_response", actor, {})
+
+    def _sla_history(self, ticket, event_type, actor, payload) -> None:
+        from app.modules.tickets.models import ServiceDeskTicketHistory
+        self.db.add(ServiceDeskTicketHistory(
+            ticket_id=ticket.id, event_type=event_type,
+            actor_user_id=actor.id if actor else None, message=event_type.replace("_", " "),
+            payload=payload,
+        ))
 
     @staticmethod
     def _matches(binding: ServiceDeskSlaBinding, ticket, service) -> bool:

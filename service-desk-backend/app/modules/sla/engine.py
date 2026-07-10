@@ -45,11 +45,17 @@ def add_business_minutes(start: datetime, minutes: int, snapshot: dict) -> datet
     """Add elapsed business minutes in the snapshot calendar and return UTC."""
     if start.tzinfo is None:
         raise ValueError("SLA start must be timezone-aware")
-    if minutes <= 0:
+    return add_business_seconds(start, minutes * 60, snapshot)
+
+
+def add_business_seconds(start: datetime, seconds: int, snapshot: dict) -> datetime:
+    if start.tzinfo is None:
+        raise ValueError("SLA start must be timezone-aware")
+    if seconds <= 0:
         return start.astimezone(UTC)
     timezone = ZoneInfo(snapshot["business_calendar_timezone"])
     cursor = start.astimezone(timezone)
-    remaining = timedelta(minutes=minutes)
+    remaining = timedelta(seconds=seconds)
     for _ in range(36600):
         intervals = _local_intervals(snapshot, cursor.date())
         for interval_start, interval_end in intervals:
@@ -63,3 +69,22 @@ def add_business_minutes(start: datetime, minutes: int, snapshot: dict) -> datet
             cursor = interval_end
         cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min, timezone)
     raise ValueError("Unable to find enough business time within 100 years")
+
+
+def business_seconds_between(start: datetime, end: datetime, snapshot: dict) -> int:
+    if start.tzinfo is None or end.tzinfo is None:
+        raise ValueError("SLA range must be timezone-aware")
+    if end <= start:
+        return 0
+    timezone = ZoneInfo(snapshot["business_calendar_timezone"])
+    cursor = start.astimezone(timezone)
+    finish = end.astimezone(timezone)
+    total = 0
+    while cursor.date() <= finish.date():
+        for interval_start, interval_end in _local_intervals(snapshot, cursor.date()):
+            lower = max(interval_start.astimezone(UTC), start.astimezone(UTC))
+            upper = min(interval_end.astimezone(UTC), end.astimezone(UTC))
+            if upper > lower:
+                total += int((upper - lower).total_seconds())
+        cursor = datetime.combine(cursor.date() + timedelta(days=1), time.min, timezone)
+    return total

@@ -114,6 +114,7 @@ class SlaPolicyCreate(BaseModel):
     business_calendar_id: uuid.UUID
     first_response_minutes: int = Field(gt=0)
     resolution_minutes: int = Field(gt=0)
+    pause_statuses: list[Literal["waiting_requester", "waiting_external"]] = Field(default_factory=list)
 
 
 class SlaPolicyUpdate(BaseModel):
@@ -123,6 +124,7 @@ class SlaPolicyUpdate(BaseModel):
     business_calendar_id: uuid.UUID | None = None
     first_response_minutes: int | None = Field(default=None, gt=0)
     resolution_minutes: int | None = Field(default=None, gt=0)
+    pause_statuses: list[Literal["waiting_requester", "waiting_external"]] | None = None
 
 
 class SlaPolicyRead(SlaPolicyCreate):

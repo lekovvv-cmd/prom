@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.modules.sla.engine import add_business_minutes
+from app.modules.sla.engine import add_business_minutes, business_seconds_between
 
 
 @pytest.fixture
@@ -54,3 +54,9 @@ def test_dst_calendar_uses_elapsed_business_time():
 def test_rejects_naive_start(calendar):
     with pytest.raises(ValueError, match="timezone-aware"):
         add_business_minutes(datetime(2026, 7, 13, 9), 30, calendar)
+
+
+def test_pause_counts_only_lost_business_time(calendar):
+    start = datetime.fromisoformat("2026-07-17T12:30:00+00:00")
+    end = datetime.fromisoformat("2026-07-20T05:30:00+00:00")
+    assert business_seconds_between(start, end, calendar) == 14 * 3600
