@@ -13,11 +13,12 @@ import { Input } from "../../../shared/ui/Input";
 import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Select } from "../../../shared/ui/Select";
 import { Spinner } from "../../../shared/ui/Spinner";
+import { ServiceDeskAdminConfigurationV2 } from "./ServiceDeskAdminConfigurationV2";
 
 export type ServiceDeskAdminConfigSection = "catalog" | "templates" | "dictionaries" | "approvals";
 
 export function ServiceDeskAdminConfigurationPage({ section }: { section: ServiceDeskAdminConfigSection }) {
-  return section === "catalog" ? <CatalogSection /> : section === "templates" ? <TemplatesSection /> : section === "dictionaries" ? <DictionariesSection /> : <ApprovalsSection />;
+  return <ServiceDeskAdminConfigurationV2 section={section} />;
 }
 
 function CatalogSection() {

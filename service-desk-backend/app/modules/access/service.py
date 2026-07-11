@@ -51,7 +51,7 @@ class ServiceDeskAccessService:
     def require_manage_access(self, actor: ServiceDeskUser) -> None:
         if "service_desk.manage_access" not in self.capabilities_for(actor):
             raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "Нет capability service_desk.manage_access"
+                status.HTTP_403_FORBIDDEN, "Недостаточно прав для управления доступом Service Desk"
             )
 
     def list_users(self, actor, *, q, access_type, is_active, page, page_size):

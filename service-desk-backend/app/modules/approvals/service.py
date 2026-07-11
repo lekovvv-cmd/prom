@@ -130,7 +130,7 @@ class ApprovalWorkflowService:
         if not self._can_approve(user):
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "У пользователя нет capability service_desk.approve",
+                "У пользователя нет права согласовывать заявки Service Desk",
             )
         if self.repository.get_stage_approver(stage.id, user.id):
             raise HTTPException(status.HTTP_409_CONFLICT, "Пользователь уже добавлен в этап")

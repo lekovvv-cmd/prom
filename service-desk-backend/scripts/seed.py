@@ -425,6 +425,7 @@ def seed_templates(
         else:
             version.status = TemplateVersionStatus.PUBLISHED
             version.published_at = version.published_at or now
+            version.archived_at = None
 
 
 if __name__ == "__main__":

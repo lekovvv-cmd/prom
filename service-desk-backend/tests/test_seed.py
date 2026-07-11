@@ -50,3 +50,17 @@ def test_seed_models_exist_after_script(client, db_session_factory):
             "service_desk.manage_templates",
             "service_desk.manage_approval_workflows",
         }
+
+
+def test_seed_publishes_every_active_service_and_resolves_dictionary_options(client, db_session_factory):
+    seed_main(db_session_factory)
+    services = client.get("/services")
+    assert services.status_code == 200
+    assert services.json()
+    for service in services.json():
+        form = client.get(f"/services/{service['id']}/form")
+        assert form.status_code == 200, form.text
+    water = next(item for item in services.json() if item["title"] == "Заказ воды")
+    water_form = client.get(f"/services/{water['id']}/form")
+    fields = {field["key"]: field for field in water_form.json()["fields"]}
+    assert fields["gia_type"]["effective_options"] == [{"label": "Государственный экзамен", "value": "state_exam", "position": 0, "is_active": True, "metadata": {}} , {"label": "ВКР", "value": "vkr", "position": 1, "is_active": True, "metadata": {}}]

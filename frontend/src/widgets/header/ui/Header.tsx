@@ -21,6 +21,7 @@ export function Header() {
   const canUseWorkbench = serviceDeskUser?.access_type === "service_desk_admin" || ["service_desk.be_assignee", "service_desk.approve", "service_desk.assign", "service_desk.change_priority", "service_desk.view_all_tickets"].some((capability) => serviceDeskUser?.capabilities?.includes(capability));
   const canViewReports = serviceDeskUser?.access_type === "service_desk_admin" || serviceDeskUser?.capabilities?.includes("service_desk.view_reports");
   const canManageAccess = serviceDeskUser?.access_type === "service_desk_admin" || serviceDeskUser?.capabilities?.includes("service_desk.manage_access");
+  const canUseAdminConfiguration = serviceDeskUser?.access_type === "service_desk_admin" || ["view_reports", "view_all_tickets", "manage_catalog", "manage_templates", "manage_approval_workflows", "manage_routing", "manage_sla", "manage_access"].some((capability) => serviceDeskUser?.capabilities?.includes(`service_desk.${capability}`));
 
   return (
     <header className="app-header">
@@ -38,6 +39,7 @@ export function Header() {
             {token && <NavLink to="/service-desk/my-tickets"><FileText size={15} aria-hidden="true" />Мои заявки</NavLink>}
             {canUseWorkbench && <NavLink to="/service-desk/workbench"><Archive size={15} aria-hidden="true" />Рабочее место</NavLink>}
             {canViewReports || canManageAccess ? <NavLink to="/admin/service-desk"><BarChart3 size={15} aria-hidden="true" />Администрирование</NavLink> : null}
+            {canUseAdminConfiguration && !canViewReports && !canManageAccess ? <NavLink to="/admin/service-desk"><BarChart3 size={15} aria-hidden="true" />Администрирование</NavLink> : null}
             {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
           </>
         ) : (

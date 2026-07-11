@@ -208,7 +208,7 @@ class TicketApprovalService:
         if actor.id != approval.approver_user_id:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Решение доступно только назначенному согласующему")
         if not self._can_approve(actor):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет capability service_desk.approve")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для согласования заявки Service Desk")
         if ticket.status != ServiceDeskTicketStatus.PENDING_APPROVAL:
             raise HTTPException(status.HTTP_409_CONFLICT, "Заявка больше не находится на согласовании")
         if stage.status != ServiceDeskApprovalStatus.PENDING or stage.started_at is None:

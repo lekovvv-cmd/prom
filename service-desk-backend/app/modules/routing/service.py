@@ -262,4 +262,4 @@ class RoutingService:
             return
         if any(item.capability == "service_desk.manage_routing" for item in actor.capabilities):
             return
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет capability service_desk.manage_routing")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для настройки маршрутизации Service Desk")

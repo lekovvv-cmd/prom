@@ -144,7 +144,7 @@ class SlaService:
         self._require_manage_sla(actor)
         rule = self.db.get(ServiceDeskEscalationRule, rule_id)
         if not rule:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Escalation rule not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Правило эскалации не найдено")
         data = payload.model_dump(exclude_unset=True)
         definition = schemas.EscalationRuleCreate.model_validate(
             {
@@ -167,7 +167,7 @@ class SlaService:
         self._require_manage_sla(actor)
         rule = self.db.get(ServiceDeskEscalationRule, rule_id)
         if not rule:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Escalation rule not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Правило эскалации не найдено")
         self.db.delete(rule)
         self.db.commit()
 
@@ -350,23 +350,23 @@ class SlaService:
     def _require_calendar(self, calendar_id: uuid.UUID) -> ServiceDeskBusinessCalendar:
         calendar = self.repository.get_calendar(calendar_id)
         if not calendar:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Business calendar not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Рабочий календарь не найден")
         return calendar
 
     def _require_policy(self, policy_id: uuid.UUID) -> ServiceDeskSlaPolicy:
         policy = self.repository.get_policy(policy_id)
         if not policy:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "SLA policy not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Политика SLA не найдена")
         return policy
 
     def _require_binding(self, binding_id: uuid.UUID) -> ServiceDeskSlaBinding:
         binding = self.repository.get_binding(binding_id)
         if not binding:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "SLA binding not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Правило применения SLA не найдено")
         return binding
 
     @staticmethod
     def _require_manage_sla(actor: ServiceDeskUser) -> None:
         if "service_desk.manage_sla" in ServiceDeskAccessService.capabilities_for(actor):
             return
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Missing service_desk.manage_sla capability")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для настройки SLA Service Desk")

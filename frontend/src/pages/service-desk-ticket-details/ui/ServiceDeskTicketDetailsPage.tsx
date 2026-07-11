@@ -17,6 +17,7 @@ import { ServiceDeskTicketApprovals } from "../../../widgets/service-desk-ticket
 import { ServiceDeskTicketComments } from "../../../widgets/service-desk-ticket-comments/ui/ServiceDeskTicketComments";
 import { ServiceDeskTicketActions } from "../../../widgets/service-desk-ticket-actions/ui/ServiceDeskTicketActions";
 import { ServiceDeskTicketAttachments } from "../../../widgets/service-desk-ticket-attachments/ui/ServiceDeskTicketAttachments";
+import { ServiceDeskTicketFieldAttachments } from "../../../widgets/service-desk-ticket-field-attachments/ui/ServiceDeskTicketFieldAttachments";
 
 const historyLabels: Record<string, string> = {
   ticket_created: "Заявка создана",
@@ -72,7 +73,7 @@ export function ServiceDeskTicketDetailsPage() {
     void loadTicket();
   }, [loadTicket]);
 
-  const fieldEntries = ticket?.field_snapshot?.length ? ticket.field_snapshot : ticket ? Object.entries(ticket.field_values).map(([key, value]) => ({ label: key.replaceAll("_", " "), type: "text", raw_value: value, display_value: String(value ?? "Не указано") })) : [];
+  const fieldEntries = ticket?.field_snapshot?.length ? ticket.field_snapshot : ticket ? Object.entries(ticket.field_values).map(([key, value]) => ({ key, label: key.replaceAll("_", " "), type: "text", raw_value: value, display_value: String(value ?? "Не указано") })) : [];
 
   return (
     <>
@@ -123,6 +124,7 @@ export function ServiceDeskTicketDetailsPage() {
                   </dl>
                 </Card>
               )}
+              {ticket ? <ServiceDeskTicketFieldAttachments ticketId={ticket.id} fields={fieldEntries.map((field) => ({ key: field.key, label: field.label, type: field.type }))} /> : null}
 
               <Card>
                 <h3>История</h3>
@@ -168,7 +170,7 @@ export function ServiceDeskTicketDetailsPage() {
                 </dl>
               </Card>
               <SlaSummary ticket={ticket} />
-              <ServiceDeskTicketAttachments ticketId={ticket.id} />
+              <ServiceDeskTicketAttachments ticketId={ticket.id} canUpload={!['closed', 'cancelled'].includes(ticket.status)} />
             </aside>
           </div>
         )}

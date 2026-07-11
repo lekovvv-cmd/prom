@@ -383,3 +383,33 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
   await expect(page.getByText("Закрыта", { exact: true })).toBeVisible();
 });
+
+test("Service Desk seeded water form saves, resumes and submits with dictionary labels", async ({ page }) => {
+  await loginAsManager(page);
+  await page.goto("/service-desk");
+  await page.getByPlaceholder("Например, доступ к системе").fill("Заказ воды");
+  const serviceCard = page.locator(".service-desk-service-card").filter({ hasText: "Заказ воды" });
+  await expect(serviceCard).toBeVisible();
+  await serviceCard.getByRole("link", { name: "Открыть услугу" }).click();
+  await page.getByLabel("Вид ГИА").selectOption("state_exam");
+  await page.getByLabel("Тип воды").selectOption("still");
+  await page.getByLabel("Количество бутылок").fill("12");
+  await page.getByLabel("Дата доставки").fill("2027-01-15");
+  await page.getByLabel("Тема заявки").fill("E2E заказ воды");
+  await page.getByLabel("Описание").fill("Проверка сохранения формы из каталога.");
+  await page.getByRole("button", { name: "Сохранить черновик" }).click();
+  await expect(page.getByText("Черновик сохранён")).toBeVisible();
+  await page.getByRole("link", { name: "Мои заявки" }).click();
+  const draftRow = page.getByRole("row").filter({ hasText: "E2E заказ воды" });
+  await expect(draftRow).toBeVisible();
+  await draftRow.getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/service-desk\/tickets\/[^/]+\/edit$/);
+  await expect(page.getByLabel("Вид ГИА")).toHaveValue("state_exam");
+  await expect(page.getByLabel("Тип воды")).toHaveValue("still");
+  await expect(page.getByLabel("Количество бутылок")).toHaveValue("12");
+  await expect(page.getByLabel("Дата доставки")).toHaveValue("2027-01-15");
+  await page.getByRole("button", { name: "Отправить заявку" }).click();
+  await expect(page).toHaveURL(/\/service-desk\/tickets\//);
+  await expect(page.getByText("Государственный экзамен")).toBeVisible();
+  await expect(page.getByText("state_exam")).toHaveCount(0);
+});
