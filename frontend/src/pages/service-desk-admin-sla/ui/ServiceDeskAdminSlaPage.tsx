@@ -337,7 +337,6 @@ export function ServiceDeskAdminSlaPage() {
   const submitEscalation = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const payload = escalationDraftToPayload(escalationDraft); void persist("escalation", () => editingEscalationId ? updateEscalation(editingEscalationId, payload) : createEscalation(escalationDraft.policyId, payload), resetEscalation); };
 
   const removeEscalation = async (rule: EscalationRule) => {
-    if (!window.confirm(`Удалить эскалацию ${rule.metric} ${rule.threshold_percent}%?`)) return;
     try {
       setSavingEditor("escalation");
       setError(null);
