@@ -205,7 +205,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await bindingForm.getByLabel("SLA policy").selectOption({ label: policyName });
   await bindingForm.getByLabel("Тип условия 1").selectOption("priority");
   await bindingForm.getByLabel("Значение условия 1").selectOption("high");
-  await bindingForm.getByRole("button", { name: "Условие" }).click();
+  await bindingForm.getByRole("button", { name: "Условие", exact: true }).click();
   await bindingForm.getByLabel("Тип условия 2").selectOption("field_value");
   await bindingForm.getByLabel("Ключ поля 2").fill("impact");
   await bindingForm.getByLabel("Значение условия 2").fill("critical");
