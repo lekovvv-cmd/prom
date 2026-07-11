@@ -168,6 +168,10 @@ export function AppRouter() {
           </ServiceDeskRoute>
         }
       />
+      <Route path="/admin/service-desk/tickets" element={<Navigate to="/service-desk/workbench" replace />} />
+      <Route path="/admin/service-desk/routing" element={<Navigate to="/service-desk/admin/routing" replace />} />
+      <Route path="/admin/service-desk/sla" element={<Navigate to="/service-desk/admin/sla" replace />} />
+      <Route path="/admin/service-desk/calendars" element={<Navigate to="/service-desk/admin/sla" replace />} />
       <Route path="/service-desk/admin/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminSlaPage /></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
       <Route
         path="/profile"

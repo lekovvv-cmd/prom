@@ -3142,3 +3142,6 @@ button.chip {
 .stats-bar { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr 40px; gap: 10px; align-items: center; }
 .stats-bar div { height: 8px; border-radius: 999px; background: var(--color-surface-muted, #eef1f5); overflow: hidden; }
 .stats-bar i { display: block; height: 100%; background: var(--color-primary, #2457d6); border-radius: inherit; }
+.service-desk-admin-nav { display: flex; gap: 6px; padding: 10px max(16px, calc((100vw - 1200px) / 2)); overflow-x: auto; background: #fff; border-bottom: 1px solid #e5e9ef; }
+.service-desk-admin-nav a { white-space: nowrap; padding: 8px 10px; border-radius: 8px; color: inherit; text-decoration: none; }
+.service-desk-admin-nav a.active { background: #eaf0ff; color: #1748bd; font-weight: 600; }
