@@ -8,9 +8,10 @@ import pytest
 from fastapi import HTTPException
 
 from app.core.config import settings
-from app.core.enums import ServiceDeskAttachmentOwnerType
+from app.core.enums import ServiceDeskAttachmentOwnerType, ServiceDeskTicketStatus
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.service import UPLOAD_CHUNK_SIZE, AttachmentService
+from app.modules.tickets.models import ServiceDeskTicket
 
 from test_comments import create_waiting_requester_ticket
 
@@ -188,6 +189,65 @@ def test_attachment_upload_rejects_invalid_content_and_accepts_ooxml(
         )
         assert uploaded.status_code == 201, uploaded.text
         assert uploaded.json()["content_type"] == content_type
+
+
+def test_comment_and_ticket_attachment_boundaries_for_foreign_and_closed_tickets(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    ticket_id, requester_id, assignee_id = create_waiting_requester_ticket(
+        client,
+        db_session_factory,
+        auth_headers_for_user,
+    )
+    requester_headers = auth_headers_for_user(requester_id)
+    assignee_headers = auth_headers_for_user(assignee_id)
+
+    public_comment = client.post(
+        f"/tickets/{ticket_id}/comments",
+        json={"body": "Вложение к публичному комментарию"},
+        headers=requester_headers,
+    )
+    assert public_comment.status_code == 201, public_comment.text
+    comment_id = public_comment.json()["id"]
+
+    foreign_upload = client.post(
+        f"/tickets/{ticket_id}/comments/{comment_id}/attachments",
+        files={"file": ("foreign.txt", b"foreign", "text/plain")},
+        headers=assignee_headers,
+    )
+    assert foreign_upload.status_code == 403
+
+    admin_upload = client.post(
+        f"/tickets/{ticket_id}/comments/{comment_id}/attachments",
+        files={"file": ("admin.txt", b"admin", "text/plain")},
+        headers=client.admin_headers,
+    )
+    assert admin_upload.status_code == 201, admin_upload.text
+
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(ticket_id))
+        assert ticket is not None
+        ticket.status = ServiceDeskTicketStatus.CLOSED
+        db.commit()
+
+    closed_ticket_upload = client.post(
+        f"/tickets/{ticket_id}/attachments",
+        files={"file": ("closed.txt", b"closed", "text/plain")},
+        headers=requester_headers,
+    )
+    assert closed_ticket_upload.status_code == 409
+
+    closed_comment_upload = client.post(
+        f"/tickets/{ticket_id}/comments/{comment_id}/attachments",
+        files={"file": ("closed-comment.txt", b"closed", "text/plain")},
+        headers=requester_headers,
+    )
+    assert closed_comment_upload.status_code == 409
 
 
 def test_oversized_attachment_stops_after_bounded_chunks_and_removes_partial_file(

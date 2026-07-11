@@ -129,6 +129,45 @@ def test_ticket_draft_create_update_list_and_history(
     assert details.json()["id"] == ticket_id
 
 
+def test_draft_form_uses_saved_template_version_after_service_publish_changes(
+    client: TestClient,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    requester_id = create_requester(client, db_session_factory)
+    requester_headers = auth_headers_for_user(requester_id)
+    service_id, first_version_id = create_service_with_template(client)
+
+    created = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "title": "Форма сохранённой версии",
+            "description": "Проверка версии шаблона черновика.",
+            "field_values": {"room": "305"},
+        },
+        headers=requester_headers,
+    )
+    assert created.status_code == 201, created.text
+    ticket_id = created.json()["id"]
+
+    next_version = client.post(f"/admin/services/{service_id}/versions")
+    assert next_version.status_code == 201, next_version.text
+    added_field = client.post(
+        f"/admin/template-versions/{next_version.json()['id']}/fields",
+        json={"key": "building", "label": "Корпус", "field_type": "text", "position": 0},
+    )
+    assert added_field.status_code == 201, added_field.text
+    published = client.post(f"/admin/template-versions/{next_version.json()['id']}/publish")
+    assert published.status_code == 200, published.text
+
+    form = client.get(f"/tickets/{ticket_id}/form", headers=requester_headers)
+    assert form.status_code == 200, form.text
+    payload = form.json()
+    assert payload["template_version"]["id"] == first_version_id
+    assert [field["key"] for field in payload["fields"]] == ["room"]
+
+
 def test_ticket_draft_requires_auth_and_rejects_requester_spoofing(
     client: TestClient,
     db_session_factory,

@@ -13,4 +13,9 @@ describe("service desk form rules", () => {
     expect(options).toEqual([{ value: "new", label: "Новое" }]);
     expect(getFieldOptions({ options: [{ value: "fallback" }] })).toEqual([{ value: "fallback" }]);
   });
+
+  it("supports empty and non-empty dynamic conditions", () => {
+    expect(matchesRules({ field: "details", operator: "is_empty" }, { details: "" }, false)).toBe(true);
+    expect(matchesRules({ field: "details", operator: "is_not_empty" }, { details: "Описание" }, false)).toBe(true);
+  });
 });
