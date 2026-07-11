@@ -44,6 +44,6 @@ class AssigneePolicy:
         if "service_desk.be_assignee" not in capabilities:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "У пользователя нет capability service_desk.be_assignee",
+                "Пользователь не может быть назначен исполнителем Service Desk",
             )
         return user

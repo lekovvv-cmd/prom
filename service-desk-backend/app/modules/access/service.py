@@ -180,7 +180,7 @@ class ServiceDeskAccessService:
         except IntegrityError as exc:
             self.db.rollback()
             raise HTTPException(
-                status.HTTP_409_CONFLICT, "identity_user_id уже существует"
+                status.HTTP_409_CONFLICT, "Пользователь с таким идентификатором уже существует"
             ) from exc
         return self.user_read(self._get(user.id))
 

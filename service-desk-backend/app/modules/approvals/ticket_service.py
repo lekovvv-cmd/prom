@@ -54,7 +54,7 @@ class TicketApprovalService:
         occurred_at: datetime | None = None,
     ) -> None:
         if self.repository.list_ticket_stages(ticket.id):
-            raise HTTPException(status.HTTP_409_CONFLICT, "Workflow заявки уже создан")
+            raise HTTPException(status.HTTP_409_CONFLICT, "Процесс согласования заявки уже создан")
 
         now = occurred_at or datetime.now(UTC)
         if template_version.approval_mode == ApprovalMode.NONE:
@@ -71,7 +71,7 @@ class TicketApprovalService:
         self.workflow_service.validate_for_publish(template_version)
         workflow = self.repository.get_workflow_by_version(template_version.id)
         if workflow is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Workflow согласования не найден")
+            raise HTTPException(status.HTTP_409_CONFLICT, "Процесс согласования не найден")
 
         for index, source_stage in enumerate(sorted(workflow.stages, key=lambda stage: stage.position)):
             ticket_stage = self.repository.add_ticket_stage(
