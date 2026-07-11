@@ -338,7 +338,17 @@ export function ServiceDeskAdminSlaPage() {
 
   const removeEscalation = async (rule: EscalationRule) => {
     if (!window.confirm(`Удалить эскалацию ${rule.metric} ${rule.threshold_percent}%?`)) return;
-    await persist("escalation", () => deleteEscalation(rule.id), resetEscalation);
+    try {
+      setSavingEditor("escalation");
+      setError(null);
+      await deleteEscalation(rule.id);
+      setEscalations((current) => current.filter((item) => item.id !== rule.id));
+      resetEscalation();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setSavingEditor(null);
+    }
   };
 
   return (
