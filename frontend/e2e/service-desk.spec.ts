@@ -15,6 +15,13 @@ async function loginAsManager(page: Page) {
   return token as string;
 }
 
+async function loginAsEmployee(page: Page) {
+  await page.goto("/login");
+  await page.getByRole("button", { name: /Сотрудник/ }).click();
+  await page.getByRole("button", { name: /^Войти$/ }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+}
+
 async function serviceDeskRequest<T>(
   request: APIRequestContext,
   token: string,
@@ -153,7 +160,11 @@ test("Service Desk SLA admin creates a business calendar", async ({ page, reques
 
 test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ page, request }) => {
   const token = await loginAsManager(page);
-  const currentUser = await serviceDeskRequest<{ id: string; display_name: string }>(request, token, "get", "/me");
+  const assignees = await serviceDeskRequest<Array<{ id: string; display_name: string }>>(
+    request, token, "get", "/workbench/users?eligible_assignees=true"
+  );
+  const employee = assignees.find((item) => item.display_name === "Сотрудник ШПИУ");
+  expect(employee).toBeTruthy();
   const suffix = Date.now();
   const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: `E2E Workbench ${suffix}` });
   const service = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: `E2E Workbench service ${suffix}` });
@@ -172,18 +183,21 @@ test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ pa
   await expect(row).toBeVisible();
   await row.getByLabel(`Действия ${ticket.number}`).selectOption("assign");
   let dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Исполнитель").selectOption(currentUser.id);
+  await dialog.getByLabel("Исполнитель").selectOption(employee?.id);
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
-  await expect(row.getByText(currentUser.display_name)).toBeVisible();
+  await expect(row.getByText(employee?.display_name ?? "Сотрудник ШПИУ")).toBeVisible();
 
-  await row.getByLabel(`Действия ${ticket.number}`).selectOption("start");
+  await loginAsEmployee(page);
+  await page.goto("/service-desk/workbench");
+  const employeeRow = page.getByRole("row").filter({ hasText: `E2E Workbench ticket ${suffix}` });
+  await employeeRow.getByLabel(`Действия ${ticket.number}`).selectOption("start");
   dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
-  await expect(row.getByText("В работе")).toBeVisible();
+  await expect(employeeRow.getByText("В работе")).toBeVisible();
 
-  await row.getByLabel(`Действия ${ticket.number}`).selectOption("resolve");
+  await employeeRow.getByLabel(`Действия ${ticket.number}`).selectOption("resolve");
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Результат решения").fill("E2E Workbench выполнено");
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
-  await expect(row.getByText("Выполнена")).toBeVisible();
+  await expect(employeeRow.getByText("Выполнена")).toBeVisible();
 });
