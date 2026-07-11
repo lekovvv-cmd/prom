@@ -40,7 +40,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/projects" replace />;
   }
 
-  return <><ServiceDeskContextualCounters />{children}</>;
+  return children;
 }
 
 function ManagerRoute({ children }: { children: React.ReactNode }) {
@@ -104,7 +104,7 @@ function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return children;
+  return <><ServiceDeskContextualCounters />{children}</>;
 }
 
 function ServiceDeskRoutingAdminRoute({ children }: { children: React.ReactNode }) {
