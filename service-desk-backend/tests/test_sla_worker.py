@@ -157,3 +157,49 @@ def test_resolution_escalations_use_pause_adjusted_effective_progress_once(
                 ServiceDeskSlaEscalationEvent.rule_id == deadline_rule.id
             )
         ) is not None
+
+
+def test_sla_worker_does_not_hide_first_response_behind_resolution_pause(
+    db_session_factory,
+):
+    selected_at = datetime(2026, 7, 13, 5, tzinfo=UTC)
+    snapshot = _snapshot(selected_at)
+    policy_id = uuid.UUID(snapshot["policy_id"])
+    with db_session_factory() as db:
+        requester = ServiceDeskUser(
+            identity_user_id=str(uuid.uuid4()),
+            email="first-response-pause@utmn.ru",
+            display_name="First response pause requester",
+            access_type=ServiceDeskAccessType.MANAGER,
+            is_active=True,
+        )
+        db.add(requester)
+        db.flush()
+        ticket = ServiceDeskTicket(
+            service_id=uuid.uuid4(),
+            template_version_id=uuid.uuid4(),
+            requester_user_id=requester.id,
+            title="First response ignores resolution pause",
+            status=ServiceDeskTicketStatus.WAITING_REQUESTER,
+            field_values={},
+            sla_snapshot=snapshot,
+            sla_policy_id=policy_id,
+            first_response_due_at=datetime(2026, 7, 13, 6, tzinfo=UTC),
+            resolution_due_at=datetime(2026, 7, 14, 6, tzinfo=UTC),
+        )
+        db.add(ticket)
+        db.flush()
+        db.add(ServiceDeskTicketSlaPause(
+            ticket_id=ticket.id,
+            reason_status="waiting_requester",
+            started_at=datetime(2026, 7, 13, 5, 30, tzinfo=UTC),
+        ))
+        db.commit()
+
+        result = SlaWorker(db).run_once(now=datetime(2026, 7, 13, 7, tzinfo=UTC))
+        assert result["processed"] == 1
+        assert result["response_breaches"] == 1
+        assert result["resolution_breaches"] == 0
+        db.refresh(ticket)
+        assert ticket.is_response_breached is True
+        assert ticket.is_resolution_breached is False

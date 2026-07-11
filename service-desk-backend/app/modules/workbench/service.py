@@ -10,7 +10,12 @@ from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 from app.modules.access.service import ServiceDeskAccessService
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.catalog.models import ServiceDeskService
-from app.modules.sla.models import ServiceDeskSlaEscalationEvent, ServiceDeskTicketSlaPause
+from app.modules.sla.models import (
+    ServiceDeskEscalationRule,
+    ServiceDeskSlaEscalationEvent,
+    ServiceDeskTicketSlaPause,
+)
+from app.modules.sla.projection import TERMINAL_SLA_STATUSES, active_sla_due_at, active_sla_metric, utc
 from app.modules.tickets.models import ServiceDeskTicket
 from app.modules.tickets.policy import TicketPolicyService
 from app.modules.workbench.schemas import (
@@ -75,29 +80,71 @@ def active_pause_predicate():
     )
 
 
+def active_first_response_predicate():
+    return and_(
+        ServiceDeskTicket.sla_snapshot.is_not(None),
+        ServiceDeskTicket.status.not_in(TERMINAL_SLA_STATUSES),
+        ServiceDeskTicket.first_response_at.is_(None),
+    )
+
+
+def active_resolution_predicate():
+    return and_(
+        ServiceDeskTicket.sla_snapshot.is_not(None),
+        ServiceDeskTicket.status.not_in(TERMINAL_SLA_STATUSES),
+        ServiceDeskTicket.first_response_at.is_not(None),
+        ServiceDeskTicket.resolved_at.is_(None),
+    )
+
+
 def objective_breach_predicate(now: datetime):
     response_due = and_(
-        ServiceDeskTicket.first_response_at.is_(None),
+        active_first_response_predicate(),
         ServiceDeskTicket.first_response_due_at.is_not(None),
         ServiceDeskTicket.first_response_due_at < now,
     )
     resolution_due = and_(
-        ServiceDeskTicket.resolved_at.is_(None),
+        active_resolution_predicate(),
+        ~active_pause_predicate(),
         ServiceDeskTicket.resolution_due_at.is_not(None),
         ServiceDeskTicket.resolution_due_at < now,
     )
-    return and_(~active_pause_predicate(), or_(response_due, resolution_due))
+    return or_(response_due, resolution_due)
+
+
+def metric_warning_predicate(metric: str):
+    return exists().where(
+        ServiceDeskSlaEscalationEvent.ticket_id == ServiceDeskTicket.id,
+        ServiceDeskSlaEscalationEvent.rule_id == ServiceDeskEscalationRule.id,
+        ServiceDeskSlaEscalationEvent.metric == metric,
+        ServiceDeskEscalationRule.threshold_percent < 100,
+    )
+
+
+def current_warning_predicate():
+    return or_(
+        and_(active_first_response_predicate(), metric_warning_predicate("first_response")),
+        and_(
+            active_resolution_predicate(),
+            ~active_pause_predicate(),
+            metric_warning_predicate("resolution"),
+        ),
+    )
+
+
+def current_pause_predicate():
+    return and_(active_resolution_predicate(), active_pause_predicate())
 
 
 def sla_state_predicate(state: WorkbenchSlaState, now: datetime):
     has_sla = ServiceDeskTicket.sla_snapshot.is_not(None)
-    paused = active_pause_predicate()
+    paused = current_pause_predicate()
     breached = or_(
-        ServiceDeskTicket.is_response_breached.is_(True),
-        ServiceDeskTicket.is_resolution_breached.is_(True),
+        and_(active_first_response_predicate(), ServiceDeskTicket.is_response_breached.is_(True)),
+        and_(active_resolution_predicate(), ServiceDeskTicket.is_resolution_breached.is_(True)),
         objective_breach_predicate(now),
     )
-    warned = exists().where(ServiceDeskSlaEscalationEvent.ticket_id == ServiceDeskTicket.id)
+    warned = current_warning_predicate()
     if state == WorkbenchSlaState.NO_SLA:
         return ~has_sla
     if state == WorkbenchSlaState.PAUSED:
@@ -195,11 +242,22 @@ class WorkbenchService:
             ServiceDeskTicketSlaPause.ticket_id.in_(ids),
             ServiceDeskTicketSlaPause.ended_at.is_(None),
         ))) if ids else set()
-        warned_ids = set(self.db.scalars(select(ServiceDeskSlaEscalationEvent.ticket_id).where(
-            ServiceDeskSlaEscalationEvent.ticket_id.in_(ids),
-        ))) if ids else set()
+        warning_rows = self.db.execute(
+            select(ServiceDeskSlaEscalationEvent.ticket_id, ServiceDeskSlaEscalationEvent.metric)
+            .join(ServiceDeskEscalationRule, ServiceDeskSlaEscalationEvent.rule_id == ServiceDeskEscalationRule.id)
+            .where(
+                ServiceDeskSlaEscalationEvent.ticket_id.in_(ids),
+                ServiceDeskEscalationRule.threshold_percent < 100,
+            )
+        ).all() if ids else []
+        warned_metrics_by_ticket: dict[uuid.UUID, set[str]] = {}
+        for ticket_id, metric in warning_rows:
+            warned_metrics_by_ticket.setdefault(ticket_id, set()).add(metric)
         return WorkbenchTicketPage(
-            items=[self._row(ticket, actor, now, paused_ids, warned_ids) for ticket in tickets],
+            items=[
+                self._row(ticket, actor, now, paused_ids, warned_metrics_by_ticket)
+                for ticket in tickets
+            ],
             page=page,
             page_size=page_size,
             total=total,
@@ -285,7 +343,7 @@ class WorkbenchService:
         actor: ServiceDeskUser,
         now: datetime,
         paused_ids: set[uuid.UUID],
-        warned_ids: set[uuid.UUID],
+        warned_metrics_by_ticket: dict[uuid.UUID, set[str]],
     ) -> WorkbenchTicketRow:
         return WorkbenchTicketRow(
             ticket_id=ticket.id,
@@ -298,7 +356,10 @@ class WorkbenchService:
             priority=ticket.priority,
             status=ticket.status,
             sla=self._sla_summary(
-                ticket, now, ticket.id in paused_ids, ticket.id in warned_ids
+                ticket,
+                now,
+                ticket.id in paused_ids,
+                warned_metrics_by_ticket.get(ticket.id, set()),
             ),
             created_at=ticket.created_at,
             updated_at=ticket.updated_at,
@@ -321,24 +382,29 @@ class WorkbenchService:
         ticket: ServiceDeskTicket,
         now: datetime,
         is_paused: bool,
-        is_warned: bool,
+        warned_metrics: set[str],
     ) -> WorkbenchSlaSummary:
         if not ticket.sla_snapshot:
             return WorkbenchSlaSummary(state=WorkbenchSlaState.NO_SLA)
-        metric = "first_response" if ticket.first_response_at is None else "resolution"
-        due_at = ticket.first_response_due_at if metric == "first_response" else ticket.resolution_due_at
-        if is_paused:
+        metric = active_sla_metric(ticket)
+        due_at = active_sla_due_at(ticket)
+        metric_breached = (
+            (metric == "first_response" and ticket.is_response_breached)
+            or (metric == "resolution" and ticket.is_resolution_breached)
+            or (metric is None and (ticket.is_response_breached or ticket.is_resolution_breached))
+        )
+        if metric_breached:
+            state = WorkbenchSlaState.BREACHED
+        elif metric == "resolution" and is_paused:
             state = WorkbenchSlaState.PAUSED
-        elif ticket.is_response_breached or ticket.is_resolution_breached or (
-            ticket.resolved_at is None
+        elif (
+            metric is not None
             and due_at is not None
-            and due_at.replace(tzinfo=due_at.tzinfo or UTC) < now
+            and utc(due_at) < now
         ):
             state = WorkbenchSlaState.BREACHED
-        elif is_warned:
+        elif metric is not None and metric in warned_metrics:
             state = WorkbenchSlaState.WARNING
         else:
             state = WorkbenchSlaState.ON_TRACK
-        if ticket.resolved_at is not None:
-            metric, due_at = None, None
         return WorkbenchSlaSummary(state=state, metric=metric, due_at=due_at)

@@ -5,9 +5,24 @@ import { getWorkbenchCategories, getWorkbenchCounters, getWorkbenchServices, get
 import type { CatalogOption, WorkbenchCounters, WorkbenchQuickView, WorkbenchTicket, WorkbenchUserOption } from "../../../entities/service-desk-workbench/model/types";
 import type { ServiceDeskAllowedAction } from "../../../entities/service-desk-ticket/model/types";
 import { Button } from "../../../shared/ui/Button"; import { Card } from "../../../shared/ui/Card"; import { EmptyState } from "../../../shared/ui/EmptyState"; import { Input } from "../../../shared/ui/Input"; import { Modal } from "../../../shared/ui/Modal"; import { PageLayout } from "../../../shared/ui/PageLayout"; import { Select } from "../../../shared/ui/Select"; import { Spinner } from "../../../shared/ui/Spinner";
+import { subscribeToServiceDeskRefresh } from "../../../shared/lib/serviceDeskRefresh";
+
+export const workbenchStatusOptions = [
+  ["", "Все статусы"],
+  ["submitted", "Зарегистрирована"],
+  ["pending_approval", "На согласовании"],
+  ["approved", "Согласована"],
+  ["rejected", "Отклонена"],
+  ["assigned", "Назначена"],
+  ["in_progress", "В работе"],
+  ["waiting_requester", "Ожидает заявителя"],
+  ["waiting_external", "Внешнее ожидание"],
+  ["resolved", "Выполнена"],
+  ["closed", "Закрыта"],
+  ["cancelled", "Отменена"],
+];
 
 const quickLabels: Record<WorkbenchQuickView, string> = { waiting_approval: "На согласование", assigned_to_me: "Назначены мне", in_progress: "В работе", waiting_requester: "Ожидают заявителя", waiting_external: "Ожидают внешнего действия", resolved: "Выполнены", sla_breached: "Нарушение SLA" };
-const statusOptions = [["", "Все статусы"], ["pending_approval", "На согласовании"], ["approved", "Согласована"], ["assigned", "Назначена"], ["in_progress", "В работе"], ["waiting_requester", "Ожидает заявителя"], ["waiting_external", "Внешнее ожидание"], ["resolved", "Выполнена"], ["closed", "Закрыта"]];
 const payloadFields: Partial<Record<ServiceDeskAllowedAction, [string, string]>> = { reject: ["comment", "Причина отклонения"], request_clarification: ["comment", "Комментарий заявителю"], wait_external: ["reason", "Причина ожидания"], resolve: ["resolution_summary", "Результат решения"], cancel: ["reason", "Причина отмены"] };
 
 export function ServiceDeskWorkbenchPage() {
@@ -18,6 +33,7 @@ export function ServiceDeskWorkbenchPage() {
   const params = useMemo(() => { const value = new URLSearchParams(); Object.entries(filters).forEach(([key, item]) => item && value.set(key, item)); if (search.trim()) value.set("q", search.trim()); return value; }, [filters, search]);
   const load = useCallback(async () => { setLoading(true); setError(null); try { const [page, counts] = await Promise.all([getWorkbenchTickets(params), getWorkbenchCounters()]); setData(page); setCounters(counts); } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось загрузить Workbench"); } finally { setLoading(false); } }, [params]);
   useEffect(() => { const timer = window.setTimeout(() => void load(), 300); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => subscribeToServiceDeskRefresh(() => void load()), [load]);
   useEffect(() => { void Promise.all([getWorkbenchUsers(), getWorkbenchUsers(true), getWorkbenchCategories(), getWorkbenchServices()]).then(([allUsers, eligible, allCategories, allServices]) => { setUsers(allUsers); setAssignees(eligible); setCategories(allCategories); setServices(allServices); }); }, []);
   function update(key: string, value: string) { setFilters((current) => ({ ...current, [key]: value, page: "1" })); }
   async function submitAction() { if (!action) return; const field = payloadFields[action.action]; if (field && !payload.trim()) { setError(`Заполните поле «${field[1]}»`); return; } setPending(true); try { const body: Record<string, string> = {}; if (field) body[field[0]] = payload.trim(); if (action.action === "assign" || action.action === "reassign") body.assignee_user_id = payload; await performWorkbenchAction(action.ticket.ticket_id, action.action, body, action.ticket.active_approval_id); setAction(null); setPayload(""); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Действие не выполнено"); await load(); } finally { setPending(false); } }
@@ -25,7 +41,7 @@ export function ServiceDeskWorkbenchPage() {
   return <><Header /><PageLayout title="Рабочее место Service Desk" subtitle="Операционная очередь заявок, согласований и SLA">
     <div className="workbench-quick-views">{counters && (Object.keys(quickLabels) as WorkbenchQuickView[]).filter((key) => counters[key] !== null).map((key) => <Button key={key} variant={filters.quick_view === key ? "primary" : "secondary"} onClick={() => update("quick_view", key)}>{quickLabels[key]} · {counters[key]}</Button>)}</div>
     <Card><div className="filters workbench-filters"><Input label="Поиск" value={search} onChange={(e) => { setSearch(e.target.value); setFilters((current) => ({ ...current, page: "1" })); }} placeholder="Номер, название или услуга" />
-      <Select label="Статус" value={filters.status ?? ""} onChange={(e) => update("status", e.target.value)}>{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
+      <Select label="Статус" value={filters.status ?? ""} onChange={(e) => update("status", e.target.value)}>{workbenchStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>
       <Select label="Исполнитель" value={filters.assignee_user_id ?? ""} onChange={(e) => update("assignee_user_id", e.target.value)}><option value="">Все</option>{assignees.map((u) => <option key={u.id} value={u.id}>{u.display_name}</option>)}</Select>
       <Select label="Заявитель" value={filters.requester_user_id ?? ""} onChange={(e) => update("requester_user_id", e.target.value)}><option value="">Все</option>{users.map((u) => <option key={u.id} value={u.id}>{u.display_name}</option>)}</Select>
       <Select label="Приоритет" value={filters.priority ?? ""} onChange={(e) => update("priority", e.target.value)}><option value="">Все</option><option value="low">Низкий</option><option value="medium">Средний</option><option value="high">Высокий</option><option value="critical">Критический</option></Select>
