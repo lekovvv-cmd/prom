@@ -403,29 +403,38 @@ def seed_templates(
         published = next((item for item in versions if item.status == TemplateVersionStatus.PUBLISHED), None)
         if published:
             continue
-        version = versions[0] if versions else None
         now = utc_now()
         fields = TEMPLATE_FIELDS.get(service_title, [])
-        if version is None:
-            version = ServiceDeskTemplateVersion(
-                service_id=service.id,
-                version=1,
-                status=TemplateVersionStatus.PUBLISHED,
-                system_settings={
-                    **DEFAULT_SYSTEM_SETTINGS,
-                    "default_title": service.title,
-                    "help_text": "Заполните поля формы и приложите файлы при необходимости.",
-                },
-                published_at=now,
-            )
-            db.add(version)
-            db.flush()
-            for payload in fields:
-                db.add(ServiceDeskTemplateField(template_version_id=version.id, **payload))
-        else:
+        seed_version = next(
+            (
+                item
+                for item in versions
+                if item.system_settings.get("_seed_generated") is True
+            ),
+            None,
+        )
+        if seed_version and seed_version.status == TemplateVersionStatus.ARCHIVED:
+            version = seed_version
             version.status = TemplateVersionStatus.PUBLISHED
-            version.published_at = version.published_at or now
+            version.published_at = now
             version.archived_at = None
+            continue
+        version = ServiceDeskTemplateVersion(
+            service_id=service.id,
+            version=max((item.version for item in versions), default=0) + 1,
+            status=TemplateVersionStatus.PUBLISHED,
+            system_settings={
+                **DEFAULT_SYSTEM_SETTINGS,
+                "default_title": service.title,
+                "help_text": "Заполните поля формы и приложите файлы при необходимости.",
+                "_seed_generated": True,
+            },
+            published_at=now,
+        )
+        db.add(version)
+        db.flush()
+        for payload in fields:
+            db.add(ServiceDeskTemplateField(template_version_id=version.id, **payload))
 
 
 if __name__ == "__main__":
