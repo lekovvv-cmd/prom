@@ -150,3 +150,36 @@ test("Service Desk SLA admin creates a business calendar", async ({ page, reques
   );
   expect(calendars.some((item) => item.name === `E2E SLA ${suffix}`)).toBeTruthy();
 });
+
+test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ page, request }) => {
+  const token = await loginAsManager(page);
+  const currentUser = await serviceDeskRequest<{ id: string; display_name: string }>(request, token, "get", "/me");
+  const suffix = Date.now();
+  const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: `E2E Workbench ${suffix}` });
+  const service = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: `E2E Workbench service ${suffix}` });
+  const version = await serviceDeskRequest<{ id: string }>(request, token, "post", `/admin/services/${service.id}/versions`);
+  await serviceDeskRequest(request, token, "post", `/admin/template-versions/${version.id}/publish`);
+  const draft = await serviceDeskRequest<{ id: string }>(request, token, "post", "/tickets/drafts", { service_id: service.id, title: `E2E Workbench ticket ${suffix}` });
+  const ticket = await serviceDeskRequest<{ id: string; number: string }>(request, token, "post", `/tickets/${draft.id}/submit`);
+
+  await page.goto("/service-desk/workbench");
+  await expect(page.getByRole("heading", { name: "Рабочее место Service Desk" })).toBeVisible();
+  const row = page.getByRole("row").filter({ hasText: `E2E Workbench ticket ${suffix}` });
+  await expect(row).toBeVisible();
+  await row.getByLabel(`Действия ${ticket.number}`).selectOption("assign");
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Исполнитель").selectOption(currentUser.id);
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(row.getByText(currentUser.display_name)).toBeVisible();
+
+  await row.getByLabel(`Действия ${ticket.number}`).selectOption("start");
+  dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(row.getByText("В работе")).toBeVisible();
+
+  await row.getByLabel(`Действия ${ticket.number}`).selectOption("resolve");
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Результат решения").fill("E2E Workbench выполнено");
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(row.getByText("Выполнена")).toBeVisible();
+});
