@@ -390,3 +390,67 @@ def test_sla_policy_binding_is_snapshotted_on_submit(
             ServiceDeskTicketHistory.event_type == "sla_breached",
         )).all()
         assert {event.payload["metric"] for event in events} == {"first_response", "resolution"}
+
+
+def test_specific_user_escalation_requires_active_service_desk_recipient(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    admin_id = create_sla_user(client, db_session_factory, can_manage_sla=True)
+    recipient_id = create_sla_user(client, db_session_factory, can_manage_sla=False)
+    headers = auth_headers_for_user(admin_id)
+    calendar = client.post(
+        "/admin/sla/calendars",
+        json={
+            "name": "Escalation recipient calendar",
+            "timezone": "Asia/Yekaterinburg",
+            "business_hours": [
+                {"weekday": 0, "start_time": "09:00:00", "end_time": "18:00:00"}
+            ],
+        },
+        headers=headers,
+    )
+    policy = client.post(
+        "/admin/sla/policies",
+        json={
+            "name": "Escalation recipient policy",
+            "business_calendar_id": calendar.json()["id"],
+            "first_response_minutes": 30,
+            "resolution_minutes": 240,
+        },
+        headers=headers,
+    )
+
+    recipients = client.get("/admin/sla/recipients", headers=headers)
+    assert recipients.status_code == 200, recipients.text
+    assert recipient_id in {item["id"] for item in recipients.json()}
+
+    created = client.post(
+        f"/admin/sla/policies/{policy.json()['id']}/escalations",
+        json={
+            "metric": "resolution",
+            "threshold_percent": 73,
+            "action_type": "create_in_app_notification",
+            "recipient_type": "specific_user",
+            "recipient_user_id": recipient_id,
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+
+    invalid_update = client.patch(
+        f"/admin/sla/escalations/{created.json()['id']}",
+        json={"recipient_type": "specific_user", "recipient_user_id": str(uuid.uuid4())},
+        headers=headers,
+    )
+    assert invalid_update.status_code == 422
+
+    cleared = client.patch(
+        f"/admin/sla/escalations/{created.json()['id']}",
+        json={"recipient_type": "requester", "recipient_user_id": None},
+        headers=headers,
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["recipient_type"] == "requester"
+    assert cleared.json()["recipient_user_id"] is None

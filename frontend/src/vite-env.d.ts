@@ -26,6 +26,7 @@ declare module "lucide-react" {
   export const MessageSquare: Icon;
   export const Minus: Icon;
   export const Paperclip: Icon;
+  export const Pencil: Icon;
   export const Plus: Icon;
   export const RefreshCw: Icon;
   export const Save: Icon;

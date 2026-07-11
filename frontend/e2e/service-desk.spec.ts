@@ -144,18 +144,116 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
   await expect(page.getByRole("button", { name: "Отклонить" })).toHaveCount(0);
 });
 
-test("Service Desk SLA admin creates a business calendar", async ({ page, request }) => {
+test("Service Desk SLA admin persists complete calendar, policy, binding and escalation edits", async ({ page, request }) => {
   const token = await loginAsManager(page);
   const suffix = Date.now();
   await page.goto("/service-desk/admin/sla");
   await expect(page.getByRole("heading", { name: "SLA Service Desk" })).toBeVisible();
-  await page.getByLabel("Название").first().fill(`E2E SLA ${suffix}`);
-  await page.getByRole("button", { name: /Создать календарь/ }).click();
-  await expect(page.getByRole("strong").filter({ hasText: `E2E SLA ${suffix}` })).toBeVisible();
-  const calendars = await serviceDeskRequest<Array<{ name: string }>>(
+  const calendarName = `E2E SLA calendar ${suffix}`;
+  const policyName = `E2E SLA policy ${suffix}`;
+  const bindingName = `E2E SLA binding ${suffix}`;
+  const calendarSection = page.locator('section[aria-labelledby="sla-calendars-title"]');
+  const calendarForm = calendarSection.locator("form");
+  await calendarForm.getByLabel("Название").fill(calendarName);
+  await calendarForm.getByLabel("День недели 1").selectOption("5");
+  await calendarForm.getByLabel("Начало интервала 1").fill("10:00");
+  await calendarForm.getByLabel("Конец интервала 1").fill("13:00");
+  await calendarForm.getByRole("button", { name: "Интервал" }).click();
+  await calendarForm.getByLabel("День недели 2").selectOption("5");
+  await calendarForm.getByLabel("Начало интервала 2").fill("14:00");
+  await calendarForm.getByLabel("Конец интервала 2").fill("16:00");
+  await calendarForm.getByRole("button", { name: "Исключение" }).click();
+  await calendarForm.getByLabel("Дата исключения 1").fill("2027-01-01");
+  await calendarForm.getByLabel("Описание исключения 1").fill("E2E holiday");
+  await calendarForm.getByRole("button", { name: "Исключение" }).click();
+  await calendarForm.getByLabel("Дата исключения 2").fill("2027-01-02");
+  await calendarForm.getByLabel("Тип исключения 2").selectOption("custom_hours");
+  await calendarForm.getByLabel("Начало исключения 2").fill("10:00");
+  await calendarForm.getByLabel("Конец исключения 2").fill("12:00");
+  await calendarForm.getByRole("button", { name: "Исключение" }).click();
+  await calendarForm.getByLabel("Дата исключения 3").fill("2027-01-02");
+  await calendarForm.getByLabel("Тип исключения 3").selectOption("custom_hours");
+  await calendarForm.getByLabel("Начало исключения 3").fill("13:00");
+  await calendarForm.getByLabel("Конец исключения 3").fill("15:00");
+  await calendarForm.getByRole("button", { name: "Создать" }).click();
+
+  const calendarCard = calendarSection.locator(".service-desk-sla-summary-card").filter({ hasText: calendarName });
+  await expect(calendarCard).toContainText("2 интервалов · 3 исключений");
+  await calendarCard.getByRole("button", { name: "Изменить" }).click();
+  await calendarForm.getByLabel("Название").fill(`${calendarName} edited`);
+  await calendarForm.getByRole("button", { name: "Сохранить изменения" }).click();
+  await expect(calendarSection.getByText(`${calendarName} edited`)).toBeVisible();
+
+  const policySection = page.locator('section[aria-labelledby="sla-policies-title"]');
+  const policyForm = policySection.locator("form");
+  await policyForm.getByLabel("Название").fill(policyName);
+  await policyForm.getByLabel("Описание").fill("E2E critical policy");
+  await policyForm.getByLabel("Бизнес-календарь").selectOption({ label: `${calendarName} edited` });
+  await policyForm.getByLabel("First response, минут").fill("15");
+  await policyForm.getByLabel("Resolution, минут").fill("240");
+  await policyForm.getByLabel("Пауза: ожидание заявителя").check();
+  await policyForm.getByRole("button", { name: "Создать" }).click();
+  const policyCard = policySection.locator(".service-desk-sla-summary-card").filter({ hasText: policyName });
+  await policyCard.getByRole("button", { name: "Изменить" }).click();
+  await policyForm.getByLabel("Resolution, минут").fill("300");
+  await policyForm.getByRole("button", { name: "Сохранить изменения" }).click();
+  await expect(policyCard).toContainText("Resolution 300 мин");
+
+  const bindingSection = page.locator('section[aria-labelledby="sla-bindings-title"]');
+  const bindingForm = bindingSection.locator("form");
+  await bindingForm.getByLabel("Название").fill(bindingName);
+  await bindingForm.getByLabel("SLA policy").selectOption({ label: policyName });
+  await bindingForm.getByLabel("Тип условия 1").selectOption("priority");
+  await bindingForm.getByLabel("Значение условия 1").selectOption("high");
+  await bindingForm.getByRole("button", { name: "Условие" }).click();
+  await bindingForm.getByLabel("Тип условия 2").selectOption("field_value");
+  await bindingForm.getByLabel("Ключ поля 2").fill("impact");
+  await bindingForm.getByLabel("Значение условия 2").fill("critical");
+  await bindingForm.getByRole("button", { name: "Создать" }).click();
+  const bindingCard = bindingSection.locator(".service-desk-sla-summary-card").filter({ hasText: bindingName });
+  await expect(bindingCard).toContainText("2 условий");
+  await bindingCard.getByRole("button", { name: "Изменить" }).click();
+  await bindingForm.getByLabel("Приоритет").fill("12");
+  await bindingForm.getByRole("button", { name: "Сохранить изменения" }).click();
+  await expect(bindingCard).toContainText("Приоритет 12");
+
+  const escalationSection = page.locator('section[aria-labelledby="sla-escalations-title"]');
+  const escalationForm = escalationSection.locator("form");
+  await escalationForm.getByLabel("SLA policy").selectOption({ label: policyName });
+  await escalationForm.getByLabel("Threshold, %").fill("73");
+  await escalationForm.getByLabel("Получатель").selectOption("specific_user");
+  await escalationForm.getByLabel("Пользователь-получатель").selectOption({ label: /manager@utmn\.ru/ });
+  await escalationForm.getByRole("button", { name: "Создать" }).click();
+  const escalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "resolution · 73%" });
+  await expect(escalationCard).toContainText("specific_user");
+  await escalationCard.getByRole("button", { name: "Изменить" }).click();
+  await escalationForm.getByLabel("Threshold, %").fill("81");
+  await escalationForm.getByRole("button", { name: "Сохранить изменения" }).click();
+
+  await page.reload();
+  await expect(page.getByText(`${calendarName} edited`)).toBeVisible();
+  await expect(page.getByText("resolution · 81%")).toBeVisible();
+  const calendars = await serviceDeskRequest<Array<{ name: string; business_hours: unknown[]; exceptions: Array<{ type: string }> }>>(
     request, token, "get", "/admin/sla/calendars"
   );
-  expect(calendars.some((item) => item.name === `E2E SLA ${suffix}`)).toBeTruthy();
+  const calendar = calendars.find((item) => item.name === `${calendarName} edited`);
+  expect(calendar?.business_hours).toHaveLength(2);
+  expect(calendar?.exceptions.filter((item) => item.type === "custom_hours")).toHaveLength(2);
+  const bindings = await serviceDeskRequest<Array<{ name: string; priority: number; conditions: Array<{ field: string; field_key?: string }> }>>(
+    request, token, "get", "/admin/sla/bindings"
+  );
+  expect(bindings.find((item) => item.name === bindingName)).toMatchObject({
+    priority: 12,
+    conditions: [
+      { field: "priority" },
+      { field: "field_value", field_key: "impact" }
+    ]
+  });
+
+  const persistedEscalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "resolution · 81%" });
+  page.once("dialog", (dialog) => dialog.accept());
+  await persistedEscalationCard.getByRole("button", { name: "Удалить" }).click();
+  await expect(persistedEscalationCard).toHaveCount(0);
 });
 
 test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ page, request }) => {

@@ -202,3 +202,11 @@ class EscalationRuleRead(EscalationRuleCreate):
     id: uuid.UUID
     sla_policy_id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
+
+
+class SlaRecipientRead(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)

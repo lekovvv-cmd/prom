@@ -127,9 +127,14 @@ class SlaService:
         self._require_manage_sla(actor)
         return self.repository.list_escalations(policy_id)
 
+    def list_recipients(self, actor):
+        self._require_manage_sla(actor)
+        return self.repository.list_recipients()
+
     def create_escalation(self, policy_id, payload, actor):
         self._require_manage_sla(actor)
         self._require_policy(policy_id)
+        self._validate_escalation_recipient(payload)
         rule = ServiceDeskEscalationRule(sla_policy_id=policy_id, **payload.model_dump())
         self.db.add(rule)
         self.db.commit()
@@ -140,7 +145,20 @@ class SlaService:
         rule = self.db.get(ServiceDeskEscalationRule, rule_id)
         if not rule:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Escalation rule not found")
-        for field, value in payload.model_dump(exclude_unset=True).items():
+        data = payload.model_dump(exclude_unset=True)
+        definition = schemas.EscalationRuleCreate.model_validate(
+            {
+                "metric": rule.metric,
+                "threshold_percent": rule.threshold_percent,
+                "action_type": rule.action_type,
+                "recipient_type": rule.recipient_type,
+                "recipient_user_id": rule.recipient_user_id,
+                "is_active": rule.is_active,
+                **data,
+            }
+        )
+        self._validate_escalation_recipient(definition)
+        for field, value in data.items():
             setattr(rule, field, value)
         self.db.commit()
         return rule
@@ -152,6 +170,13 @@ class SlaService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Escalation rule not found")
         self.db.delete(rule)
         self.db.commit()
+
+    def _validate_escalation_recipient(self, payload: schemas.EscalationRuleCreate) -> None:
+        if payload.recipient_user_id is None:
+            return
+        recipient = self.db.get(ServiceDeskUser, payload.recipient_user_id)
+        if not recipient or not recipient.is_active:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Escalation recipient is unavailable")
 
     def snapshot_ticket(self, ticket, service, *, occurred_at) -> None:
         for binding in self.repository.list_bindings(active_only=True):

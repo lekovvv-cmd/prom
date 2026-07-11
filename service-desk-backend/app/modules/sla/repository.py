@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.modules.access.models import ServiceDeskUser
 from app.modules.sla.models import (
     ServiceDeskBusinessCalendar,
     ServiceDeskSlaBinding,
@@ -80,3 +81,11 @@ class SlaRepository:
         if policy_id:
             statement = statement.where(ServiceDeskEscalationRule.sla_policy_id == policy_id)
         return list(self.db.scalars(statement.order_by(ServiceDeskEscalationRule.threshold_percent)).all())
+
+    def list_recipients(self) -> list[ServiceDeskUser]:
+        statement = (
+            select(ServiceDeskUser)
+            .where(ServiceDeskUser.is_active.is_(True))
+            .order_by(ServiceDeskUser.display_name.asc(), ServiceDeskUser.email.asc())
+        )
+        return list(self.db.scalars(statement).all())

@@ -90,6 +90,11 @@ def list_escalations(actor: CurrentServiceDeskUser, policy_id: uuid.UUID | None 
     return SlaService(db).list_escalations(actor, policy_id)
 
 
+@router.get("/recipients", response_model=list[schemas.SlaRecipientRead])
+def list_sla_recipients(actor: CurrentServiceDeskUser, db: Session = Depends(get_db)):
+    return SlaService(db).list_recipients(actor)
+
+
 @router.post("/policies/{policy_id}/escalations", response_model=schemas.EscalationRuleRead, status_code=201)
 def create_escalation(policy_id: uuid.UUID, payload: schemas.EscalationRuleCreate, actor: CurrentServiceDeskUser, db: Session = Depends(get_db)):
     return SlaService(db).create_escalation(policy_id, payload, actor)
