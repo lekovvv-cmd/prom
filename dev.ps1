@@ -48,6 +48,24 @@ function Copy-EnvIfMissing {
     }
 }
 
+function Get-EnvFileValue {
+    param(
+        [string]$Path,
+        [string]$Name
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    $match = Select-String -LiteralPath $Path -Pattern "^$([regex]::Escape($Name))=(.*)$" | Select-Object -First 1
+    if (-not $match) {
+        return $null
+    }
+
+    return $match.Matches[0].Groups[1].Value
+}
+
 function Find-Npm {
     $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
     if ($npmCmd) {
@@ -489,6 +507,24 @@ try {
     Push-Location $ServiceDeskDir
     try {
         & $BackendPython -m alembic upgrade head
+
+        Write-Step "Seeding Service Desk demo data"
+        $previousIdentityDatabaseUrl = $env:SERVICE_DESK_IDENTITY_DATABASE_URL
+        $identityDatabaseUrl = Get-EnvFileValue (Join-Path $BackendDir ".env") "DATABASE_URL"
+        if ($identityDatabaseUrl) {
+            $env:SERVICE_DESK_IDENTITY_DATABASE_URL = $identityDatabaseUrl
+        }
+        try {
+            & $BackendPython scripts\seed.py
+        }
+        finally {
+            if ($null -eq $previousIdentityDatabaseUrl) {
+                Remove-Item Env:\SERVICE_DESK_IDENTITY_DATABASE_URL -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:SERVICE_DESK_IDENTITY_DATABASE_URL = $previousIdentityDatabaseUrl
+            }
+        }
     }
     finally {
         Pop-Location

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import sys
 import uuid
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import create_engine, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -278,17 +279,42 @@ def main(session_factory: Callable[[], Session] | sessionmaker[Session] = Sessio
         db.commit()
 
 
+def resolve_demo_identity_user_ids() -> dict[str, str]:
+    values = {payload["email"]: payload["identity_user_id"] for payload in DEMO_SERVICE_DESK_USERS}
+    identity_database_url = os.getenv("SERVICE_DESK_IDENTITY_DATABASE_URL")
+    if not identity_database_url:
+        return values
+
+    try:
+        engine = create_engine(identity_database_url)
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("select id::text as id, email from users where email = any(:emails)"),
+                {"emails": list(values)},
+            ).mappings()
+            for row in rows:
+                values[row["email"]] = row["id"]
+    except Exception as exc:  # pragma: no cover - local dev helper fallback
+        print(f"[seed] Could not sync Service Desk identity users: {exc}", file=sys.stderr)
+    return values
+
+
 def seed_service_desk_users(db: Session) -> None:
+    identity_user_ids = resolve_demo_identity_user_ids()
     for payload in DEMO_SERVICE_DESK_USERS:
+        identity_user_id = identity_user_ids[payload["email"]]
         user = db.scalar(
             select(ServiceDeskUser).where(
-                ServiceDeskUser.identity_user_id == payload["identity_user_id"]
+                or_(
+                    ServiceDeskUser.identity_user_id == identity_user_id,
+                    ServiceDeskUser.email == payload["email"],
+                )
             )
         )
         if not user:
             user = ServiceDeskUser(
                 id=uuid.uuid5(uuid.NAMESPACE_URL, f"prom:{payload['identity_user_id']}"),
-                identity_user_id=payload["identity_user_id"],
+                identity_user_id=identity_user_id,
                 email=payload["email"],
                 display_name=payload["display_name"],
                 department=payload["department"],
@@ -298,6 +324,7 @@ def seed_service_desk_users(db: Session) -> None:
             db.add(user)
             db.flush()
         else:
+            user.identity_user_id = identity_user_id
             user.email = payload["email"]
             user.display_name = payload["display_name"]
             user.department = payload["department"]

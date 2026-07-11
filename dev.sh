@@ -112,6 +112,13 @@ copy_env_if_missing() {
   fi
 }
 
+env_file_value() {
+  local file="$1"
+  local name="$2"
+  [[ -f "$file" ]] || return 0
+  awk -F= -v key="$name" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$file"
+}
+
 python_is_314() {
   "$1" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)' >/dev/null 2>&1
 }
@@ -339,6 +346,9 @@ log "Applying migrations"
 
 log "Applying Service Desk migrations"
 (cd "$SERVICE_DESK_DIR" && "$BACKEND_PYTHON" -m alembic upgrade head)
+log "Seeding Service Desk demo data"
+IDENTITY_DATABASE_URL="$(env_file_value "$BACKEND_DIR/.env" "DATABASE_URL")"
+(cd "$SERVICE_DESK_DIR" && SERVICE_DESK_IDENTITY_DATABASE_URL="$IDENTITY_DATABASE_URL" "$BACKEND_PYTHON" scripts/seed.py)
 
 assert_port_free "$BACKEND_PORT" "Backend"
 assert_port_free "$SERVICE_DESK_PORT" "Service Desk backend"
