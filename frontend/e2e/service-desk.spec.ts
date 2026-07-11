@@ -222,7 +222,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await escalationForm.getByLabel("SLA policy").selectOption({ label: policyName });
   await escalationForm.getByLabel("Threshold, %").fill("73");
   await escalationForm.getByLabel("Получатель").selectOption("specific_user");
-  await escalationForm.getByLabel("Пользователь-получатель").selectOption({ label: /manager@utmn\.ru/ });
+  await escalationForm.getByLabel("Пользователь-получатель").selectOption({ label: "Manager — manager@utmn.ru" });
   await escalationForm.getByRole("button", { name: "Создать" }).click();
   const escalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "resolution · 73%" });
   await expect(escalationCard).toContainText("specific_user");
