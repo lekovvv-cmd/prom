@@ -68,8 +68,8 @@ class TemplateFieldRead(BaseModel):
     options: list[dict[str, Any]] | None
     dictionary_code: str | None
     validation: dict[str, Any] | None
-    visibility_rules: dict[str, Any] | None
-    required_rules: dict[str, Any] | None
+    visibility_rules: dict[str, Any] | list[dict[str, Any]] | None
+    required_rules: dict[str, Any] | list[dict[str, Any]] | None
     created_at: datetime
     updated_at: datetime
 
