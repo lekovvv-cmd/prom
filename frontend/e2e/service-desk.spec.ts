@@ -334,6 +334,7 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
   await page.getByLabel("Описание").fill("Заявка создана через пользовательский каталог Service Desk.");
   await page.getByRole("button", { name: "Отправить заявку" }).click();
   await expect(page).toHaveURL(/\/service-desk\/tickets\//);
+  await expect(page.getByRole("heading", { name: `E2E полный путь ${suffix}` })).toBeVisible();
   const ticketNumber = await page.getByRole("heading", { level: 1 }).textContent();
   expect(ticketNumber).toMatch(/^SD-/);
   await expect(page.getByText("На согласовании")).toBeVisible();
