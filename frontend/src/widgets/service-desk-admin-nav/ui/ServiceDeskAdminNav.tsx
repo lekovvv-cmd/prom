@@ -24,7 +24,15 @@ export function ServiceDeskAdminNav() {
           <NavLink
             key={to}
             to={to}
-            className={() => location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : ""}
+            className={() => {
+              if (to === "/admin/service-desk/calendars") {
+                return location.pathname === "/admin/service-desk/sla" && new URLSearchParams(location.search).get("section") === "calendars" ? "active" : "";
+              }
+              if (to === "/admin/service-desk/sla") {
+                return location.pathname === to && new URLSearchParams(location.search).get("section") !== "calendars" ? "active" : "";
+              }
+              return location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : "";
+            }}
           >
             {label}
           </NavLink>

@@ -24,8 +24,6 @@ import {
   getWorkbenchServices
 } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
 import type { CatalogOption } from "../../../entities/service-desk-workbench/model/types";
-import { Header } from "../../../widgets/header/ui/Header";
-import { ServiceDeskAdminNav } from "../../../widgets/service-desk-admin-nav/ui/ServiceDeskAdminNav";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { EmptyState } from "../../../shared/ui/EmptyState";
@@ -283,8 +281,6 @@ export function ServiceDeskAdminDashboardPage() {
 
   return (
     <>
-      <Header />
-      <ServiceDeskAdminNav />
       <PageLayout title="Service Desk - обзор" subtitle="Период событий считается по UTC; backlog отражает текущее состояние.">
         <Card>
           <div className="filter-grid">

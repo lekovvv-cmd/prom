@@ -24,7 +24,6 @@ import { Input } from "../../../shared/ui/Input";
 import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Select } from "../../../shared/ui/Select";
 import { Spinner } from "../../../shared/ui/Spinner";
-import { Header } from "../../../widgets/header/ui/Header";
 
 type RoutingActionDraft = {
   type: ServiceDeskRoutingAction["type"];
@@ -441,7 +440,6 @@ export function ServiceDeskAdminRoutingPage() {
 
   return (
     <>
-      <Header />
       <PageLayout
         title="Маршрутизация Service Desk"
         subtitle="Правила проверяются от меньшего приоритета к большему. Первое правило назначения выбирает исполнителя."

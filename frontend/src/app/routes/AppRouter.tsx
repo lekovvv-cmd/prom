@@ -23,6 +23,7 @@ import { Spinner } from "../../shared/ui/Spinner";
 import { Card } from "../../shared/ui/Card";
 import { PageLayout } from "../../shared/ui/PageLayout";
 import { Header } from "../../widgets/header/ui/Header";
+import { ServiceDeskAdminLayout } from "../../widgets/service-desk-admin-layout/ui/ServiceDeskAdminLayout";
 import { ServiceDeskContextualCounters } from "../../widgets/service-desk-notifications/ui/ServiceDeskContextualCounters";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -163,20 +164,20 @@ export function AppRouter() {
         }
       />
       <Route
-        path="/service-desk/admin/routing"
+        path="/admin/service-desk/routing"
         element={
           <ServiceDeskRoute>
             <ServiceDeskRoutingAdminRoute>
-              <ServiceDeskAdminRoutingPage />
+              <ServiceDeskAdminLayout><ServiceDeskAdminRoutingPage /></ServiceDeskAdminLayout>
             </ServiceDeskRoutingAdminRoute>
           </ServiceDeskRoute>
         }
       />
-      <Route path="/admin/service-desk/tickets" element={<Navigate to="/service-desk/workbench" replace />} />
-      <Route path="/admin/service-desk/routing" element={<Navigate to="/service-desk/admin/routing" replace />} />
-      <Route path="/admin/service-desk/sla" element={<Navigate to="/service-desk/admin/sla" replace />} />
-      <Route path="/admin/service-desk/calendars" element={<Navigate to="/service-desk/admin/sla" replace />} />
-      <Route path="/service-desk/admin/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminSlaPage /></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/tickets" element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><ServiceDeskAdminLayout showHeader={false}><ServiceDeskWorkbenchPage /></ServiceDeskAdminLayout></ServiceDeskWorkbenchRoute></ServiceDeskRoute>} />
+      <Route path="/service-desk/admin/routing" element={<Navigate to="/admin/service-desk/routing" replace />} />
+      <Route path="/admin/service-desk/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminLayout showHeader={false}><ServiceDeskAdminSlaPage /></ServiceDeskAdminLayout></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/calendars" element={<Navigate to="/admin/service-desk/sla?section=calendars" replace />} />
+      <Route path="/service-desk/admin/sla" element={<Navigate to="/admin/service-desk/sla" replace />} />
       <Route
         path="/profile"
         element={

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Header } from "../../../widgets/header/ui/Header";
 import { Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 
 import {
@@ -34,7 +35,6 @@ import { Input } from "../../../shared/ui/Input";
 import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Select } from "../../../shared/ui/Select";
 import { Spinner } from "../../../shared/ui/Spinner";
-import { Header } from "../../../widgets/header/ui/Header";
 import {
   BINDING_FIELD_OPTIONS,
   WEEKDAY_OPTIONS,
