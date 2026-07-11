@@ -9,12 +9,15 @@ describe("ServiceDeskAdminNav", () => {
     expect(routes).toEqual([
       "/admin/service-desk",
       "/admin/service-desk/tickets",
+      "/admin/service-desk/catalog",
+      "/admin/service-desk/templates",
+      "/admin/service-desk/dictionaries",
+      "/admin/service-desk/approvals",
       "/admin/service-desk/routing",
       "/admin/service-desk/sla",
       "/admin/service-desk/calendars",
       "/admin/service-desk/access"
     ]);
-    expect(routes).not.toContain("/admin/service-desk/catalog");
     expect(routes).not.toContain("/admin/service-desk/notifications");
   });
 });

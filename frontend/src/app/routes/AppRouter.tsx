@@ -17,6 +17,7 @@ import { ServiceDeskTicketDetailsPage } from "../../pages/service-desk-ticket-de
 import { ServiceDeskWorkbenchPage } from "../../pages/service-desk-workbench/ui/ServiceDeskWorkbenchPage";
 import { ServiceDeskAdminDashboardPage } from "../../pages/service-desk-admin-dashboard/ui/ServiceDeskAdminDashboardPage";
 import { ServiceDeskAdminAccessPage } from "../../pages/service-desk-admin-access/ui/ServiceDeskAdminAccessPage";
+import { ServiceDeskAdminConfigurationPage, type ServiceDeskAdminConfigSection } from "../../pages/service-desk-admin-configuration/ui/ServiceDeskAdminConfigurationPage";
 import { ServiceDeskCatalogPage } from "../../pages/service-desk-catalog/ui/ServiceDeskCatalogPage";
 import { ServiceDeskMyTicketsPage } from "../../pages/service-desk-my-tickets/ui/ServiceDeskMyTicketsPage";
 import { ServiceDeskServiceFormPage } from "../../pages/service-desk-service-form/ui/ServiceDeskServiceFormPage";
@@ -141,6 +142,7 @@ function ServiceDeskReportsRoute({ children }: { children: React.ReactNode }) {
   return user?.capabilities.includes("service_desk.view_reports") ? children : <Navigate to="/projects" replace />;
 }
 function ServiceDeskAccessAdminRoute({ children }: { children: React.ReactNode }) { const { user } = useServiceDeskAccess(); return user?.capabilities.includes("service_desk.manage_access") ? children : <Navigate to="/projects" replace />; }
+function ServiceDeskConfigAdminRoute({ capability, children }: { capability: string; children: React.ReactNode }) { const { user } = useServiceDeskAccess(); return user?.access_type === "service_desk_admin" || user?.capabilities.includes(capability) ? children : <Navigate to="/projects" replace />; }
 
 export function AppRouter() {
   return (
@@ -157,6 +159,9 @@ export function AppRouter() {
         element={<ServiceDeskRoute><ServiceDeskReportsRoute><ServiceDeskAdminLayout><ServiceDeskAdminDashboardPage /></ServiceDeskAdminLayout></ServiceDeskReportsRoute></ServiceDeskRoute>}
       />
       <Route path="/admin/service-desk/access" element={<ServiceDeskRoute><ServiceDeskAccessAdminRoute><ServiceDeskAdminLayout><ServiceDeskAdminAccessPage /></ServiceDeskAdminLayout></ServiceDeskAccessAdminRoute></ServiceDeskRoute>} />
+      {(["catalog", "templates", "dictionaries", "approvals"] as ServiceDeskAdminConfigSection[]).map((section) => (
+        <Route key={section} path={`/admin/service-desk/${section}`} element={<ServiceDeskRoute><ServiceDeskConfigAdminRoute capability={section === "catalog" ? "service_desk.manage_catalog" : section === "templates" || section === "dictionaries" ? "service_desk.manage_templates" : "service_desk.manage_approval_workflows"}><ServiceDeskAdminLayout><ServiceDeskAdminConfigurationPage section={section} /></ServiceDeskAdminLayout></ServiceDeskConfigAdminRoute></ServiceDeskRoute>} />
+      ))}
       <Route
         path="/service-desk/workbench"
         element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><Header /><ServiceDeskWorkbenchPage /></ServiceDeskWorkbenchRoute></ServiceDeskRoute>}

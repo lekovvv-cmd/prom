@@ -5,6 +5,10 @@ import { useServiceDeskAccess } from "../../../app/providers/ServiceDeskAccessPr
 export const serviceDeskAdminNavItems = [
   ["Обзор", "/admin/service-desk", "service_desk.view_reports"],
   ["Заявки", "/admin/service-desk/tickets", "service_desk.view_all_tickets"],
+  ["Каталог", "/admin/service-desk/catalog", "service_desk.manage_catalog"],
+  ["Шаблоны", "/admin/service-desk/templates", "service_desk.manage_templates"],
+  ["Справочники", "/admin/service-desk/dictionaries", "service_desk.manage_templates"],
+  ["Согласования", "/admin/service-desk/approvals", "service_desk.manage_approval_workflows"],
   ["Маршрутизация", "/admin/service-desk/routing", "service_desk.manage_routing"],
   ["SLA", "/admin/service-desk/sla", "service_desk.manage_sla"],
   ["Рабочие календари", "/admin/service-desk/calendars", "service_desk.manage_sla"],

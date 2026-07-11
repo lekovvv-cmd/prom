@@ -3343,6 +3343,20 @@ button.chip {
 .comment-attachments { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .comment-attachment,
 .comment-attachment-upload { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: var(--accent); font-size: 12px; cursor: pointer; }
+.admin-config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.admin-config-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; margin: 14px 0; }
+.admin-config-list { display: grid; gap: 8px; margin-top: 16px; }
+.admin-config-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.admin-config-row > span:first-child { display: grid; gap: 3px; min-width: 0; }
+.admin-config-row small { color: var(--muted); }
+.admin-config-select { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: inherit; text-align: left; cursor: pointer; }
+.admin-config-select.active { border-color: var(--accent); background: #edf3ff; }
+.inline-form { display: inline-flex; align-items: center; gap: 6px; }
+.inline-form .field { min-width: 180px; }
+
+@media (max-width: 720px) {
+  .admin-config-form-grid { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 720px) {
   .service-desk-catalog-toolbar,
