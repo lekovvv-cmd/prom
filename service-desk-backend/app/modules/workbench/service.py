@@ -191,8 +191,15 @@ class WorkbenchService:
                 .where(ServiceDeskTicket.id.in_(ids))
                 .order_by(ServiceDeskTicket.updated_at.desc(), ServiceDeskTicket.id.desc())
             ).unique())
+        paused_ids = set(self.db.scalars(select(ServiceDeskTicketSlaPause.ticket_id).where(
+            ServiceDeskTicketSlaPause.ticket_id.in_(ids),
+            ServiceDeskTicketSlaPause.ended_at.is_(None),
+        ))) if ids else set()
+        warned_ids = set(self.db.scalars(select(ServiceDeskSlaEscalationEvent.ticket_id).where(
+            ServiceDeskSlaEscalationEvent.ticket_id.in_(ids),
+        ))) if ids else set()
         return WorkbenchTicketPage(
-            items=[self._row(ticket, actor, now) for ticket in tickets],
+            items=[self._row(ticket, actor, now, paused_ids, warned_ids) for ticket in tickets],
             page=page,
             page_size=page_size,
             total=total,
@@ -272,7 +279,14 @@ class WorkbenchService:
             return ServiceDeskTicket.status == status_by_view[quick_view]
         return sla_state_predicate(WorkbenchSlaState.BREACHED, now)
 
-    def _row(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser, now: datetime) -> WorkbenchTicketRow:
+    def _row(
+        self,
+        ticket: ServiceDeskTicket,
+        actor: ServiceDeskUser,
+        now: datetime,
+        paused_ids: set[uuid.UUID],
+        warned_ids: set[uuid.UUID],
+    ) -> WorkbenchTicketRow:
         return WorkbenchTicketRow(
             ticket_id=ticket.id,
             number=ticket.number,
@@ -283,7 +297,9 @@ class WorkbenchService:
             assignee=(WorkbenchUserSummary(id=ticket.assignee.id, display_name=ticket.assignee.display_name) if ticket.assignee else None),
             priority=ticket.priority,
             status=ticket.status,
-            sla=self._sla_summary(ticket, now),
+            sla=self._sla_summary(
+                ticket, now, ticket.id in paused_ids, ticket.id in warned_ids
+            ),
             created_at=ticket.created_at,
             updated_at=ticket.updated_at,
             allowed_actions=TicketPolicyService().allowed_actions(ticket, actor),
@@ -300,16 +316,18 @@ class WorkbenchService:
                     return approval.id
         return None
 
-    def _sla_summary(self, ticket: ServiceDeskTicket, now: datetime) -> WorkbenchSlaSummary:
+    @staticmethod
+    def _sla_summary(
+        ticket: ServiceDeskTicket,
+        now: datetime,
+        is_paused: bool,
+        is_warned: bool,
+    ) -> WorkbenchSlaSummary:
         if not ticket.sla_snapshot:
             return WorkbenchSlaSummary(state=WorkbenchSlaState.NO_SLA)
-        active_pause = self.db.scalar(select(ServiceDeskTicketSlaPause.id).where(
-            ServiceDeskTicketSlaPause.ticket_id == ticket.id,
-            ServiceDeskTicketSlaPause.ended_at.is_(None),
-        ))
         metric = "first_response" if ticket.first_response_at is None else "resolution"
         due_at = ticket.first_response_due_at if metric == "first_response" else ticket.resolution_due_at
-        if active_pause:
+        if is_paused:
             state = WorkbenchSlaState.PAUSED
         elif ticket.is_response_breached or ticket.is_resolution_breached or (
             ticket.resolved_at is None
@@ -317,9 +335,7 @@ class WorkbenchService:
             and due_at.replace(tzinfo=due_at.tzinfo or UTC) < now
         ):
             state = WorkbenchSlaState.BREACHED
-        elif self.db.scalar(select(ServiceDeskSlaEscalationEvent.id).where(
-            ServiceDeskSlaEscalationEvent.ticket_id == ticket.id
-        )):
+        elif is_warned:
             state = WorkbenchSlaState.WARNING
         else:
             state = WorkbenchSlaState.ON_TRACK

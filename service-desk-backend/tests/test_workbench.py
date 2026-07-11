@@ -5,6 +5,7 @@ from app.core.enums import ServiceDeskAccessType, ServiceDeskPriority, ServiceDe
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 from app.modules.tickets.models import ServiceDeskTicket
 from app.modules.tickets.policy import TicketPolicyService
+from app.modules.sla.models import ServiceDeskTicketSlaPause
 from test_tickets import create_requester, create_service_with_template
 
 
@@ -224,3 +225,37 @@ def test_allowed_actions_match_lifecycle_and_assignee_options(
         db.add(unrelated)
         db.flush()
         assert TicketPolicyService().allowed_actions(ticket, unrelated) == []
+
+
+def test_workbench_sla_pause_overrides_objective_overdue(
+    client, db_session_factory, auth_headers_for_user
+):
+    requester_id = create_requester(client, db_session_factory)
+    operator_id = create_manager(db_session_factory, "service_desk.be_assignee")
+    service_id, _ = create_service_with_template(client)
+    source = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "SLA pause", "field_values": {"room": "1"}},
+        headers=auth_headers_for_user(requester_id),
+    ).json()
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
+        ticket.status = ServiceDeskTicketStatus.WAITING_EXTERNAL
+        ticket.assignee_user_id = uuid.UUID(operator_id)
+        ticket.sla_snapshot = {"policy": "pause"}
+        ticket.first_response_due_at = datetime.now(UTC) - timedelta(hours=1)
+        db.add(ServiceDeskTicketSlaPause(
+            ticket_id=ticket.id,
+            reason_status=ServiceDeskTicketStatus.WAITING_EXTERNAL.value,
+            started_at=datetime.now(UTC) - timedelta(hours=2),
+        ))
+        db.commit()
+    headers = auth_headers_for_user(operator_id)
+    paused = client.get(
+        "/workbench/tickets", params={"sla_state": "paused"}, headers=headers
+    ).json()
+    assert paused["total"] == 1
+    assert paused["items"][0]["sla"]["state"] == "paused"
+    assert client.get(
+        "/workbench/tickets", params={"overdue": "true"}, headers=headers
+    ).json()["total"] == 0
