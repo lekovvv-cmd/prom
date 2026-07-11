@@ -147,6 +147,11 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
 test("Service Desk SLA admin persists complete calendar, policy, binding and escalation edits", async ({ page, request }) => {
   const token = await loginAsManager(page);
   const suffix = Date.now();
+  const recipients = await serviceDeskRequest<Array<{ id: string; email: string }>>(
+    request, token, "get", "/admin/sla/recipients"
+  );
+  const managerRecipient = recipients.find((recipient) => recipient.email === "manager@utmn.ru");
+  expect(managerRecipient).toBeTruthy();
   await page.goto("/service-desk/admin/sla");
   await expect(page.getByRole("heading", { name: "SLA Service Desk" })).toBeVisible();
   const calendarName = `E2E SLA calendar ${suffix}`;
@@ -222,7 +227,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await escalationForm.getByLabel("SLA policy").selectOption({ label: policyName });
   await escalationForm.getByLabel("Threshold, %").fill("73");
   await escalationForm.getByLabel("Получатель").selectOption("specific_user");
-  await escalationForm.getByLabel("Пользователь-получатель").selectOption({ label: "Manager — manager@utmn.ru" });
+  await escalationForm.getByLabel("Пользователь-получатель").selectOption(managerRecipient!.id);
   await escalationForm.getByRole("button", { name: "Создать" }).click();
   const escalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "resolution · 73%" });
   await expect(escalationCard).toContainText("specific_user");
