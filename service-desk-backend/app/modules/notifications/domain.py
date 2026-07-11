@@ -23,6 +23,11 @@ class NotificationEventType(StrEnum):
     TICKET_CANCELLED = "ticket_cancelled"
 
 
+class NotificationChannel(StrEnum):
+    IN_APP = "in_app"
+    EMAIL = "email"
+
+
 @dataclass(frozen=True)
 class NotificationEvent:
     event_type: NotificationEventType
@@ -31,3 +36,6 @@ class NotificationEvent:
     body: str
     event_id: uuid.UUID = field(default_factory=uuid.uuid4)
     recipient_user_ids: tuple[uuid.UUID, ...] | None = None
+    channels: frozenset[NotificationChannel] = field(
+        default_factory=lambda: frozenset({NotificationChannel.IN_APP, NotificationChannel.EMAIL})
+    )

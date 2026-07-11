@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.access.models import ServiceDeskUser
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
-from app.modules.notifications.domain import NotificationEvent, NotificationEventType
+from app.modules.notifications.domain import NotificationChannel, NotificationEvent, NotificationEventType
 from app.modules.notifications.models import ServiceDeskNotification, ServiceDeskNotificationOutbox
 from app.modules.notifications.repository import NotificationOutboxRepository, NotificationRepository
 from app.modules.tickets.models import ServiceDeskTicket
@@ -65,27 +65,29 @@ class NotificationDispatcher:
 
     def dispatch(self, event: NotificationEvent) -> None:
         for recipient_id in self._recipient_ids(event):
-            record = self.outbox.get_or_add(ServiceDeskNotificationOutbox(
-                event_id=event.event_id,
-                channel="in_app",
-                recipient=str(recipient_id),
-                payload={
-                    "ticket_id": str(event.ticket_id) if event.ticket_id else None,
-                    "event_type": event.event_type.value,
-                    "title": event.title,
-                    "body": event.body,
-                },
-                status="pending",
-            ))
-            if record.status == "sent":
-                continue
-            self.in_app.deliver(event, recipient_id)
-            record.status = "sent"
-            record.processed_at = datetime.now(UTC)
-            record.last_error = None
-            recipient = self.db.get(ServiceDeskUser, recipient_id)
-            if recipient:
-                self.email.enqueue(event, recipient.email)
+            if NotificationChannel.IN_APP in event.channels:
+                record = self.outbox.get_or_add(ServiceDeskNotificationOutbox(
+                    event_id=event.event_id, channel="in_app", recipient=str(recipient_id),
+                    payload=self._outbox_payload(event), status="pending",
+                ))
+                if record.status != "sent":
+                    self.in_app.deliver(event, recipient_id)
+                    record.status = "sent"
+                    record.processed_at = datetime.now(UTC)
+                    record.last_error = None
+            if NotificationChannel.EMAIL in event.channels:
+                recipient = self.db.get(ServiceDeskUser, recipient_id)
+                if recipient:
+                    self.email.enqueue(event, recipient.email)
+
+    @staticmethod
+    def _outbox_payload(event: NotificationEvent) -> dict[str, str | None]:
+        return {
+            "ticket_id": str(event.ticket_id) if event.ticket_id else None,
+            "event_type": event.event_type.value,
+            "title": event.title,
+            "body": event.body,
+        }
 
     def _recipient_ids(self, event: NotificationEvent) -> list[uuid.UUID]:
         if event.recipient_user_ids is not None:
@@ -169,6 +171,7 @@ def ticket_notification(
     *,
     recipient_user_ids=None,
     event_id: uuid.UUID | None = None,
+    channels: frozenset[NotificationChannel] | None = None,
 ) -> NotificationEvent:
     title, body = EVENT_COPY[event_type]
     kwargs = {"event_id": event_id} if event_id is not None else {}
@@ -178,6 +181,7 @@ def ticket_notification(
         title,
         body,
         recipient_user_ids=recipient_user_ids,
+        channels=channels if channels is not None else frozenset({NotificationChannel.IN_APP, NotificationChannel.EMAIL}),
         **kwargs,
     )
 

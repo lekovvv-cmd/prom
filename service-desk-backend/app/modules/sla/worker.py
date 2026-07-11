@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.enums import ServiceDeskTicketStatus
 from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser
-from app.modules.notifications.domain import NotificationEventType
+from app.modules.notifications.domain import NotificationChannel, NotificationEventType
 from app.modules.notifications.service import NotificationDispatcher, ticket_notification
 from app.modules.sla.engine import (
     business_seconds_between,
@@ -137,18 +137,23 @@ class SlaWorker:
                 actor_user_id=None, message="SLA escalation threshold reached",
                 payload={"metric": rule.metric, "threshold_percent": rule.threshold_percent, "rule_id": str(rule.id)},
             ))
-            if rule.action_type == "create_in_app_notification":
+            if rule.action_type in {"create_in_app_notification", "email_notification_when_available"}:
                 recipient_ids = [recipient_user_id] if recipient_user_id else []
                 if rule.recipient_type == "service_desk_admin":
                     recipient_ids = list(self.db.scalars(select(ServiceDeskUser.id).where(
                         ServiceDeskUser.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN,
                         ServiceDeskUser.is_active.is_(True),
                     )).all())
+                channels = frozenset({
+                    NotificationChannel.IN_APP if rule.action_type == "create_in_app_notification"
+                    else NotificationChannel.EMAIL
+                })
                 NotificationDispatcher(self.db).dispatch(ticket_notification(
                     NotificationEventType.SLA_WARNING if rule.threshold_percent < 100 else NotificationEventType.SLA_BREACHED,
                     ticket.id,
                     recipient_user_ids=tuple(recipient_ids),
                     event_id=escalation_event.id,
+                    channels=channels,
                 ))
 
     def _resolution_elapsed_seconds(
