@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Search as Eye, Pencil, Plus, Save, Trash2 } from "lucide-react";
 
 import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
+import { ServiceDeskTemplateEditor } from "./ServiceDeskTemplateEditor";
 import type { ServiceDeskCategory, ServiceDeskService, ServiceDeskTemplateField, ServiceDeskTemplateFieldType } from "../../../entities/service-desk-catalog/model/types";
 import { addAdminApprover, configureAdminApproval, createAdminApprovalStage, createAdminCategory, createAdminDictionary, createAdminDictionaryItem, createAdminService, createAdminTemplateField, createAdminTemplateVersion, deleteAdminApprover, deleteAdminApprovalStage, deleteAdminTemplateField, getAdminApprovalConfiguration, listAdminCategories, listAdminDictionaries, listAdminServices, listAdminTemplateVersions, previewAdminTemplateVersion, publishAdminTemplateVersion, reorderAdminApprovalStages, reorderAdminTemplateFields, toggleAdminCatalogItem, updateAdminApprovalStage, updateAdminCategory, updateAdminDictionary, updateAdminDictionaryItem, updateAdminService, updateAdminTemplateField } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
 import type { AdminDictionary, AdminTemplateVersion, ApprovalConfiguration } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
@@ -14,7 +15,7 @@ import { Spinner } from "../../../shared/ui/Spinner";
 import type { ServiceDeskAdminConfigSection } from "./ServiceDeskAdminConfigurationPage";
 
 export function ServiceDeskAdminConfigurationV2({ section }: { section: ServiceDeskAdminConfigSection }) {
-  return section === "catalog" ? <Catalog /> : section === "templates" ? <Templates /> : section === "dictionaries" ? <Dictionaries /> : <Approvals />;
+  return section === "catalog" ? <Catalog /> : section === "templates" ? <ServiceDeskTemplateEditor /> : section === "dictionaries" ? <Dictionaries /> : <Approvals />;
 }
 
 function Catalog() {
