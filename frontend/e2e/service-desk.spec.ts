@@ -162,15 +162,15 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await calendarForm.getByLabel("День недели 2").selectOption("5");
   await calendarForm.getByLabel("Начало интервала 2").fill("14:00");
   await calendarForm.getByLabel("Конец интервала 2").fill("16:00");
-  await calendarForm.getByRole("button", { name: "Исключение" }).click();
+  await calendarForm.getByRole("button", { name: "Исключение", exact: true }).click();
   await calendarForm.getByLabel("Дата исключения 1").fill("2027-01-01");
   await calendarForm.getByLabel("Описание исключения 1").fill("E2E holiday");
-  await calendarForm.getByRole("button", { name: "Исключение" }).click();
+  await calendarForm.getByRole("button", { name: "Исключение", exact: true }).click();
   await calendarForm.getByLabel("Дата исключения 2").fill("2027-01-02");
   await calendarForm.getByLabel("Тип исключения 2").selectOption("custom_hours");
   await calendarForm.getByLabel("Начало исключения 2").fill("10:00");
   await calendarForm.getByLabel("Конец исключения 2").fill("12:00");
-  await calendarForm.getByRole("button", { name: "Исключение" }).click();
+  await calendarForm.getByRole("button", { name: "Исключение", exact: true }).click();
   await calendarForm.getByLabel("Дата исключения 3").fill("2027-01-02");
   await calendarForm.getByLabel("Тип исключения 3").selectOption("custom_hours");
   await calendarForm.getByLabel("Начало исключения 3").fill("13:00");
