@@ -1,5 +1,6 @@
 import { env } from "../config/env";
 import { authTokenStorage, type AuthTokenStorage } from "../lib/authTokenStorage";
+import { invalidateServiceDeskCounters } from "../lib/serviceDeskCounterInvalidation";
 
 type RequestOptions = RequestInit & {
   auth?: boolean;
@@ -188,7 +189,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-export function createApiClient(baseUrl: string, tokenStorage: AuthTokenStorage = authTokenStorage) {
+export function createApiClient(baseUrl: string, tokenStorage: AuthTokenStorage = authTokenStorage, onMutation?: () => void) {
   return {
     getToken() {
       return tokenStorage.getToken();
@@ -209,10 +210,12 @@ export function createApiClient(baseUrl: string, tokenStorage: AuthTokenStorage 
         ...options,
         headers
       });
-      return parseResponse<T>(response);
+      const payload = await parseResponse<T>(response);
+      if (options.method && !["GET", "HEAD"].includes(options.method.toUpperCase())) onMutation?.();
+      return payload;
     }
   };
 }
 
 export const apiClient = createApiClient(env.apiBaseUrl);
-export const serviceDeskApiClient = createApiClient(env.serviceDeskApiBaseUrl);
+export const serviceDeskApiClient = createApiClient(env.serviceDeskApiBaseUrl, authTokenStorage, invalidateServiceDeskCounters);

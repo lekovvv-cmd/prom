@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { getServiceDeskContextualCounters } from "../../../entities/service-desk-notification/api/serviceDeskNotificationApi";
 import type { ServiceDeskContextualCounters as Counters } from "../../../entities/service-desk-notification/model/types";
 import { Badge } from "../../../shared/ui/Badge";
+import { onServiceDeskCountersInvalidated } from "../../../shared/lib/serviceDeskCounterInvalidation";
 
 const counterItems: Array<{ key: keyof Counters; label: string }> = [
   { key: "waiting_my_approval", label: "Моё согласование" },
@@ -21,10 +22,14 @@ export function ContextualCounterList({ counters }: { counters: Counters }) {
 
 export function ServiceDeskContextualCounters() {
   const [counters, setCounters] = useState<Counters | null>(null);
-  useEffect(() => {
-    let current = true;
-    void getServiceDeskContextualCounters().then((value) => { if (current) setCounters(value); }).catch(() => { if (current) setCounters(null); });
-    return () => { current = false; };
+  const refresh = useCallback(() => {
+    void getServiceDeskContextualCounters().then(setCounters).catch(() => setCounters(null));
   }, []);
+  useEffect(() => {
+    refresh();
+    const unsubscribe = onServiceDeskCountersInvalidated(refresh);
+    const timer = window.setInterval(refresh, 60_000);
+    return () => { unsubscribe(); window.clearInterval(timer); };
+  }, [refresh]);
   return counters ? <ContextualCounterList counters={counters} /> : null;
 }

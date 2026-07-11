@@ -37,6 +37,6 @@ describe("Header", () => {
     );
 
     expect(html).toContain("notification-center-for-admin");
-    expect(html).toContain("contextual-counters");
+    expect(html).not.toContain("contextual-counters");
   });
 });

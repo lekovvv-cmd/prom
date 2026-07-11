@@ -23,6 +23,7 @@ import { Spinner } from "../../shared/ui/Spinner";
 import { Card } from "../../shared/ui/Card";
 import { PageLayout } from "../../shared/ui/PageLayout";
 import { Header } from "../../widgets/header/ui/Header";
+import { ServiceDeskContextualCounters } from "../../widgets/service-desk-notifications/ui/ServiceDeskContextualCounters";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, isLoading, token } = useAuth();
@@ -39,7 +40,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/projects" replace />;
   }
 
-  return children;
+  return <><ServiceDeskContextualCounters />{children}</>;
 }
 
 function ManagerRoute({ children }: { children: React.ReactNode }) {
