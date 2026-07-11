@@ -187,6 +187,32 @@ def ticket_notification(
     )
 
 
+def sla_notification(
+    event_type: NotificationEventType,
+    ticket_id: uuid.UUID,
+    *,
+    metric: str,
+    threshold_percent: int | None = None,
+    recipient_user_ids=None,
+    event_id: uuid.UUID | None = None,
+    channels: frozenset[NotificationChannel] | None = None,
+) -> NotificationEvent:
+    metric_label = "первого ответа" if metric == "first_response" else "разрешения"
+    if event_type == NotificationEventType.SLA_WARNING:
+        threshold = f" достиг {threshold_percent}%" if threshold_percent is not None else " приближается к нарушению"
+        title = f"SLA {metric_label}{threshold}"
+        body = f"Срок {metric_label} по заявке требует внимания."
+    else:
+        title = f"SLA {metric_label} нарушен"
+        body = f"Срок {metric_label} по заявке нарушен."
+    return NotificationEvent(
+        event_type, ticket_id, title, body,
+        recipient_user_ids=recipient_user_ids,
+        event_id=event_id or uuid.uuid4(),
+        channels=channels if channels is not None else frozenset({NotificationChannel.IN_APP, NotificationChannel.EMAIL}),
+    )
+
+
 class NotificationService:
     def __init__(self, db: Session) -> None:
         self.db = db
