@@ -380,5 +380,5 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
   await page.getByRole("button", { name: "Закрыть" }).click();
   dialog = page.getByRole("dialog", { name: "Закрыть" });
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
-  await expect(page.getByText("Закрыта")).toBeVisible();
+  await expect(page.getByText("Закрыта", { exact: true })).toBeVisible();
 });
