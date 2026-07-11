@@ -15,6 +15,16 @@ class WorkbenchSlaState(StrEnum):
     BREACHED = "breached"
 
 
+class WorkbenchQuickView(StrEnum):
+    WAITING_APPROVAL = "waiting_approval"
+    ASSIGNED_TO_ME = "assigned_to_me"
+    IN_PROGRESS = "in_progress"
+    WAITING_REQUESTER = "waiting_requester"
+    WAITING_EXTERNAL = "waiting_external"
+    RESOLVED = "resolved"
+    SLA_BREACHED = "sla_breached"
+
+
 class WorkbenchEntitySummary(BaseModel):
     id: uuid.UUID
     title: str
@@ -53,3 +63,13 @@ class WorkbenchTicketPage(BaseModel):
     page_size: int
     total: int
     pages: int
+
+
+class WorkbenchCounters(BaseModel):
+    waiting_approval: int
+    assigned_to_me: int
+    in_progress: int
+    waiting_requester: int
+    waiting_external: int
+    resolved: int
+    sla_breached: int | None

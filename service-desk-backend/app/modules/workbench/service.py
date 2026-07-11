@@ -15,6 +15,8 @@ from app.modules.tickets.models import ServiceDeskTicket
 from app.modules.tickets.policy import TicketPolicyService
 from app.modules.workbench.schemas import (
     WorkbenchEntitySummary,
+    WorkbenchCounters,
+    WorkbenchQuickView,
     WorkbenchSlaState,
     WorkbenchSlaSummary,
     WorkbenchTicketPage,
@@ -125,6 +127,7 @@ class WorkbenchService:
         created_from: datetime | None,
         created_to: datetime | None,
         q: str | None,
+        quick_view: WorkbenchQuickView | None,
         page: int,
         page_size: int,
     ) -> WorkbenchTicketPage:
@@ -133,6 +136,8 @@ class WorkbenchService:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "created_from позже created_to")
         now = datetime.now(UTC)
         filters = [ServiceDeskTicket.deleted_at.is_(None), workbench_visibility(actor)]
+        if quick_view:
+            filters.append(self.quick_view_predicate(quick_view, actor, now))
         if ticket_status:
             filters.append(ServiceDeskTicket.status == ticket_status)
         if assignee_user_id:
@@ -192,6 +197,63 @@ class WorkbenchService:
             total=total,
             pages=(total + page_size - 1) // page_size,
         )
+
+    def counters(self, actor: ServiceDeskUser) -> WorkbenchCounters:
+        WorkbenchAccessService().require_access(actor)
+        now = datetime.now(UTC)
+        base_filters = [ServiceDeskTicket.deleted_at.is_(None), workbench_visibility(actor)]
+        capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
+        values: dict[str, int | None] = {}
+        for quick_view in WorkbenchQuickView:
+            if (
+                quick_view == WorkbenchQuickView.SLA_BREACHED
+                and "service_desk.manage_sla" not in capabilities
+            ):
+                values[quick_view.value] = None
+                continue
+            values[quick_view.value] = self.db.scalar(
+                select(func.count()).select_from(ServiceDeskTicket).where(
+                    *base_filters, self.quick_view_predicate(quick_view, actor, now)
+                )
+            ) or 0
+        return WorkbenchCounters(**values)
+
+    @staticmethod
+    def quick_view_predicate(
+        quick_view: WorkbenchQuickView, actor: ServiceDeskUser, now: datetime
+    ):
+        if quick_view == WorkbenchQuickView.WAITING_APPROVAL:
+            return and_(
+                ServiceDeskTicket.status == ServiceDeskTicketStatus.PENDING_APPROVAL,
+                exists().where(
+                    ServiceDeskTicketApprovalStage.ticket_id == ServiceDeskTicket.id,
+                    ServiceDeskTicketApprovalStage.status == "pending",
+                    ServiceDeskTicketApprovalStage.started_at.is_not(None),
+                    ServiceDeskTicketApproval.ticket_approval_stage_id
+                    == ServiceDeskTicketApprovalStage.id,
+                    ServiceDeskTicketApproval.approver_user_id == actor.id,
+                    ServiceDeskTicketApproval.status == "pending",
+                ),
+            )
+        if quick_view == WorkbenchQuickView.ASSIGNED_TO_ME:
+            return and_(
+                ServiceDeskTicket.assignee_user_id == actor.id,
+                ServiceDeskTicket.status.in_((
+                    ServiceDeskTicketStatus.ASSIGNED,
+                    ServiceDeskTicketStatus.IN_PROGRESS,
+                    ServiceDeskTicketStatus.WAITING_REQUESTER,
+                    ServiceDeskTicketStatus.WAITING_EXTERNAL,
+                )),
+            )
+        status_by_view = {
+            WorkbenchQuickView.IN_PROGRESS: ServiceDeskTicketStatus.IN_PROGRESS,
+            WorkbenchQuickView.WAITING_REQUESTER: ServiceDeskTicketStatus.WAITING_REQUESTER,
+            WorkbenchQuickView.WAITING_EXTERNAL: ServiceDeskTicketStatus.WAITING_EXTERNAL,
+            WorkbenchQuickView.RESOLVED: ServiceDeskTicketStatus.RESOLVED,
+        }
+        if quick_view in status_by_view:
+            return ServiceDeskTicket.status == status_by_view[quick_view]
+        return sla_state_predicate(WorkbenchSlaState.BREACHED, now)
 
     def _row(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser, now: datetime) -> WorkbenchTicketRow:
         return WorkbenchTicketRow(

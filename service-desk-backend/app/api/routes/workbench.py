@@ -6,7 +6,12 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import CurrentServiceDeskUser, DbSession
 from app.core.enums import ServiceDeskPriority, ServiceDeskTicketStatus
-from app.modules.workbench.schemas import WorkbenchSlaState, WorkbenchTicketPage
+from app.modules.workbench.schemas import (
+    WorkbenchCounters,
+    WorkbenchQuickView,
+    WorkbenchSlaState,
+    WorkbenchTicketPage,
+)
 from app.modules.workbench.service import WorkbenchService
 
 
@@ -28,6 +33,7 @@ def list_workbench_tickets(
     created_from: datetime | None = None,
     created_to: datetime | None = None,
     q: Annotated[str | None, Query(max_length=255)] = None,
+    quick_view: WorkbenchQuickView | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> WorkbenchTicketPage:
@@ -44,6 +50,14 @@ def list_workbench_tickets(
         created_from=created_from,
         created_to=created_to,
         q=q,
+        quick_view=quick_view,
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/counters", response_model=WorkbenchCounters)
+def get_workbench_counters(
+    db: DbSession, current_user: CurrentServiceDeskUser
+) -> WorkbenchCounters:
+    return WorkbenchService(db).counters(current_user)

@@ -130,6 +130,51 @@ def test_workbench_filters_search_pagination_and_sla(
         params={"created_from": "2026-02-02T00:00:00Z", "created_to": "2026-01-01T00:00:00Z"},
         headers=headers,
     ).status_code == 422
+
+
+def test_workbench_counters_match_quick_views(
+    client, db_session_factory, auth_headers_for_user
+):
+    requester_id = create_requester(client, db_session_factory)
+    operator_id = create_manager(db_session_factory, "service_desk.be_assignee")
+    service_id, _ = create_service_with_template(client)
+    source = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Источник", "field_values": {"room": "1"}},
+        headers=auth_headers_for_user(requester_id),
+    ).json()
+    add_ticket(
+        db_session_factory,
+        source["id"],
+        assignee_user_id=uuid.UUID(operator_id),
+        status=ServiceDeskTicketStatus.IN_PROGRESS,
+    )
+    add_ticket(
+        db_session_factory,
+        source["id"],
+        requester_user_id=uuid.UUID(operator_id),
+        status=ServiceDeskTicketStatus.RESOLVED,
+    )
+    add_ticket(
+        db_session_factory,
+        source["id"],
+        requester_user_id=uuid.UUID(operator_id),
+        status=ServiceDeskTicketStatus.CLOSED,
+    )
+    headers = auth_headers_for_user(operator_id)
+    counters = client.get("/workbench/counters", headers=headers)
+    assert counters.status_code == 200
+    assert counters.json()["in_progress"] == 1
+    assert counters.json()["assigned_to_me"] == 1
+    assert counters.json()["resolved"] == 1
+    assert counters.json()["sla_breached"] is None
+    for key, count in counters.json().items():
+        if count is not None:
+            result = client.get(
+                "/workbench/tickets", params={"quick_view": key}, headers=headers
+            )
+            assert result.status_code == 200, result.text
+            assert result.json()["total"] == count
     assert client.get(
         "/workbench/tickets", params={"page_size": 101}, headers=headers
     ).status_code == 422
