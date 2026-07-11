@@ -117,7 +117,10 @@ export function ServiceDeskServiceFormPage() {
       else current = await createServiceDeskDraft({ service_id: service.id, template_version_id: form.template_version.id, ...common });
       setDraft(current);
       for (const [fieldKey, files] of Object.entries(filesByField)) {
-        for (const file of files) await uploadServiceDeskFieldAttachment(current.id, fieldKey, file);
+        for (const file of files) {
+          const uploaded = await uploadServiceDeskFieldAttachment(current.id, fieldKey, file);
+          setExistingByField((existing) => ({ ...existing, [fieldKey]: [...(existing[fieldKey] ?? []), uploaded] }));
+        }
       }
       setFilesByField({});
       if (submitAfter) {
