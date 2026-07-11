@@ -3134,3 +3134,11 @@ button.chip {
     grid-template-columns: 1fr;
   }
 }
+
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+.metric-value { display: block; font-size: 2rem; margin-top: 8px; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.stats-bars { display: grid; gap: 10px; }
+.stats-bar { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr 40px; gap: 10px; align-items: center; }
+.stats-bar div { height: 8px; border-radius: 999px; background: var(--color-surface-muted, #eef1f5); overflow: hidden; }
+.stats-bar i { display: block; height: 100%; background: var(--color-primary, #2457d6); border-radius: inherit; }

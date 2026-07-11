@@ -15,6 +15,7 @@ import { ServiceDeskAdminRoutingPage } from "../../pages/service-desk-admin-rout
 import { ServiceDeskAdminSlaPage } from "../../pages/service-desk-admin-sla/ui/ServiceDeskAdminSlaPage";
 import { ServiceDeskTicketDetailsPage } from "../../pages/service-desk-ticket-details/ui/ServiceDeskTicketDetailsPage";
 import { ServiceDeskWorkbenchPage } from "../../pages/service-desk-workbench/ui/ServiceDeskWorkbenchPage";
+import { ServiceDeskAdminDashboardPage } from "../../pages/service-desk-admin-dashboard/ui/ServiceDeskAdminDashboardPage";
 import { ProjectDetailsPage } from "../../pages/project-details/ui/ProjectDetailsPage";
 import { ProjectsListPage } from "../../pages/projects-list/ui/ProjectsListPage";
 import { Spinner } from "../../shared/ui/Spinner";
@@ -129,6 +130,11 @@ function ServiceDeskWorkbenchRoute({ children }: { children: React.ReactNode }) 
   return allowed ? children : <Navigate to="/projects" replace />;
 }
 
+function ServiceDeskReportsRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useServiceDeskAccess();
+  return user?.capabilities.includes("service_desk.view_reports") ? children : <Navigate to="/projects" replace />;
+}
+
 export function AppRouter() {
   return (
     <Routes>
@@ -136,6 +142,10 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
+      <Route
+        path="/admin/service-desk"
+        element={<ServiceDeskRoute><ServiceDeskReportsRoute><ServiceDeskAdminDashboardPage /></ServiceDeskReportsRoute></ServiceDeskRoute>}
+      />
       <Route
         path="/service-desk/workbench"
         element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><ServiceDeskWorkbenchPage /></ServiceDeskWorkbenchRoute></ServiceDeskRoute>}
