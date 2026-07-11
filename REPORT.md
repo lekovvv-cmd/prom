@@ -49,4 +49,4 @@ Stage 9.1: добавлен policy-guarded Workbench ticket query с contextual 
 Stage 9.2: добавлены actor-aware quick views/counters с общими server-side predicates, active approval/assignment semantics, resolved без closed и capability-gated SLA breach view.
 Stage 9.3: добавлены PROM Workbench route/navigation, filters/table/action dialogs, read-only user options и eligible assignees; lifecycle authorization и backend allowed_actions сведены к общей TicketPolicyService.
 Stage 9.4: добавлен единый server-computed SLA summary для filter/overdue/quick view/table, pause-aware overdue, batch-loading SLA context и текстовые PROM SLA indicators с active metric/due_at.
-Stage 9 regression checks: Service Desk 101 pytest и ruff; Projects 16 pytest; frontend 58 tests и build пройдены. Workbench browser E2E assign/start/resolve добавлен; локальный запуск требует CI PostgreSQL environment.
+Stage 9 regression checks: Service Desk 101 pytest и ruff; Projects 16 pytest; frontend 58 tests и build; CI browser E2E Projects + Service Desk, включая Workbench manager assign → assignee start → resolve, пройдены.
