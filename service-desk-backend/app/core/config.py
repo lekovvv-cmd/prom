@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     storage_dir: str = "storage/service-desk"
     max_attachment_size_bytes: int = 10 * 1024 * 1024
     max_attachments_per_owner: int = 10
+    sla_worker_poll_interval_seconds: int = 60
 
     model_config = SettingsConfigDict(
         env_file=".env",

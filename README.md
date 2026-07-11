@@ -90,4 +90,19 @@ cd frontend
 npm run test:e2e
 ```
 
+## Service Desk SLA worker
+
+SLA breach and escalation processing runs as a separate long-lived process next
+to the Service Desk API. After migrations are applied, start it with:
+
+```bash
+cd service-desk-backend
+python scripts/sla_worker.py
+```
+
+Set `SERVICE_DESK_SLA_WORKER_POLL_INTERVAL_SECONDS` (default: `60`) in the
+Service Desk environment to control polling. The process creates a fresh DB
+session for each iteration, rolls back a failed iteration, and exits cleanly on
+`SIGINT` or `SIGTERM`.
+
 В CI запускаются три проверки: backend `pytest`, frontend `vitest` + `build`, browser e2e на основном MVP-сценарии.
