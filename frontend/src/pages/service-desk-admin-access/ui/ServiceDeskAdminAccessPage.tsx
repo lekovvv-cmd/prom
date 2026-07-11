@@ -187,7 +187,7 @@ export function ServiceDeskAdminAccessPage() {
       <PageLayout title="Менеджеры и права">
         <Card>
           <form className="filter-grid" onSubmit={(event) => void create(event)}>
-            <Input name="identity" label="Identity subject" required />
+            <Input name="identity" label="Идентификатор пользователя" required />
             <Input name="email" label="Email" type="email" required />
             <Input name="name" label="Имя" required />
             <Input name="department" label="Подразделение" />

@@ -148,12 +148,12 @@ export function AppRouter() {
       <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
       <Route
         path="/admin/service-desk"
-        element={<ServiceDeskRoute><ServiceDeskReportsRoute><ServiceDeskAdminDashboardPage /></ServiceDeskReportsRoute></ServiceDeskRoute>}
+        element={<ServiceDeskRoute><ServiceDeskReportsRoute><ServiceDeskAdminLayout><ServiceDeskAdminDashboardPage /></ServiceDeskAdminLayout></ServiceDeskReportsRoute></ServiceDeskRoute>}
       />
-      <Route path="/admin/service-desk/access" element={<ServiceDeskRoute><ServiceDeskAccessAdminRoute><ServiceDeskAdminAccessPage/></ServiceDeskAccessAdminRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/access" element={<ServiceDeskRoute><ServiceDeskAccessAdminRoute><ServiceDeskAdminLayout><ServiceDeskAdminAccessPage /></ServiceDeskAdminLayout></ServiceDeskAccessAdminRoute></ServiceDeskRoute>} />
       <Route
         path="/service-desk/workbench"
-        element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><ServiceDeskWorkbenchPage /></ServiceDeskWorkbenchRoute></ServiceDeskRoute>}
+        element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><Header /><ServiceDeskWorkbenchPage /></ServiceDeskWorkbenchRoute></ServiceDeskRoute>}
       />
       <Route
         path="/service-desk/tickets/:ticketId"
@@ -173,9 +173,9 @@ export function AppRouter() {
           </ServiceDeskRoute>
         }
       />
-      <Route path="/admin/service-desk/tickets" element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><ServiceDeskAdminLayout showHeader={false}><ServiceDeskWorkbenchPage /></ServiceDeskAdminLayout></ServiceDeskWorkbenchRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/tickets" element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><ServiceDeskAdminLayout><ServiceDeskWorkbenchPage /></ServiceDeskAdminLayout></ServiceDeskWorkbenchRoute></ServiceDeskRoute>} />
       <Route path="/service-desk/admin/routing" element={<Navigate to="/admin/service-desk/routing" replace />} />
-      <Route path="/admin/service-desk/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminLayout showHeader={false}><ServiceDeskAdminSlaPage /></ServiceDeskAdminLayout></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminLayout><ServiceDeskAdminSlaPage /></ServiceDeskAdminLayout></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
       <Route path="/admin/service-desk/calendars" element={<Navigate to="/admin/service-desk/sla?section=calendars" replace />} />
       <Route path="/service-desk/admin/sla" element={<Navigate to="/admin/service-desk/sla" replace />} />
       <Route

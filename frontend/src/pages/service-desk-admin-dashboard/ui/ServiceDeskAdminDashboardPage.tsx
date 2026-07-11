@@ -155,9 +155,9 @@ function OperationalAnalytics({
         </div>
       </Card>
       <div className="metric-grid">
-        <Card><span className="muted">Response SLA</span><strong className="metric-value">{sla.response_compliance_percent === null ? "Нет данных" : `${sla.response_compliance_percent}%`}</strong></Card>
-        <Card><span className="muted">Resolution SLA</span><strong className="metric-value">{sla.resolution_compliance_percent === null ? "Нет данных" : `${sla.resolution_compliance_percent}%`}</strong></Card>
-        <Card><span className="muted">Нарушения ответа / решения</span><strong className="metric-value">{sla.response_breaches} / {sla.resolution_breaches}</strong></Card>
+        <Card><span className="muted">SLA первого ответа</span><strong className="metric-value">{sla.response_compliance_percent === null ? "Нет данных" : `${sla.response_compliance_percent}%`}</strong></Card>
+        <Card><span className="muted">SLA выполнения</span><strong className="metric-value">{sla.resolution_compliance_percent === null ? "Нет данных" : `${sla.resolution_compliance_percent}%`}</strong></Card>
+        <Card><span className="muted">Нарушения SLA: ответ / выполнение</span><strong className="metric-value">{sla.response_breaches} / {sla.resolution_breaches}</strong></Card>
         <Card><span className="muted">Рядом с нарушением / нарушены</span><strong className="metric-value">{sla.active_near_breach} / {sla.active_breached}</strong></Card>
       </div>
       <Distribution
@@ -185,8 +185,8 @@ function PeopleAnalytics({
             <table>
               <thead>
                 <tr>
-                  <th>Исполнитель</th><th>Назначено</th><th>В работе</th><th>Waiting</th>
-                  <th>Resolved</th><th>Closed</th><th>SLA breaches</th><th>Медиана решения</th>
+                  <th>Исполнитель</th><th>Назначено</th><th>В работе</th><th>Ожидание</th>
+                  <th>Выполнено</th><th>Закрыто</th><th>Нарушения SLA</th><th>Медиана выполнения</th>
                 </tr>
               </thead>
               <tbody>

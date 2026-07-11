@@ -9,7 +9,7 @@ const counterItems: Array<{ key: keyof Counters; label: string }> = [
   { key: "waiting_my_approval", label: "Моё согласование" },
   { key: "assigned_to_me", label: "Назначены мне" },
   { key: "awaiting_my_response", label: "Ждут моего ответа" },
-  { key: "sla_breaches", label: "SLA breaches" }
+  { key: "sla_breaches", label: "Нарушения SLA" }
 ];
 
 export function ContextualCounterList({ counters }: { counters: Counters }) {
