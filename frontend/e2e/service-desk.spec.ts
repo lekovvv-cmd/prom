@@ -118,7 +118,7 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
   await page.goto(`/service-desk/tickets/${ticket.id}`);
   await expect(page.getByRole("heading", { level: 1, name: ticket.number })).toBeVisible();
   await expect(page.getByLabel("Счётчики Service Desk").getByText("Моё согласование")).toBeVisible();
-  await expect(page.getByLabel("Счётчики Service Desk").getByText("SLA breaches")).toBeVisible();
+  await expect(page.getByLabel("Счётчики Service Desk").getByText("Нарушения SLA")).toBeVisible();
   await expect(page.getByRole("heading", { name: `E2E заявка ${suffix}` })).toBeVisible();
   await expect(page.getByText("На согласовании")).toBeVisible();
   await expect(page.getByRole("button", { name: "Согласовать" })).toBeVisible();
@@ -194,20 +194,20 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await policyForm.getByLabel("Название").fill(policyName);
   await policyForm.getByLabel("Описание").fill("E2E critical policy");
   await policyForm.getByLabel("Бизнес-календарь").selectOption({ label: `${calendarName} edited` });
-  await policyForm.getByLabel("First response, минут").fill("15");
-  await policyForm.getByLabel("Resolution, минут").fill("240");
+  await policyForm.getByLabel("Первый ответ, минут").fill("15");
+  await policyForm.getByLabel("Выполнение, минут").fill("240");
   await policyForm.getByLabel("Пауза: ожидание заявителя").check();
   await policyForm.getByRole("button", { name: "Создать" }).click();
   const policyCard = policySection.locator(".service-desk-sla-summary-card").filter({ hasText: policyName });
   await policyCard.getByRole("button", { name: "Изменить" }).click();
-  await policyForm.getByLabel("Resolution, минут").fill("300");
+  await policyForm.getByLabel("Выполнение, минут").fill("300");
   await policyForm.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(policyCard).toContainText("Resolution 300 мин");
+  await expect(policyCard).toContainText("Выполнение: 300 мин");
 
   const bindingSection = page.locator('section[aria-labelledby="sla-bindings-title"]');
   const bindingForm = bindingSection.locator("form");
   await bindingForm.getByLabel("Название").fill(bindingName);
-  await bindingForm.getByLabel("SLA policy").selectOption({ label: policyName });
+  await bindingForm.getByLabel("Политика SLA").selectOption({ label: policyName });
   await bindingForm.getByLabel("Тип условия 1").selectOption("priority");
   await bindingForm.getByLabel("Значение условия 1").selectOption("high");
   await bindingForm.getByRole("button", { name: "Условие", exact: true }).click();
@@ -224,20 +224,20 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
 
   const escalationSection = page.locator('section[aria-labelledby="sla-escalations-title"]');
   const escalationForm = escalationSection.locator("form");
-  await escalationForm.getByLabel("SLA policy").selectOption({ label: policyName });
-  await escalationForm.getByLabel("Threshold, %").fill("73");
+  await escalationForm.getByLabel("Политика SLA").selectOption({ label: policyName });
+  await escalationForm.getByLabel("Порог, %").fill("73");
   await escalationForm.getByLabel("Получатель").selectOption("specific_user");
   await escalationForm.getByLabel("Пользователь-получатель").selectOption(managerRecipient!.id);
   await escalationForm.getByRole("button", { name: "Создать" }).click();
-  const escalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "resolution · 73%" });
-  await expect(escalationCard).toContainText("specific_user");
+  const escalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "Выполнение · 73%" });
+  await expect(escalationCard).toContainText("Конкретный пользователь");
   await escalationCard.getByRole("button", { name: "Изменить" }).click();
-  await escalationForm.getByLabel("Threshold, %").fill("81");
+  await escalationForm.getByLabel("Порог, %").fill("81");
   await escalationForm.getByRole("button", { name: "Сохранить изменения" }).click();
 
   await page.reload();
   await expect(page.getByRole("heading", { name: `${calendarName} edited` })).toBeVisible();
-  await expect(page.getByText("resolution · 81%")).toBeVisible();
+  await expect(page.getByText("Выполнение · 81%")).toBeVisible();
   const calendars = await serviceDeskRequest<Array<{ name: string; business_hours: unknown[]; exceptions: Array<{ type: string }> }>>(
     request, token, "get", "/admin/sla/calendars"
   );
@@ -255,7 +255,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
     ]
   });
 
-  const persistedEscalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "resolution · 81%" });
+  const persistedEscalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "Выполнение · 81%" });
   const deleteEscalationResponse = page.waitForResponse((response) =>
     response.request().method() === "DELETE" && response.url().includes("/admin/sla/escalations/"));
   await persistedEscalationCard.getByRole("button", { name: "Удалить" }).click();
@@ -306,4 +306,79 @@ test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ pa
   await dialog.getByLabel("Результат решения").fill("E2E Workbench выполнено");
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
   await expect(employeeRow.getByText("Выполнена")).toBeVisible();
+});
+
+test("Service Desk complete requester lifecycle runs through catalog and ticket UI", async ({ page, request }) => {
+  const token = await loginAsManager(page);
+  const manager = await serviceDeskRequest<{ id: string }>(request, token, "get", "/me");
+  const assignees = await serviceDeskRequest<Array<{ id: string; display_name: string }>>(request, token, "get", "/workbench/users?eligible_assignees=true");
+  const employee = assignees.find((item) => item.display_name === "Сотрудник ШПИУ");
+  expect(employee).toBeTruthy();
+  const suffix = Date.now();
+  const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: `E2E requester category ${suffix}` });
+  const service = await serviceDeskRequest<{ id: string; title: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: `E2E requester service ${suffix}`, short_description: "Услуга для полного UI сценария" });
+  const version = await serviceDeskRequest<{ id: string }>(request, token, "post", `/admin/services/${service.id}/versions`);
+  const configured = await serviceDeskRequest<{ workflow: { id: string } }>(request, token, "put", `/admin/template-versions/${version.id}/approval-workflow`, { approval_mode: "workflow", name: "E2E пользовательское согласование", is_active: true });
+  await serviceDeskRequest(request, token, "post", `/admin/approval-workflows/${configured.workflow.id}/stages`, { title: "Согласование менеджера", decision_rule: "any" });
+  const workflow = await serviceDeskRequest<{ workflow: { stages: Array<{ id: string }> } }>(request, token, "get", `/admin/template-versions/${version.id}/approval-workflow`);
+  await serviceDeskRequest(request, token, "post", `/admin/approval-stages/${workflow.workflow.stages[0].id}/approvers`, { service_desk_user_id: manager.id });
+  await serviceDeskRequest(request, token, "post", `/admin/template-versions/${version.id}/publish`);
+
+  await page.goto("/service-desk");
+  await expect(page.getByRole("heading", { name: "Каталог Service Desk" })).toBeVisible();
+  await page.getByPlaceholder("Например, доступ к системе").fill(service.title);
+  const serviceCard = page.locator(".service-desk-service-card").filter({ hasText: service.title });
+  await expect(serviceCard).toBeVisible();
+  await serviceCard.getByRole("link", { name: "Открыть услугу" }).click();
+  await page.getByLabel("Тема заявки").fill(`E2E полный путь ${suffix}`);
+  await page.getByLabel("Описание").fill("Заявка создана через пользовательский каталог Service Desk.");
+  await page.getByRole("button", { name: "Отправить заявку" }).click();
+  await expect(page).toHaveURL(/\/service-desk\/tickets\//);
+  const ticketNumber = await page.getByRole("heading", { level: 1 }).textContent();
+  expect(ticketNumber).toMatch(/^SD-/);
+  await expect(page.getByText("На согласовании")).toBeVisible();
+  await page.getByRole("button", { name: "Согласовать" }).click();
+  let dialog = page.getByRole("dialog", { name: "Согласовать заявку" });
+  await dialog.getByRole("button", { name: "Подтвердить согласование" }).click();
+  await expect(page.getByText("Согласована")).toBeVisible();
+
+  await page.getByRole("button", { name: "Назначить" }).click();
+  dialog = page.getByRole("dialog", { name: "Назначить" });
+  await dialog.getByLabel("Исполнитель").selectOption(employee!.id);
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(page.getByText(employee!.display_name)).toBeVisible();
+  const ticketUrl = page.url();
+
+  await loginAsEmployee(page);
+  await page.goto(ticketUrl);
+  await page.getByRole("button", { name: "Взять в работу" }).click();
+  dialog = page.getByRole("dialog", { name: "Взять в работу" });
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(page.getByText("В работе")).toBeVisible();
+  await page.getByRole("button", { name: "Запросить уточнение" }).click();
+  dialog = page.getByRole("dialog", { name: "Запросить уточнение" });
+  await dialog.getByLabel("Комментарий").fill("Пожалуйста, уточните адрес объекта.");
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(page.getByText("Ожидает заявителя")).toBeVisible();
+
+  await loginAsManager(page);
+  await page.goto(ticketUrl);
+  await page.getByLabel("Комментарий").fill("Адрес объекта: главный корпус, кабинет 204.");
+  await page.getByRole("button", { name: "Добавить комментарий" }).click();
+  await expect(page.getByText("В работе")).toBeVisible();
+
+  await loginAsEmployee(page);
+  await page.goto(ticketUrl);
+  await page.getByRole("button", { name: "Отметить выполненной" }).click();
+  dialog = page.getByRole("dialog", { name: "Отметить выполненной" });
+  await dialog.getByLabel("Итог выполнения").fill("Запрос выполнен в полном объёме.");
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(page.getByText("Выполнена")).toBeVisible();
+
+  await loginAsManager(page);
+  await page.goto(ticketUrl);
+  await page.getByRole("button", { name: "Закрыть" }).click();
+  dialog = page.getByRole("dialog", { name: "Закрыть" });
+  await dialog.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(page.getByText("Закрыта")).toBeVisible();
 });
