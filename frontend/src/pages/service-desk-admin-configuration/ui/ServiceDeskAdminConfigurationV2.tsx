@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Search as Eye, Pencil, Plus, Save, Trash2 } from "lucide-react";
 
-import { getWorkbenchUsers } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
+import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import type { ServiceDeskCategory, ServiceDeskService, ServiceDeskTemplateField, ServiceDeskTemplateFieldType } from "../../../entities/service-desk-catalog/model/types";
 import { addAdminApprover, configureAdminApproval, createAdminApprovalStage, createAdminCategory, createAdminDictionary, createAdminDictionaryItem, createAdminService, createAdminTemplateField, createAdminTemplateVersion, deleteAdminApprover, deleteAdminApprovalStage, deleteAdminTemplateField, getAdminApprovalConfiguration, listAdminCategories, listAdminDictionaries, listAdminServices, listAdminTemplateVersions, previewAdminTemplateVersion, publishAdminTemplateVersion, reorderAdminApprovalStages, reorderAdminTemplateFields, toggleAdminCatalogItem, updateAdminApprovalStage, updateAdminCategory, updateAdminDictionary, updateAdminDictionaryItem, updateAdminService, updateAdminTemplateField } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
 import type { AdminDictionary, AdminTemplateVersion, ApprovalConfiguration } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
@@ -51,7 +51,7 @@ function Dictionaries() {
 
 function Approvals() {
   const [services, setServices] = useState<ServiceDeskService[]>([]); const [versions, setVersions] = useState<AdminTemplateVersion[]>([]); const [serviceId, setServiceId] = useState(""); const [versionId, setVersionId] = useState(""); const [config, setConfig] = useState<ApprovalConfiguration | null>(null); const [stageTitle, setStageTitle] = useState(""); const [rule, setRule] = useState<"any" | "all">("all"); const [users, setUsers] = useState<Array<{ id: string; display_name: string }>>([]); const [approver, setApprover] = useState(""); const [error, setError] = useState<string | null>(null);
-  useEffect(() => { listAdminServices().then(setServices).catch((reason) => setError(errorText(reason, "Не удалось загрузить услуги"))); getWorkbenchUsers(true).then(setUsers).catch(() => setUsers([])); }, []);
+  useEffect(() => { listAdminServices().then(setServices).catch((reason) => setError(errorText(reason, "Не удалось загрузить услуги"))); getServiceDeskUserOptions("service_desk.approve").then(setUsers).catch(() => setUsers([])); }, []);
   async function loadVersions(next: string) { setServiceId(next); setVersionId(""); setConfig(null); if (next) { try { setVersions(await listAdminTemplateVersions(next)); } catch (reason) { setError(errorText(reason, "Не удалось загрузить версии")); } } }
   async function loadConfig(next: string) { setVersionId(next); try { setConfig(await getAdminApprovalConfiguration(next)); } catch (reason) { setError(errorText(reason, "Не удалось загрузить процесс согласования")); } }
   async function addStage() { if (!config?.workflow || !stageTitle.trim()) return; try { setConfig(await createAdminApprovalStage(config.workflow.id, { title: stageTitle, decision_rule: rule })); setStageTitle(""); } catch (reason) { setError(errorText(reason, "Не удалось добавить этап")); } }

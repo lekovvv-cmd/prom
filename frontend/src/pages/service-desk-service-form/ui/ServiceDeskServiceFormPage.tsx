@@ -5,7 +5,7 @@ import { FileText, Save, Send } from "lucide-react";
 import { getServiceDeskService, getServiceDeskServiceForm } from "../../../entities/service-desk-catalog/api/serviceDeskCatalogApi";
 import type { ServiceDeskPublishedForm, ServiceDeskService, ServiceDeskTemplateField } from "../../../entities/service-desk-catalog/model/types";
 import { getFieldOptions, isEmpty, matchesRules, type FormValues } from "../../../entities/service-desk-catalog/model/rules";
-import { getWorkbenchUsers } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
+import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import { getServiceDeskTicket, getServiceDeskTicketForm, listServiceDeskFieldAttachments, uploadServiceDeskFieldAttachment, createServiceDeskDraft, submitServiceDeskDraft, updateServiceDeskDraft } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
 import type { ServiceDeskAttachment, ServiceDeskPriority, ServiceDeskTicket } from "../../../entities/service-desk-ticket/model/types";
 import { ApiError, normalizeApiErrorMessage } from "../../../shared/api/client";
@@ -67,7 +67,7 @@ export function ServiceDeskServiceFormPage() {
           if (active) setExistingByField(Object.fromEntries(entries));
         }
         if (formData.fields.some((field) => field.field_type === "user")) {
-          const options = await getWorkbenchUsers(false);
+          const options = await getServiceDeskUserOptions();
           if (active) setUsers(options);
         }
       } catch (reason: unknown) {

@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -47,6 +47,34 @@ class ServiceDeskAccessService:
 
     def capabilities_read(self, user: ServiceDeskUser) -> ServiceDeskCapabilitiesRead:
         return ServiceDeskCapabilitiesRead(capabilities=self.capabilities_for(user))
+
+    def list_options(self, *, capability: str | None = None):
+        assert self.db is not None
+        filters = [ServiceDeskUser.is_active.is_(True)]
+        if capability:
+            if capability not in SERVICE_DESK_CAPABILITIES:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Указаны неизвестные права доступа")
+            filters.append(
+                or_(
+                    ServiceDeskUser.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+                    exists().where(
+                        ServiceDeskUserCapability.service_desk_user_id == ServiceDeskUser.id,
+                        ServiceDeskUserCapability.capability == capability,
+                    ),
+                )
+            )
+        users = self.db.scalars(
+            select(ServiceDeskUser).where(*filters).order_by(ServiceDeskUser.display_name, ServiceDeskUser.id)
+        ).all()
+        return [
+            {
+                "id": user.id,
+                "display_name": user.display_name,
+                "department": user.department,
+                "position": user.position,
+            }
+            for user in users
+        ]
 
     def require_manage_access(self, actor: ServiceDeskUser) -> None:
         if "service_desk.manage_access" not in self.capabilities_for(actor):
@@ -95,7 +123,7 @@ class ServiceDeskAccessService:
         if unknown:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                f"Неизвестные capabilities: {', '.join(sorted(unknown))}",
+                "Указаны неизвестные права доступа",
             )
         return unique
 

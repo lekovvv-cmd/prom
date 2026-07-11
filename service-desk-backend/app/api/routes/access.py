@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
 
-from app.api.deps import CurrentServiceDeskUser
+from app.api.deps import CurrentServiceDeskUser, get_db
 from app.modules.access import schemas
 from app.modules.access.service import ServiceDeskAccessService
 
@@ -15,3 +16,12 @@ def get_me(current_user: CurrentServiceDeskUser):
 @router.get("/me/capabilities", response_model=schemas.ServiceDeskCapabilitiesRead)
 def get_my_capabilities(current_user: CurrentServiceDeskUser):
     return ServiceDeskAccessService().capabilities_read(current_user)
+
+
+@router.get("/users/options", response_model=list[schemas.ServiceDeskUserOptionRead])
+def get_user_options(
+    current_user: CurrentServiceDeskUser,
+    capability: str | None = Query(default=None, max_length=128),
+    db: Session = Depends(get_db),
+):
+    return ServiceDeskAccessService(db).list_options(capability=capability)
