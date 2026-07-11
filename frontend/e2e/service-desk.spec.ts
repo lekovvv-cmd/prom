@@ -158,7 +158,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await calendarForm.getByLabel("День недели 1").selectOption("5");
   await calendarForm.getByLabel("Начало интервала 1").fill("10:00");
   await calendarForm.getByLabel("Конец интервала 1").fill("13:00");
-  await calendarForm.getByRole("button", { name: "Интервал" }).click();
+  await calendarForm.getByRole("button", { name: "Интервал", exact: true }).click();
   await calendarForm.getByLabel("День недели 2").selectOption("5");
   await calendarForm.getByLabel("Начало интервала 2").fill("14:00");
   await calendarForm.getByLabel("Конец интервала 2").fill("16:00");
