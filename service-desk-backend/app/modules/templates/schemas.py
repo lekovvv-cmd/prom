@@ -119,7 +119,7 @@ class TemplateVersionRead(BaseModel):
 class PublishedTemplateRead(BaseModel):
     service_id: uuid.UUID
     template_version: TemplateVersionRead
-    fields: list[TemplateFieldRead] = Field(default_factory=list)
+    fields: list[TemplateFieldPreviewRead] = Field(default_factory=list)
 
 
 class TemplateFieldPreviewRead(TemplateFieldRead):

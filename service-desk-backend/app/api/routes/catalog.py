@@ -28,7 +28,7 @@ def list_services(
     active: bool | None = Query(default=True),
     db: Session = Depends(get_db),
 ):
-    return CatalogService(db).list_services(q=q, category_id=category_id, active=active)
+    return CatalogService(db).list_services(q=q, category_id=category_id, active=active, public=True)
 
 
 @router.get("/services/{service_id}", response_model=schemas.ServiceRead)

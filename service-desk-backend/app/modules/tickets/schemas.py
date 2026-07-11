@@ -85,6 +85,7 @@ class TicketHistoryRead(BaseModel):
 
 
 class TicketFieldSnapshotRead(BaseModel):
+    key: str
     label: str
     type: str
     raw_value: Any

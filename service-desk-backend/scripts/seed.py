@@ -364,8 +364,8 @@ def seed_categories(db: Session) -> dict[str, ServiceDeskCategory]:
 def seed_services(
     db: Session,
     categories: dict[str, ServiceDeskCategory],
-) -> dict[str, ServiceDeskService]:
-    services: dict[str, ServiceDeskService] = {}
+) -> dict[tuple[str, str], ServiceDeskService]:
+    services: dict[tuple[str, str], ServiceDeskService] = {}
     for category_title, service_titles in SERVICES_BY_CATEGORY.items():
         category = categories[category_title]
         for position, title in enumerate(service_titles):
@@ -384,40 +384,47 @@ def seed_services(
                 )
                 db.add(service)
                 db.flush()
-            services[title] = service
+            services[(category_title, title)] = service
     return services
 
 
 def seed_templates(
     db: Session,
-    services: dict[str, ServiceDeskService],
+    services: dict[tuple[str, str], ServiceDeskService],
 ) -> None:
-    for service_title, fields in TEMPLATE_FIELDS.items():
-        service = services.get(service_title)
-        if not service:
-            continue
-        existing = db.scalar(
-            select(ServiceDeskTemplateVersion).where(ServiceDeskTemplateVersion.service_id == service.id)
+    for (category_title, service_title), service in services.items():
+        versions = list(
+            db.scalars(
+                select(ServiceDeskTemplateVersion)
+                .where(ServiceDeskTemplateVersion.service_id == service.id)
+                .order_by(ServiceDeskTemplateVersion.version.desc())
+            )
         )
-        if existing:
+        published = next((item for item in versions if item.status == TemplateVersionStatus.PUBLISHED), None)
+        if published:
             continue
-
+        version = versions[0] if versions else None
         now = utc_now()
-        version = ServiceDeskTemplateVersion(
-            service_id=service.id,
-            version=1,
-            status=TemplateVersionStatus.PUBLISHED,
-            system_settings={
-                **DEFAULT_SYSTEM_SETTINGS,
-                "default_title": service.title,
-                "help_text": "Заполните поля формы и приложите файлы при необходимости.",
-            },
-            published_at=now,
-        )
-        db.add(version)
-        db.flush()
-        for payload in fields:
-            db.add(ServiceDeskTemplateField(template_version_id=version.id, **payload))
+        fields = TEMPLATE_FIELDS.get(service_title, [])
+        if version is None:
+            version = ServiceDeskTemplateVersion(
+                service_id=service.id,
+                version=1,
+                status=TemplateVersionStatus.PUBLISHED,
+                system_settings={
+                    **DEFAULT_SYSTEM_SETTINGS,
+                    "default_title": service.title,
+                    "help_text": "Заполните поля формы и приложите файлы при необходимости.",
+                },
+                published_at=now,
+            )
+            db.add(version)
+            db.flush()
+            for payload in fields:
+                db.add(ServiceDeskTemplateField(template_version_id=version.id, **payload))
+        else:
+            version.status = TemplateVersionStatus.PUBLISHED
+            version.published_at = version.published_at or now
 
 
 if __name__ == "__main__":

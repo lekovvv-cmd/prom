@@ -341,6 +341,7 @@ class TicketService:
             display_value = self._display_field_value(field, raw_value, dictionary_labels)
             snapshots.append(
                 schemas.TicketFieldSnapshotRead(
+                    key=field.key,
                     label=field.label,
                     type=field.field_type.value,
                     raw_value=raw_value,

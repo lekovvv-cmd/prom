@@ -57,6 +57,7 @@ export type ServiceDeskTicketHistory = {
 };
 
 export type ServiceDeskTicketFieldSnapshot = {
+  key: string;
   label: string;
   type: string;
   raw_value: unknown;

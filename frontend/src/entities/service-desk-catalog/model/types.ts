@@ -33,6 +33,7 @@ export type ServiceDeskTemplateField = {
   help_text: string | null;
   placeholder: string | null;
   options: Array<{ label?: string; value?: string }> | null;
+  effective_options?: Array<{ label?: string; value?: string; position?: number; is_active?: boolean }>;
   dictionary_code: string | null;
   validation: Record<string, unknown> | null;
   visibility_rules: Record<string, unknown> | null;
