@@ -136,7 +136,10 @@ class TicketRead(BaseModel):
     cancellation_reason: str | None
     approval_stages: list[TicketApprovalStageRead] = Field(default_factory=list)
     comments: list[TicketCommentSummary] = Field(default_factory=list)
-    allowed_actions: list[Literal["approve", "reject", "assign", "reassign"]] = Field(
+    allowed_actions: list[Literal[
+        "approve", "reject", "assign", "reassign", "start", "request_clarification",
+        "wait_external", "resume", "resolve", "close", "cancel",
+    ]] = Field(
         default_factory=list
     )
     created_at: datetime

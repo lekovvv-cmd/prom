@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from app.core.enums import ServiceDeskAccessType, ServiceDeskPriority, ServiceDeskTicketStatus
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 from app.modules.tickets.models import ServiceDeskTicket
+from app.modules.tickets.policy import TicketPolicyService
 from test_tickets import create_requester, create_service_with_template
 
 
@@ -178,3 +179,48 @@ def test_workbench_counters_match_quick_views(
     assert client.get(
         "/workbench/tickets", params={"page_size": 101}, headers=headers
     ).status_code == 422
+
+
+def test_allowed_actions_match_lifecycle_and_assignee_options(
+    client, db_session_factory, auth_headers_for_user
+):
+    requester_id = create_requester(client, db_session_factory)
+    assignee_id = create_manager(db_session_factory, "service_desk.be_assignee")
+    inactive_id = create_manager(db_session_factory, "service_desk.be_assignee")
+    service_id, _ = create_service_with_template(client)
+    source = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Матрица действий", "field_values": {"room": "1"}},
+        headers=auth_headers_for_user(requester_id),
+    ).json()
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
+        ticket.status = ServiceDeskTicketStatus.ASSIGNED
+        ticket.assignee_user_id = uuid.UUID(assignee_id)
+        db.get(ServiceDeskUser, uuid.UUID(inactive_id)).is_active = False
+        db.commit()
+    headers = auth_headers_for_user(assignee_id)
+    row = client.get("/workbench/tickets", headers=headers).json()["items"][0]
+    assert row["allowed_actions"] == ["start"]
+    started = client.post(f"/tickets/{source['id']}/start", json={}, headers=headers)
+    assert started.status_code == 200
+    assert {
+        "request_clarification", "wait_external", "resolve"
+    }.issubset(started.json()["allowed_actions"])
+    options = client.get(
+        "/workbench/users", params={"eligible_assignees": "true"}, headers=headers
+    )
+    assert options.status_code == 200
+    option_ids = {item["id"] for item in options.json()}
+    assert assignee_id in option_ids
+    assert inactive_id not in option_ids
+
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
+        unrelated = ServiceDeskUser(
+            identity_user_id=str(uuid.uuid4()), email="unrelated@utmn.ru",
+            display_name="Посторонний", access_type=ServiceDeskAccessType.MANAGER, is_active=True,
+        )
+        db.add(unrelated)
+        db.flush()
+        assert TicketPolicyService().allowed_actions(ticket, unrelated) == []

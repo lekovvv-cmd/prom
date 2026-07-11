@@ -1,6 +1,11 @@
 from fastapi import HTTPException, status
 
-from app.core.enums import ServiceDeskAccessType, ServiceDeskApprovalStatus, ServiceDeskTicketStatus
+from app.core.enums import (
+    ServiceDeskAccessType,
+    ServiceDeskApprovalStatus,
+    ServiceDeskTicketAction,
+    ServiceDeskTicketStatus,
+)
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.service import ServiceDeskAccessService
 from app.modules.tickets.models import ServiceDeskTicket
@@ -48,10 +53,19 @@ class TicketPolicyService:
                 ServiceDeskTicketStatus.WAITING_EXTERNAL,
             }:
                 actions.append("reassign")
-        if (
-            ticket.status != ServiceDeskTicketStatus.PENDING_APPROVAL
-            or "service_desk.approve" not in capabilities
-        ):
+        lifecycle_actions = (
+            ServiceDeskTicketAction.START,
+            ServiceDeskTicketAction.REQUEST_CLARIFICATION,
+            ServiceDeskTicketAction.WAIT_EXTERNAL,
+            ServiceDeskTicketAction.RESUME,
+            ServiceDeskTicketAction.RESOLVE,
+            ServiceDeskTicketAction.CLOSE,
+            ServiceDeskTicketAction.CANCEL,
+        )
+        actions.extend(
+            action.value for action in lifecycle_actions if self.can_perform(ticket, action, actor)
+        )
+        if ticket.status != ServiceDeskTicketStatus.PENDING_APPROVAL or "service_desk.approve" not in capabilities:
             return actions
 
         has_active_approval = any(
@@ -63,3 +77,58 @@ class TicketPolicyService:
             for approval in stage.approvals
         )
         return [*actions, "approve", "reject"] if has_active_approval else actions
+
+    def can_perform(
+        self,
+        ticket: ServiceDeskTicket,
+        action: ServiceDeskTicketAction,
+        actor: ServiceDeskUser,
+    ) -> bool:
+        from app.modules.tickets.lifecycle import transition_target
+
+        if not actor.is_active or transition_target(ticket.status, action) is None:
+            return False
+        if action in {
+            ServiceDeskTicketAction.START_APPROVAL,
+            ServiceDeskTicketAction.SKIP_APPROVAL,
+            ServiceDeskTicketAction.COMPLETE_APPROVAL,
+            ServiceDeskTicketAction.REJECT_APPROVAL,
+        }:
+            return True
+        is_admin = actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+        capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
+        if action in {ServiceDeskTicketAction.ASSIGN, ServiceDeskTicketAction.REASSIGN}:
+            return is_admin or "service_desk.assign" in capabilities
+        if action == ServiceDeskTicketAction.SUBMIT:
+            return actor.id == ticket.requester_user_id
+        if action in {
+            ServiceDeskTicketAction.START,
+            ServiceDeskTicketAction.REQUEST_CLARIFICATION,
+            ServiceDeskTicketAction.WAIT_EXTERNAL,
+            ServiceDeskTicketAction.RESUME,
+            ServiceDeskTicketAction.RESOLVE,
+        }:
+            return actor.id == ticket.assignee_user_id
+        if action == ServiceDeskTicketAction.REQUESTER_REPLY:
+            return actor.id == ticket.requester_user_id
+        if action == ServiceDeskTicketAction.CLOSE:
+            return is_admin or actor.id in {ticket.requester_user_id, ticket.assignee_user_id}
+        if action == ServiceDeskTicketAction.CANCEL:
+            return is_admin or (
+                actor.id == ticket.requester_user_id
+                and ticket.status in {
+                    ServiceDeskTicketStatus.DRAFT,
+                    ServiceDeskTicketStatus.SUBMITTED,
+                    ServiceDeskTicketStatus.PENDING_APPROVAL,
+                }
+            )
+        return False
+
+    def require_action(
+        self,
+        ticket: ServiceDeskTicket,
+        action: ServiceDeskTicketAction,
+        actor: ServiceDeskUser,
+    ) -> None:
+        if not self.can_perform(ticket, action, actor):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Действие недоступно пользователю")

@@ -6,7 +6,7 @@ from sqlalchemy import Select, and_, exists, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import ServiceDeskAccessType, ServiceDeskPriority, ServiceDeskTicketStatus
-from app.modules.access.models import ServiceDeskUser
+from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 from app.modules.access.service import ServiceDeskAccessService
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.catalog.models import ServiceDeskService
@@ -22,6 +22,7 @@ from app.modules.workbench.schemas import (
     WorkbenchTicketPage,
     WorkbenchTicketRow,
     WorkbenchUserSummary,
+    WorkbenchUserOption,
 )
 
 
@@ -218,6 +219,22 @@ class WorkbenchService:
             ) or 0
         return WorkbenchCounters(**values)
 
+    def user_options(
+        self, actor: ServiceDeskUser, *, eligible_assignees: bool
+    ) -> list[WorkbenchUserOption]:
+        WorkbenchAccessService().require_access(actor)
+        stmt = select(ServiceDeskUser).where(ServiceDeskUser.is_active.is_(True))
+        if eligible_assignees:
+            stmt = stmt.where(or_(
+                ServiceDeskUser.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+                exists().where(
+                    ServiceDeskUserCapability.service_desk_user_id == ServiceDeskUser.id,
+                    ServiceDeskUserCapability.capability == "service_desk.be_assignee",
+                ),
+            ))
+        users = self.db.scalars(stmt.order_by(ServiceDeskUser.display_name, ServiceDeskUser.id)).all()
+        return [WorkbenchUserOption(id=user.id, display_name=user.display_name) for user in users]
+
     @staticmethod
     def quick_view_predicate(
         quick_view: WorkbenchQuickView, actor: ServiceDeskUser, now: datetime
@@ -270,7 +287,18 @@ class WorkbenchService:
             created_at=ticket.created_at,
             updated_at=ticket.updated_at,
             allowed_actions=TicketPolicyService().allowed_actions(ticket, actor),
+            active_approval_id=self._active_approval_id(ticket, actor),
         )
+
+    @staticmethod
+    def _active_approval_id(ticket: ServiceDeskTicket, actor: ServiceDeskUser):
+        for stage in ticket.approval_stages:
+            if stage.status.value != "pending" or stage.started_at is None:
+                continue
+            for approval in stage.approvals:
+                if approval.approver_user_id == actor.id and approval.status.value == "pending":
+                    return approval.id
+        return None
 
     def _sla_summary(self, ticket: ServiceDeskTicket, now: datetime) -> WorkbenchSlaSummary:
         if not ticket.sla_snapshot:

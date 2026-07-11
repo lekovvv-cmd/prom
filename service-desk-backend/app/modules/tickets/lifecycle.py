@@ -7,7 +7,6 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from app.core.enums import (
-    ServiceDeskAccessType,
     ServiceDeskTicketAction,
     ServiceDeskTicketStatus,
 )
@@ -16,6 +15,7 @@ from app.modules.notifications.domain import NotificationEventType
 from app.modules.notifications.service import NotificationDispatcher, ticket_notification
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.repository import TicketRepository
+from app.modules.tickets.policy import TicketPolicyService
 
 
 REASSIGNABLE_STATUSES = {
@@ -235,38 +235,7 @@ class TicketLifecycleService:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Для действия требуется пользователь")
         if not actor.is_active:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
-
-        is_admin = actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
-        if action in ASSIGNMENT_ACTIONS:
-            can_assign = is_admin or any(
-                capability.capability == "service_desk.assign" for capability in actor.capabilities
-            )
-            if not can_assign:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет capability service_desk.assign")
-            return
-        if action == ServiceDeskTicketAction.SUBMIT:
-            if actor.id != ticket.requester_user_id:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "Отправить заявку может только заявитель")
-            return
-        if action in ASSIGNEE_ACTIONS:
-            if actor.id != ticket.assignee_user_id:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "Действие доступно только исполнителю")
-            return
-        if action == ServiceDeskTicketAction.REQUESTER_REPLY:
-            if actor.id != ticket.requester_user_id:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "Ответить может только заявитель")
-            return
-        if action == ServiceDeskTicketAction.CLOSE:
-            if not is_admin and actor.id not in {ticket.requester_user_id, ticket.assignee_user_id}:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для закрытия заявки")
-            return
-        if action == ServiceDeskTicketAction.CANCEL:
-            requester_can_cancel = (
-                actor.id == ticket.requester_user_id
-                and ticket.status in REQUESTER_CANCELLABLE_STATUSES
-            )
-            if not is_admin and not requester_can_cancel:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для отмены заявки")
+        TicketPolicyService().require_action(ticket, action, actor)
 
     @staticmethod
     def _validate_payload(action: ServiceDeskTicketAction, payload: dict[str, Any]) -> None:

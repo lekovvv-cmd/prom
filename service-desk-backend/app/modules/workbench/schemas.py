@@ -55,6 +55,7 @@ class WorkbenchTicketRow(BaseModel):
     created_at: datetime
     updated_at: datetime
     allowed_actions: list[str] = Field(default_factory=list)
+    active_approval_id: uuid.UUID | None = None
 
 
 class WorkbenchTicketPage(BaseModel):
@@ -73,3 +74,8 @@ class WorkbenchCounters(BaseModel):
     waiting_external: int
     resolved: int
     sla_breached: int | None
+
+
+class WorkbenchUserOption(BaseModel):
+    id: uuid.UUID
+    display_name: str

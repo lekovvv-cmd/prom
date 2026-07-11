@@ -465,6 +465,10 @@ button {
   align-items: start;
 }
 
+.workbench-quick-views { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.workbench-filters { grid-template-columns: repeat(4, minmax(180px, 1fr)); margin-bottom: 0; }
+.workbench-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
+
 .my-projects-filters {
   grid-template-columns: minmax(240px, 1.4fr) repeat(2, minmax(180px, 0.8fr));
 }

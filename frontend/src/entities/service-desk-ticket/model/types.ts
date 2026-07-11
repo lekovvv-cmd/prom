@@ -14,7 +14,7 @@ export type ServiceDeskTicketStatus =
 
 export type ServiceDeskPriority = "low" | "medium" | "high" | "critical";
 export type ServiceDeskApprovalStatus = "pending" | "approved" | "rejected" | "skipped";
-export type ServiceDeskAllowedAction = "approve" | "reject" | "assign" | "reassign";
+export type ServiceDeskAllowedAction = "approve" | "reject" | "assign" | "reassign" | "start" | "request_clarification" | "wait_external" | "resume" | "resolve" | "close" | "cancel";
 
 export type ServiceDeskTicketUser = {
   id: string;

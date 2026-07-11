@@ -615,7 +615,7 @@ def test_any_stage_completes_on_first_approval_and_skips_remaining(
         headers=auth_headers_for_user(requester_id),
     )
     assert requester_view.status_code == 200
-    assert requester_view.json()["allowed_actions"] == []
+    assert requester_view.json()["allowed_actions"] == ["cancel"]
 
     approver_view = client.get(
         f"/tickets/{ticket['id']}",

@@ -11,6 +11,7 @@ from app.modules.workbench.schemas import (
     WorkbenchQuickView,
     WorkbenchSlaState,
     WorkbenchTicketPage,
+    WorkbenchUserOption,
 )
 from app.modules.workbench.service import WorkbenchService
 
@@ -61,3 +62,14 @@ def get_workbench_counters(
     db: DbSession, current_user: CurrentServiceDeskUser
 ) -> WorkbenchCounters:
     return WorkbenchService(db).counters(current_user)
+
+
+@router.get("/users", response_model=list[WorkbenchUserOption])
+def get_workbench_users(
+    db: DbSession,
+    current_user: CurrentServiceDeskUser,
+    eligible_assignees: bool = False,
+) -> list[WorkbenchUserOption]:
+    return WorkbenchService(db).user_options(
+        current_user, eligible_assignees=eligible_assignees
+    )
