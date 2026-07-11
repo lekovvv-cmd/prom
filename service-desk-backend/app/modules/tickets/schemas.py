@@ -84,6 +84,13 @@ class TicketHistoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TicketFieldSnapshotRead(BaseModel):
+    label: str
+    type: str
+    raw_value: Any
+    display_value: str
+
+
 class TicketCommentSummary(BaseModel):
     id: uuid.UUID
     ticket_id: uuid.UUID
@@ -112,6 +119,7 @@ class TicketRead(BaseModel):
     status: ServiceDeskTicketStatus
     priority: ServiceDeskPriority
     field_values: dict[str, Any]
+    field_snapshot: list[TicketFieldSnapshotRead] = Field(default_factory=list)
     routing_snapshot: dict[str, Any] | None
     sla_snapshot: dict[str, Any] | None
     sla_policy_id: uuid.UUID | None

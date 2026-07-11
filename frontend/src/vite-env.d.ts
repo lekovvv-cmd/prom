@@ -15,6 +15,8 @@ declare module "lucide-react" {
   export const Check: Icon;
   export const CheckCircle2: Icon;
   export const CheckCheck: Icon;
+  export const CirclePlay: Icon;
+  export const Download: Icon;
   export const Clipboard: Icon;
   export const Clock3: Icon;
   export const Edit3: Icon;
@@ -37,6 +39,7 @@ declare module "lucide-react" {
   export const Ticket: Icon;
   export const Trash2: Icon;
   export const UserRound: Icon;
+  export const Upload: Icon;
   export const X: Icon;
   export const XCircle: Icon;
 }

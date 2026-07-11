@@ -3332,6 +3332,17 @@ button.chip {
 .filter-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .filter-pills button { border: 1px solid var(--border); border-radius: 999px; padding: 8px 12px; background: #fff; color: var(--muted-strong); cursor: pointer; }
 .filter-pills button.active { border-color: var(--accent); background: #edf3ff; color: var(--accent); font-weight: 700; }
+.breadcrumbs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+.breadcrumbs a { color: var(--accent); text-decoration: none; }
+.ticket-action-row { flex-wrap: wrap; }
+.service-desk-attachment-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.service-desk-attachment-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.service-desk-attachment-list li:last-child { border-bottom: 0; }
+.service-desk-attachment-list li > div { display: grid; gap: 3px; min-width: 0; }
+.service-desk-attachment-list small { color: var(--muted); }
+.comment-attachments { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.comment-attachment,
+.comment-attachment-upload { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: var(--accent); font-size: 12px; cursor: pointer; }
 
 @media (max-width: 720px) {
   .service-desk-catalog-toolbar,

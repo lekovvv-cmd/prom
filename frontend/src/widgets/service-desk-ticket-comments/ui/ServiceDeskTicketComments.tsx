@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from "react";
-import { Lock, MessageSquare, Send } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Download, Lock, MessageSquare, Paperclip, Send } from "lucide-react";
 
 import type { ServiceDeskTicket } from "../../../entities/service-desk-ticket/model/types";
 import { addTicketComment } from "../../../features/add-ticket-comment/api/addTicketComment";
+import { downloadServiceDeskAttachment, listServiceDeskCommentAttachments, uploadServiceDeskCommentAttachment } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
+import type { ServiceDeskAttachment } from "../../../entities/service-desk-ticket/model/types";
 import { formatDateTime } from "../../../shared/lib/date";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
@@ -75,6 +77,7 @@ export function ServiceDeskTicketComments({
                 ) : null}
               </div>
               <p>{comment.body}</p>
+              <CommentAttachments ticketId={ticket.id} commentId={comment.id} canUpload={!isLocked} />
               {comment.updated_at ? <span className="muted">Изменён</span> : null}
             </li>
           ))}
@@ -113,4 +116,13 @@ export function ServiceDeskTicketComments({
       )}
     </Card>
   );
+}
+
+function CommentAttachments({ ticketId, commentId, canUpload }: { ticketId: string; commentId: string; canUpload: boolean }) {
+  const [attachments, setAttachments] = useState<ServiceDeskAttachment[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { void listServiceDeskCommentAttachments(ticketId, commentId).then(setAttachments).catch(() => undefined); }, [commentId, ticketId]);
+  async function upload(file: File) { try { const attachment = await uploadServiceDeskCommentAttachment(ticketId, commentId, file); setAttachments((current) => [...current, attachment]); } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Не удалось загрузить файл"); } }
+  async function download(attachment: ServiceDeskAttachment) { try { const blob = await downloadServiceDeskAttachment(ticketId, attachment.id); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = attachment.file_name; link.click(); URL.revokeObjectURL(url); } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : "Не удалось скачать файл"); } }
+  return <div className="comment-attachments">{attachments.map((attachment) => <button className="comment-attachment" type="button" key={attachment.id} onClick={() => void download(attachment)}><Download size={13} aria-hidden="true" />{attachment.file_name}</button>)}{canUpload ? <label className="comment-attachment-upload"><Paperclip size={13} aria-hidden="true" />Прикрепить файл<input type="file" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /></label> : null}{error ? <small className="field-error">{error}</small> : null}</div>;
 }

@@ -56,6 +56,13 @@ export type ServiceDeskTicketHistory = {
   created_at: string;
 };
 
+export type ServiceDeskTicketFieldSnapshot = {
+  label: string;
+  type: string;
+  raw_value: unknown;
+  display_value: string;
+};
+
 export type ServiceDeskTicketComment = {
   id: string;
   ticket_id: string;
@@ -86,6 +93,7 @@ export type ServiceDeskTicket = {
   status: ServiceDeskTicketStatus;
   priority: ServiceDeskPriority;
   field_values: Record<string, unknown>;
+  field_snapshot?: ServiceDeskTicketFieldSnapshot[];
   routing_snapshot?: Record<string, unknown> | null;
   sla_snapshot?: Record<string, unknown> | null;
   sla_policy_id?: string | null;

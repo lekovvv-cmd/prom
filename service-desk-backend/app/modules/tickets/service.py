@@ -317,8 +317,62 @@ class TicketService:
                 }
             )
         return read.model_copy(
-            update={"allowed_actions": self.policy.allowed_actions(ticket, actor)}
+            update={
+                "allowed_actions": self.policy.allowed_actions(ticket, actor),
+                "field_snapshot": self._field_snapshot(ticket),
+            }
         )
+
+    def _field_snapshot(self, ticket: ServiceDeskTicket) -> list[schemas.TicketFieldSnapshotRead]:
+        template_version = ticket.template_version or self.template_repository.get_version(ticket.template_version_id)
+        if not template_version:
+            return []
+        dictionary_labels: dict[str, dict[str, str]] = {}
+        for field in template_version.fields:
+            if not field.dictionary_code or field.dictionary_code in dictionary_labels:
+                continue
+            dictionary = self.template_repository.get_dictionary_by_code(field.dictionary_code)
+            dictionary_labels[field.dictionary_code] = {
+                item.value: item.label for item in dictionary.items if item.is_active
+            } if dictionary else {}
+        snapshots: list[schemas.TicketFieldSnapshotRead] = []
+        for field in sorted(template_version.fields, key=lambda item: (item.position, item.label)):
+            raw_value = ticket.field_values.get(field.key)
+            display_value = self._display_field_value(field, raw_value, dictionary_labels)
+            snapshots.append(
+                schemas.TicketFieldSnapshotRead(
+                    label=field.label,
+                    type=field.field_type.value,
+                    raw_value=raw_value,
+                    display_value=display_value,
+                )
+            )
+        return snapshots
+
+    @staticmethod
+    def _display_field_value(field, raw_value: Any, dictionary_labels: dict[str, dict[str, str]]) -> str:
+        if raw_value is None or raw_value == "" or raw_value == []:
+            return "Не указано"
+        option_labels = {
+            str(item.get("value")): str(item.get("label", item.get("value")))
+            for item in (field.options or [])
+            if isinstance(item, dict) and item.get("value") is not None
+        }
+        if field.dictionary_code:
+            option_labels.update(dictionary_labels.get(field.dictionary_code, {}))
+        if isinstance(raw_value, list):
+            values: list[str] = []
+            for item in raw_value:
+                if isinstance(item, dict):
+                    values.append(str(item.get("name") or item.get("label") or item.get("value") or "Не указано"))
+                else:
+                    values.append(option_labels.get(str(item), str(item)))
+            return ", ".join(values)
+        if isinstance(raw_value, bool):
+            return "Да" if raw_value else "Нет"
+        if isinstance(raw_value, dict):
+            return str(raw_value.get("name") or raw_value.get("label") or raw_value.get("value") or "Не указано")
+        return option_labels.get(str(raw_value), str(raw_value))
 
     def _require_active_user(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)

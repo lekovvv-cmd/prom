@@ -1,4 +1,5 @@
 import { serviceDeskApiClient } from "../../../shared/api/client";
+import { env } from "../../../shared/config/env";
 import type { ServiceDeskAttachment, ServiceDeskPriority, ServiceDeskTicket } from "../model/types";
 
 export function getServiceDeskTicket(ticketId: string) {
@@ -30,4 +31,33 @@ export function uploadServiceDeskFieldAttachment(ticketId: string, fieldKey: str
   const formData = new FormData();
   formData.append("file", file);
   return serviceDeskApiClient.request<ServiceDeskAttachment>(`/tickets/${ticketId}/fields/${encodeURIComponent(fieldKey)}/attachments`, { method: "POST", body: formData });
+}
+
+export function uploadServiceDeskTicketAttachment(ticketId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return serviceDeskApiClient.request<ServiceDeskAttachment>(`/tickets/${ticketId}/attachments`, { method: "POST", body: formData });
+}
+
+export function listServiceDeskCommentAttachments(ticketId: string, commentId: string) {
+  return serviceDeskApiClient.request<ServiceDeskAttachment[]>(`/tickets/${ticketId}/comments/${commentId}/attachments`);
+}
+
+export function uploadServiceDeskCommentAttachment(ticketId: string, commentId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return serviceDeskApiClient.request<ServiceDeskAttachment>(`/tickets/${ticketId}/comments/${commentId}/attachments`, { method: "POST", body: formData });
+}
+
+export function performServiceDeskTicketAction(ticketId: string, action: string, payload: Record<string, string> = {}) {
+  const endpoint = `/tickets/${ticketId}/${action.replace("request_clarification", "request-clarification").replace("wait_external", "wait-external")}`;
+  return serviceDeskApiClient.request<ServiceDeskTicket>(endpoint, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export async function downloadServiceDeskAttachment(ticketId: string, attachmentId: string) {
+  const response = await fetch(`${env.serviceDeskApiBaseUrl}/tickets/${ticketId}/attachments/${attachmentId}/download`, {
+    headers: serviceDeskApiClient.getToken() ? { Authorization: `Bearer ${serviceDeskApiClient.getToken()}` } : undefined
+  });
+  if (!response.ok) throw new Error("Не удалось скачать файл");
+  return response.blob();
 }
