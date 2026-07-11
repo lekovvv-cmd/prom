@@ -236,7 +236,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await escalationForm.getByRole("button", { name: "Сохранить изменения" }).click();
 
   await page.reload();
-  await expect(page.getByText(`${calendarName} edited`)).toBeVisible();
+  await expect(page.getByRole("heading", { name: `${calendarName} edited` })).toBeVisible();
   await expect(page.getByText("resolution · 81%")).toBeVisible();
   const calendars = await serviceDeskRequest<Array<{ name: string; business_hours: unknown[]; exceptions: Array<{ type: string }> }>>(
     request, token, "get", "/admin/sla/calendars"
