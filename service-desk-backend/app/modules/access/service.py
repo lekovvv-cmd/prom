@@ -162,7 +162,6 @@ class ServiceDeskAccessService:
         user = self._get(user_id)
         before = self._state(user)
         values = payload.model_dump(exclude_unset=True)
-        caps = values.pop("capabilities", None)
         old_type = user.access_type
         if "access_type" in values:
             values["access_type"] = ServiceDeskAccessType(values["access_type"])
@@ -176,9 +175,7 @@ class ServiceDeskAccessService:
             old_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
             and user.access_type == ServiceDeskAccessType.MANAGER
         ):
-            caps = [] if caps is None else caps
-        if caps is not None:
-            self._replace_rows(user, self._validate_capabilities(caps), actor)
+            self._replace_rows(user, [], actor)
         event = "access_type_changed" if old_type != user.access_type else "access_profile_updated"
         self.db.flush()
         self._audit(actor, user, event, before, self._state(user))

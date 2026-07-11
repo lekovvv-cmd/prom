@@ -4,7 +4,7 @@ import math
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import exists, func, or_, select
+from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import ServiceDeskApprovalStatus, ServiceDeskPriority, ServiceDeskTicketStatus
@@ -255,12 +255,26 @@ class StatsService:
             ServiceDeskTicket.resolved_at.is_not(None),
             *self._period(ServiceDeskTicket.resolved_at, filters),
         )
-        rb = self._count(
+        response_breached_cohort = self._count(
+            filters,
+            ServiceDeskTicket.sla_snapshot.is_not(None),
+            ServiceDeskTicket.first_response_at.is_not(None),
+            ServiceDeskTicket.is_response_breached.is_(True),
+            *self._period(ServiceDeskTicket.first_response_at, filters),
+        )
+        resolution_breached_cohort = self._count(
+            filters,
+            ServiceDeskTicket.sla_snapshot.is_not(None),
+            ServiceDeskTicket.resolved_at.is_not(None),
+            ServiceDeskTicket.is_resolution_breached.is_(True),
+            *self._period(ServiceDeskTicket.resolved_at, filters),
+        )
+        response_breach_events = self._count(
             filters,
             ServiceDeskTicket.response_breached_at.is_not(None),
             *self._period(ServiceDeskTicket.response_breached_at, filters),
         )
-        xb = self._count(
+        resolution_breach_events = self._count(
             filters,
             ServiceDeskTicket.resolution_breached_at.is_not(None),
             *self._period(ServiceDeskTicket.resolution_breached_at, filters),
@@ -270,14 +284,14 @@ class StatsService:
             ServiceDeskTicket.status.not_in(TERMINAL_STATUSES),
         ]
         return SlaMetricsRead(
-            response_compliance_percent=round((response_total - rb) * 100 / response_total, 2)
+            response_compliance_percent=round((response_total - response_breached_cohort) * 100 / response_total, 2)
             if response_total
             else None,
-            resolution_compliance_percent=round((resolution_total - xb) * 100 / resolution_total, 2)
+            resolution_compliance_percent=round((resolution_total - resolution_breached_cohort) * 100 / resolution_total, 2)
             if resolution_total
             else None,
-            response_breaches=rb,
-            resolution_breaches=xb,
+            response_breaches=response_breach_events,
+            resolution_breaches=resolution_breach_events,
             active_near_breach=self._count(
                 filters, *active, sla_state_predicate(WorkbenchSlaState.WARNING, now)
             ),
@@ -317,46 +331,95 @@ class StatsService:
             .where(exists().where(ServiceDeskTicket.assignee_user_id == ServiceDeskUser.id))
             .order_by(ServiceDeskUser.display_name, ServiceDeskUser.id)
         ).all()
+        if not users:
+            return []
+        user_ids = [user.id for user in users]
+        base_filters = [
+            *self._dimension_filters(filters),
+            ServiceDeskTicket.assignee_user_id.in_(user_ids),
+        ]
+        current_rows = self.db.execute(
+            select(
+                ServiceDeskTicket.assignee_user_id,
+                func.sum(case((ServiceDeskTicket.status.in_(CURRENT_ASSIGNED), 1), else_=0)),
+                func.sum(case((ServiceDeskTicket.status == ServiceDeskTicketStatus.IN_PROGRESS, 1), else_=0)),
+                func.sum(case((
+                    ServiceDeskTicket.status.in_((
+                        ServiceDeskTicketStatus.WAITING_REQUESTER,
+                        ServiceDeskTicketStatus.WAITING_EXTERNAL,
+                    )),
+                    1,
+                ), else_=0)),
+                func.sum(case((or_(
+                    ServiceDeskTicket.response_breached_at.is_not(None),
+                    ServiceDeskTicket.resolution_breached_at.is_not(None),
+                ), 1), else_=0)),
+            )
+            .join(ServiceDeskTicket.service)
+            .where(*base_filters)
+            .group_by(ServiceDeskTicket.assignee_user_id)
+        ).all()
+        current_by_user = {row[0]: row[1:] for row in current_rows}
+        outcome_rows = self.db.execute(
+            select(
+                ServiceDeskTicket.assignee_user_id,
+                func.sum(case((
+                    and_(
+                        ServiceDeskTicket.resolved_at.is_not(None),
+                        *self._period(ServiceDeskTicket.resolved_at, filters),
+                    ),
+                    1,
+                ), else_=0)),
+                func.sum(case((
+                    and_(
+                        ServiceDeskTicket.closed_at.is_not(None),
+                        *self._period(ServiceDeskTicket.closed_at, filters),
+                    ),
+                    1,
+                ), else_=0)),
+            )
+            .join(ServiceDeskTicket.service)
+            .where(*base_filters)
+            .group_by(ServiceDeskTicket.assignee_user_id)
+        ).all()
+        outcomes_by_user = {row[0]: row[1:] for row in outcome_rows}
+        duration_rows = self.db.execute(
+            select(
+                ServiceDeskTicket.assignee_user_id,
+                ServiceDeskTicket.submitted_at,
+                ServiceDeskTicket.resolved_at,
+            )
+            .join(ServiceDeskTicket.service)
+            .where(
+                *base_filters,
+                ServiceDeskTicket.submitted_at.is_not(None),
+                ServiceDeskTicket.resolved_at.is_not(None),
+                *self._period(ServiceDeskTicket.resolved_at, filters),
+            )
+        ).all()
+        durations_by_user: dict[object, list[float]] = {user_id: [] for user_id in user_ids}
+        for user_id, submitted_at, resolved_at in duration_rows:
+            durations_by_user.setdefault(user_id, []).append(
+                (resolved_at - submitted_at).total_seconds()
+            )
         rows = []
         for user in users:
-            scoped = filters.model_copy(update={"assignee_user_id": user.id})
-            durations = self._duration_values(
-                scoped, ServiceDeskTicket.submitted_at, ServiceDeskTicket.resolved_at
-            )
+            current = current_by_user.get(user.id, (0, 0, 0, 0))
+            outcomes = outcomes_by_user.get(user.id, (0, 0))
             rows.append(
                 AssigneeStatsRow(
                     user_id=user.id,
                     display_name=user.display_name,
                     is_active=user.is_active,
-                    currently_assigned=self._count(
-                        scoped, ServiceDeskTicket.status.in_(CURRENT_ASSIGNED)
-                    ),
-                    in_progress=self._count(
-                        scoped, ServiceDeskTicket.status == ServiceDeskTicketStatus.IN_PROGRESS
-                    ),
-                    waiting=self._count(
-                        scoped,
-                        ServiceDeskTicket.status.in_(
-                            (
-                                ServiceDeskTicketStatus.WAITING_REQUESTER,
-                                ServiceDeskTicketStatus.WAITING_EXTERNAL,
-                            )
-                        ),
-                    ),
-                    resolved_in_period=self._count(
-                        scoped, *self._period(ServiceDeskTicket.resolved_at, filters)
-                    ),
-                    closed_in_period=self._count(
-                        scoped, *self._period(ServiceDeskTicket.closed_at, filters)
-                    ),
-                    breached_tickets=self._count(
-                        scoped,
-                        or_(
-                            ServiceDeskTicket.response_breached_at.is_not(None),
-                            ServiceDeskTicket.resolution_breached_at.is_not(None),
-                        ),
-                    ),
-                    median_resolution_seconds=self._duration(durations).median_seconds,
+                    currently_assigned=current[0] or 0,
+                    in_progress=current[1] or 0,
+                    waiting=current[2] or 0,
+                    resolved_in_period=outcomes[0] or 0,
+                    closed_in_period=outcomes[1] or 0,
+                    breached_tickets=current[3] or 0,
+                    median_resolution_seconds=self._duration(
+                        durations_by_user.get(user.id, [])
+                    ).median_seconds,
                 )
             )
         return rows

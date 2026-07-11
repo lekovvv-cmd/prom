@@ -62,3 +62,76 @@ def test_admin_to_manager_requires_explicit_manager_capabilities(client):
     ).json()
     updated = client.patch(f"/admin/access/users/{created['id']}", json={"access_type": "manager"})
     assert updated.status_code == 200 and updated.json()["capabilities"] == []
+
+
+def test_access_patch_validation_and_capability_mutation_are_isolated(
+    client, db_session_factory
+):
+    created = client.post(
+        "/admin/access/users",
+        json={
+            "identity_user_id": str(uuid.uuid4()),
+            "email": "  patch-user@utmn.ru ",
+            "display_name": " Patch User ",
+            "department": "  IT  ",
+            "position": "  Analyst  ",
+            "access_type": "manager",
+            "capabilities": ["service_desk.access"],
+        },
+    )
+    assert created.status_code == 201, created.text
+    user = created.json()
+    assert user["email"] == "patch-user@utmn.ru"
+    assert user["display_name"] == "Patch User"
+    assert user["department"] == "IT"
+
+    assert client.patch(
+        f"/admin/access/users/{user['id']}", json={"email": "abc"}
+    ).status_code == 422
+    assert client.patch(
+        f"/admin/access/users/{user['id']}", json={"display_name": "   "}
+    ).status_code == 422
+    assert client.patch(
+        f"/admin/access/users/{user['id']}",
+        json={"capabilities": ["service_desk.manage_access"]},
+    ).status_code == 422
+
+    updated = client.patch(
+        f"/admin/access/users/{user['id']}",
+        json={
+            "email": "  updated@utmn.ru ",
+            "display_name": " Updated User ",
+            "department": "   ",
+            "position": " Lead ",
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["email"] == "updated@utmn.ru"
+    assert updated.json()["display_name"] == "Updated User"
+    assert updated.json()["department"] is None
+    assert updated.json()["position"] == "Lead"
+    assert updated.json()["capabilities"] == ["service_desk.access"]
+
+    replaced = client.put(
+        f"/admin/access/users/{user['id']}/capabilities",
+        json={"capabilities": ["service_desk.access", "service_desk.view_reports"]},
+    )
+    assert replaced.status_code == 200
+    assert replaced.json()["capabilities"] == ["service_desk.access", "service_desk.view_reports"]
+
+    with db_session_factory() as db:
+        events = db.scalars(
+            select(ServiceDeskAccessAuditEvent)
+            .where(ServiceDeskAccessAuditEvent.target_user_id == uuid.UUID(user["id"]))
+            .order_by(ServiceDeskAccessAuditEvent.created_at)
+        ).all()
+        assert [event.event_type for event in events] == [
+            "access_user_created",
+            "access_profile_updated",
+            "capabilities_replaced",
+        ]
+        assert events[-1].before_state["capabilities"] == ["service_desk.access"]
+        assert events[-1].after_state["capabilities"] == [
+            "service_desk.access",
+            "service_desk.view_reports",
+        ]
