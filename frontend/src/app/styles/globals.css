@@ -3145,3 +3145,4 @@ button.chip {
 .service-desk-admin-nav { display: flex; gap: 6px; padding: 10px max(16px, calc((100vw - 1200px) / 2)); overflow-x: auto; background: #fff; border-bottom: 1px solid #e5e9ef; }
 .service-desk-admin-nav a { white-space: nowrap; padding: 8px 10px; border-radius: 8px; color: inherit; text-decoration: none; }
 .service-desk-admin-nav a.active { background: #eaf0ff; color: #1748bd; font-weight: 600; }
+.capability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 5px 12px; min-width: 420px; }

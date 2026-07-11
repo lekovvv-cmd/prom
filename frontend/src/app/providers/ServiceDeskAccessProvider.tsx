@@ -7,6 +7,7 @@ type ServiceDeskAccessContextValue = {
   user: ServiceDeskUser | null;
   isLoading: boolean;
   error: string | null;
+  refresh: () => Promise<void>;
 };
 
 const ServiceDeskAccessContext = createContext<ServiceDeskAccessContextValue | null>(null);
@@ -21,6 +22,7 @@ export function ServiceDeskAccessProvider({
   const [user, setUser] = useState<ServiceDeskUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let isCurrent = true;
@@ -59,11 +61,11 @@ export function ServiceDeskAccessProvider({
     return () => {
       isCurrent = false;
     };
-  }, [token]);
+  }, [token, refreshKey]);
 
   const isResolving = Boolean(token && !user && !error);
   const value = useMemo(
-    () => ({ user, isLoading: isLoading || isResolving, error }),
+    () => ({ user, isLoading: isLoading || isResolving, error, refresh: async () => setRefreshKey((value) => value + 1) }),
     [error, isLoading, isResolving, user]
   );
 
