@@ -116,14 +116,14 @@ class TemplateVersionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TemplateFieldPreviewRead(TemplateFieldRead):
+    effective_options: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class PublishedTemplateRead(BaseModel):
     service_id: uuid.UUID
     template_version: TemplateVersionRead
     fields: list[TemplateFieldPreviewRead] = Field(default_factory=list)
-
-
-class TemplateFieldPreviewRead(TemplateFieldRead):
-    effective_options: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class TemplatePreviewRead(BaseModel):

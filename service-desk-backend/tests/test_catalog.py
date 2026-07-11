@@ -36,7 +36,8 @@ def test_admin_can_manage_catalog_and_public_sees_only_active(client: TestClient
 
     public_services = client.get("/services", params={"q": "аудитор"})
     assert public_services.status_code == 200
-    assert [item["id"] for item in public_services.json()] == [service_id]
+    # Public catalog only exposes services that have a published form.
+    assert public_services.json() == []
 
     deactivated = client.post(f"/admin/services/{service_id}/deactivate")
     assert deactivated.status_code == 200
