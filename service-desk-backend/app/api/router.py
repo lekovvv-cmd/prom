@@ -11,6 +11,7 @@ from app.api.routes import (
     health,
     notifications,
     tickets,
+    workbench,
 )
 
 api_router = APIRouter()
@@ -24,3 +25,4 @@ api_router.include_router(admin_approvals.router)
 api_router.include_router(admin_routing.router)
 api_router.include_router(admin_sla.router)
 api_router.include_router(tickets.router)
+api_router.include_router(workbench.router)

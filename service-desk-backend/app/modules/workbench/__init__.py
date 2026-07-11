@@ -1,0 +1,1 @@
+"""Manager Workbench read model."""
