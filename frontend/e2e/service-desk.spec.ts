@@ -159,7 +159,11 @@ test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ pa
   const service = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: `E2E Workbench service ${suffix}` });
   const version = await serviceDeskRequest<{ id: string }>(request, token, "post", `/admin/services/${service.id}/versions`);
   await serviceDeskRequest(request, token, "post", `/admin/template-versions/${version.id}/publish`);
-  const draft = await serviceDeskRequest<{ id: string }>(request, token, "post", "/tickets/drafts", { service_id: service.id, title: `E2E Workbench ticket ${suffix}` });
+  const draft = await serviceDeskRequest<{ id: string }>(request, token, "post", "/tickets/drafts", {
+    service_id: service.id,
+    title: `E2E Workbench ticket ${suffix}`,
+    description: "Проверка критического Workbench flow."
+  });
   const ticket = await serviceDeskRequest<{ id: string; number: string }>(request, token, "post", `/tickets/${draft.id}/submit`);
 
   await page.goto("/service-desk/workbench");
