@@ -11,6 +11,7 @@ from app.modules.sla.models import (
     ServiceDeskTicketSlaPause,
 )
 from test_tickets import create_requester, create_service_with_template
+import app.modules.workbench.service as workbench_service
 
 
 def create_manager(db_session_factory, *capabilities: str) -> str:
@@ -420,3 +421,144 @@ def test_workbench_resolution_sla_pause_overrides_objective_overdue(
     assert client.get(
         "/workbench/tickets", params={"overdue": "true"}, headers=headers
     ).json()["total"] == 0
+
+
+def test_workbench_persistent_response_breach_matches_row_filter_quick_view_counter(
+    client, db_session_factory, auth_headers_for_user
+):
+    requester_id = create_requester(client, db_session_factory)
+    service_id, _ = create_service_with_template(client)
+    source = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Historical response breach", "field_values": {"room": "1"}},
+        headers=auth_headers_for_user(requester_id),
+    ).json()
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
+        ticket.status = ServiceDeskTicketStatus.IN_PROGRESS
+        ticket.sla_snapshot = {"policy": "persistent"}
+        ticket.first_response_at = datetime.now(UTC) - timedelta(hours=1)
+        ticket.resolution_due_at = datetime.now(UTC) + timedelta(hours=2)
+        ticket.is_response_breached = True
+        db.commit()
+
+    headers = client.admin_headers
+    row = client.get("/workbench/tickets", headers=headers).json()["items"][0]
+    assert row["sla"]["metric"] == "resolution"
+    assert row["sla"]["state"] == "breached"
+    breached = client.get(
+        "/workbench/tickets", params={"sla_state": "breached"}, headers=headers
+    ).json()
+    quick = client.get(
+        "/workbench/tickets", params={"quick_view": "sla_breached"}, headers=headers
+    ).json()
+    counters = client.get("/workbench/counters", headers=headers).json()
+    assert breached["total"] == 1
+    assert quick["total"] == 1
+    assert counters["sla_breached"] == quick["total"]
+
+
+def test_workbench_terminal_resolution_breach_is_visible_as_breached(
+    client, db_session_factory, auth_headers_for_user
+):
+    requester_id = create_requester(client, db_session_factory)
+    service_id, _ = create_service_with_template(client)
+    source = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Terminal breach", "field_values": {"room": "1"}},
+        headers=auth_headers_for_user(requester_id),
+    ).json()
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
+        ticket.status = ServiceDeskTicketStatus.RESOLVED
+        ticket.sla_snapshot = {"policy": "terminal"}
+        ticket.first_response_at = datetime.now(UTC) - timedelta(hours=3)
+        ticket.resolved_at = datetime.now(UTC) - timedelta(minutes=30)
+        ticket.is_resolution_breached = True
+        db.commit()
+
+    headers = client.admin_headers
+    breached = client.get(
+        "/workbench/tickets", params={"sla_state": "breached"}, headers=headers
+    ).json()
+    quick = client.get(
+        "/workbench/tickets", params={"quick_view": "sla_breached"}, headers=headers
+    ).json()
+    assert breached["total"] == 1
+    assert breached["items"][0]["sla"] == {"state": "breached", "metric": None, "due_at": None}
+    assert quick["total"] == 1
+
+
+def test_workbench_breach_takes_precedence_over_pause_and_warning(
+    client, db_session_factory, auth_headers_for_user
+):
+    requester_id = create_requester(client, db_session_factory)
+    service_id, _ = create_service_with_template(client)
+    source = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Breach precedence", "field_values": {"room": "1"}},
+        headers=auth_headers_for_user(requester_id),
+    ).json()
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
+        ticket.status = ServiceDeskTicketStatus.WAITING_EXTERNAL
+        ticket.sla_snapshot = {"policy": "precedence"}
+        ticket.first_response_at = datetime.now(UTC) - timedelta(hours=2)
+        ticket.resolution_due_at = datetime.now(UTC) + timedelta(hours=2)
+        ticket.is_response_breached = True
+        add_warning_event(db, ticket, "resolution")
+        db.add(ServiceDeskTicketSlaPause(
+            ticket_id=ticket.id,
+            reason_status=ServiceDeskTicketStatus.WAITING_EXTERNAL.value,
+            started_at=datetime.now(UTC) - timedelta(minutes=30),
+        ))
+        db.commit()
+
+    headers = client.admin_headers
+    row = client.get("/workbench/tickets", headers=headers).json()["items"][0]
+    assert row["sla"]["state"] == "breached"
+    assert client.get(
+        "/workbench/tickets", params={"sla_state": "paused"}, headers=headers
+    ).json()["total"] == 0
+    assert client.get(
+        "/workbench/tickets", params={"sla_state": "warning"}, headers=headers
+    ).json()["total"] == 0
+
+
+def test_workbench_deadline_boundary_matches_worker_semantics(
+    client, db_session_factory, auth_headers_for_user, monkeypatch
+):
+    fixed_now = datetime(2026, 7, 11, 8, 0, tzinfo=UTC)
+
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed_now if tz else fixed_now.replace(tzinfo=None)
+
+    monkeypatch.setattr(workbench_service, "datetime", FixedDateTime)
+    requester_id = create_requester(client, db_session_factory)
+    service_id, _ = create_service_with_template(client)
+    source = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Boundary", "field_values": {"room": "1"}},
+        headers=auth_headers_for_user(requester_id),
+    ).json()
+    with db_session_factory() as db:
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
+        ticket.status = ServiceDeskTicketStatus.IN_PROGRESS
+        ticket.sla_snapshot = {"policy": "boundary"}
+        ticket.first_response_due_at = fixed_now
+        db.commit()
+
+    headers = client.admin_headers
+    row = client.get("/workbench/tickets", headers=headers).json()["items"][0]
+    assert row["sla"]["state"] == "breached"
+    assert client.get(
+        "/workbench/tickets", params={"sla_state": "breached"}, headers=headers
+    ).json()["total"] == 1
+    assert client.get(
+        "/workbench/tickets", params={"overdue": "true"}, headers=headers
+    ).json()["total"] == 1
+    assert client.get(
+        "/workbench/tickets", params={"quick_view": "sla_breached"}, headers=headers
+    ).json()["total"] == 1

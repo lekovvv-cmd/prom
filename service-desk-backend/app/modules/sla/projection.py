@@ -38,3 +38,12 @@ def active_sla_due_at(ticket: ServiceDeskTicket) -> datetime | None:
     if metric == "resolution":
         return ticket.resolution_due_at
     return None
+
+
+def has_durable_sla_breach(ticket: ServiceDeskTicket) -> bool:
+    return bool(ticket.is_response_breached or ticket.is_resolution_breached)
+
+
+def current_metric_deadline_reached(ticket: ServiceDeskTicket, now: datetime) -> bool:
+    due_at = active_sla_due_at(ticket)
+    return due_at is not None and utc(due_at) <= utc(now)
