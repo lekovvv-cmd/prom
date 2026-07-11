@@ -36,8 +36,8 @@ class TemplateFieldCreate(BaseModel):
     options: list[dict[str, Any]] | None = None
     dictionary_code: str | None = Field(default=None, max_length=128)
     validation: dict[str, Any] | None = None
-    visibility_rules: dict[str, Any] | None = None
-    required_rules: dict[str, Any] | None = None
+    visibility_rules: dict[str, Any] | list[dict[str, Any]] | None = None
+    required_rules: dict[str, Any] | list[dict[str, Any]] | None = None
 
 
 class TemplateFieldUpdate(BaseModel):
@@ -51,8 +51,8 @@ class TemplateFieldUpdate(BaseModel):
     options: list[dict[str, Any]] | None = None
     dictionary_code: str | None = Field(default=None, max_length=128)
     validation: dict[str, Any] | None = None
-    visibility_rules: dict[str, Any] | None = None
-    required_rules: dict[str, Any] | None = None
+    visibility_rules: dict[str, Any] | list[dict[str, Any]] | None = None
+    required_rules: dict[str, Any] | list[dict[str, Any]] | None = None
 
 
 class TemplateFieldRead(BaseModel):

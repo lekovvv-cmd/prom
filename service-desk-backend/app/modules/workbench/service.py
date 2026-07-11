@@ -296,7 +296,8 @@ class WorkbenchService:
     def user_options(
         self, actor: ServiceDeskUser, *, eligible_assignees: bool
     ) -> list[WorkbenchUserOption]:
-        WorkbenchAccessService().require_access(actor)
+        if eligible_assignees:
+            WorkbenchAccessService().require_access(actor)
         stmt = select(ServiceDeskUser).where(ServiceDeskUser.is_active.is_(True))
         if eligible_assignees:
             stmt = stmt.where(or_(
