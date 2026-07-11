@@ -260,6 +260,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
     response.request().method() === "DELETE" && response.url().includes("/admin/sla/escalations/"));
   await persistedEscalationCard.getByRole("button", { name: "Удалить" }).click();
   expect((await deleteEscalationResponse).status()).toBe(204);
+  await page.reload();
   await expect(persistedEscalationCard).toHaveCount(0);
 });
 
