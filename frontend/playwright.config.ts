@@ -11,7 +11,7 @@ export default defineConfig({
   },
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : "list",
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }], ["list"]] : "list",
   use: {
     baseURL: frontendUrl,
     trace: "on-first-retry"
