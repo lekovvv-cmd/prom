@@ -6,7 +6,7 @@ import { getServiceDeskService, getServiceDeskServiceForm } from "../../../entit
 import type { ServiceDeskPublishedForm, ServiceDeskService, ServiceDeskTemplateField } from "../../../entities/service-desk-catalog/model/types";
 import { getFieldOptions, isEmpty, matchesRules, type FormValues } from "../../../entities/service-desk-catalog/model/rules";
 import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
-import { getServiceDeskTicket, getServiceDeskTicketForm, listServiceDeskFieldAttachments, uploadServiceDeskFieldAttachment, createServiceDeskDraft, submitServiceDeskDraft, updateServiceDeskDraft } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
+import { downloadServiceDeskAttachment, getServiceDeskTicket, getServiceDeskTicketForm, listServiceDeskFieldAttachments, uploadServiceDeskFieldAttachment, createServiceDeskDraft, submitServiceDeskDraft, updateServiceDeskDraft } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
 import type { ServiceDeskAttachment, ServiceDeskPriority, ServiceDeskTicket } from "../../../entities/service-desk-ticket/model/types";
 import { ApiError, normalizeApiErrorMessage } from "../../../shared/api/client";
 import { FileInput } from "../../../entities/attachment/ui/FileInput";
@@ -118,8 +118,13 @@ export function ServiceDeskServiceFormPage() {
       setDraft(current);
       for (const [fieldKey, files] of Object.entries(filesByField)) {
         for (const file of files) {
-          const uploaded = await uploadServiceDeskFieldAttachment(current.id, fieldKey, file);
-          setExistingByField((existing) => ({ ...existing, [fieldKey]: [...(existing[fieldKey] ?? []), uploaded] }));
+          try {
+            const uploaded = await uploadServiceDeskFieldAttachment(current.id, fieldKey, file);
+            setExistingByField((existing) => ({ ...existing, [fieldKey]: [...(existing[fieldKey] ?? []), uploaded] }));
+          } catch (reason: unknown) {
+            setFieldErrors((currentErrors) => ({ ...currentErrors, [fieldKey]: reason instanceof Error ? reason.message : "Не удалось загрузить файл" }));
+            throw reason;
+          }
         }
       }
       setFilesByField({});
@@ -148,17 +153,17 @@ export function ServiceDeskServiceFormPage() {
     {loading ? <Spinner label="Загружаем форму услуги" /> : error && !form ? <Card><p className="form-error" role="alert">{error}</p><Link className="button button-secondary" to="/service-desk">Вернуться в каталог</Link></Card> : form && service ? <div className="service-desk-form-layout"><Card className="service-desk-form-card"><div className="service-desk-form-intro"><span className="service-desk-eyebrow"><FileText size={14} aria-hidden="true" /> Форма заявки · версия {form.template_version.version}</span><p>{service.description ?? service.short_description}</p>{form.template_version.system_settings.help_text ? <p className="muted">{form.template_version.system_settings.help_text}</p> : null}</div>
       {!token ? <Card><p>Для сохранения заявки войдите в PROM.</p><Link className="button" to="/login">Войти</Link></Card> : null}
       <div className="service-desk-form-grid"><Input label="Тема заявки" value={title} disabled={form.template_version.system_settings.is_title_editable === false} onChange={(event) => setTitle(event.target.value)} aria-invalid={Boolean(fieldErrors.title)} /><label className="field field-wide"><span>Описание {form.template_version.system_settings.is_description_required !== false ? <sup>*</sup> : null}</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={5} aria-invalid={Boolean(fieldErrors.description)} /></label><Select label="Приоритет" value={priority} onChange={(event) => setPriority(event.target.value as ServiceDeskPriority)}><option value="low">Низкий</option><option value="medium">Средний</option><option value="high">Высокий</option><option value="critical">Критический</option></Select>
-        {visibleFields.map((field) => <DynamicField key={field.key} field={field} value={values[field.key]} files={filesByField[field.key] ?? []} existingAttachments={existingByField[field.key] ?? []} users={users} required={field.is_required || matchesRules(field.required_rules, values, false)} error={fieldErrors[field.key]} onChange={updateValue} onFilesChange={(files) => setFilesByField((current) => ({ ...current, [field.key]: files }))} />)}
+        {visibleFields.map((field) => <DynamicField key={field.key} ticketId={draft?.id ?? ticketId} field={field} value={values[field.key]} files={filesByField[field.key] ?? []} existingAttachments={existingByField[field.key] ?? []} users={users} required={field.is_required || matchesRules(field.required_rules, values, false)} error={fieldErrors[field.key]} onChange={updateValue} onFilesChange={(files) => setFilesByField((current) => ({ ...current, [field.key]: files }))} />)}
       </div>{error && form ? <p className={error.startsWith("Черновик") ? "success-text" : "form-error"} role="alert">{error}</p> : null}<div className="form-actions"><Button variant="secondary" disabled={!token || pending !== null} onClick={() => void persistDraft(false)}><Save size={16} aria-hidden="true" />{pending === "save" ? "Сохраняем..." : "Сохранить черновик"}</Button><Button disabled={!token || pending !== null} onClick={() => void persistDraft(true)}><Send size={16} aria-hidden="true" />{pending === "submit" ? "Отправляем..." : "Отправить заявку"}</Button></div>
     </Card></div> : null}
   </PageLayout></>;
 }
 
-function DynamicField({ field, value, files, existingAttachments, users, required, error, onChange, onFilesChange }: { field: ServiceDeskTemplateField; value: unknown; files: File[]; existingAttachments: ServiceDeskAttachment[]; users: Users; required: boolean; error?: string; onChange: (key: string, value: unknown) => void; onFilesChange: (files: File[]) => void }) {
+function DynamicField({ ticketId, field, value, files, existingAttachments, users, required, error, onChange, onFilesChange }: { ticketId?: string; field: ServiceDeskTemplateField; value: unknown; files: File[]; existingAttachments: ServiceDeskAttachment[]; users: Users; required: boolean; error?: string; onChange: (key: string, value: unknown) => void; onFilesChange: (files: File[]) => void }) {
   const label = `${field.label}${required ? " *" : ""}`;
   const common = { name: field.key, id: field.key, "aria-invalid": Boolean(error) };
   const options = getFieldOptions(field);
-  if (field.field_type === "file") return <label className="field"><span>{label}</span><FileInput label="Добавить файлы" files={files} onChange={onFilesChange} />{existingAttachments.length ? <ul className="file-selection-list" aria-label="Сохранённые файлы">{existingAttachments.map((attachment) => <li key={attachment.id}><span><strong>{attachment.file_name}</strong><small>{attachment.content_type ?? "Файл"} · {formatSize(attachment.size_bytes)}</small></span></li>)}</ul> : null}<FieldError error={error} /></label>;
+  if (field.field_type === "file") return <label className="field"><span>{label}</span><FileInput label="Добавить файлы" files={files} onChange={onFilesChange} />{existingAttachments.length ? <ul className="file-selection-list" aria-label="Сохранённые файлы">{existingAttachments.map((attachment) => <li key={attachment.id}><span><strong>{attachment.file_name}</strong><small>{attachment.content_type ?? "Файл"} · {formatSize(attachment.size_bytes)}</small></span>{ticketId ? <button type="button" className="button button-secondary" onClick={() => void downloadExistingAttachment(ticketId, attachment)}>↓ Скачать</button> : null}</li>)}</ul> : null}<FieldError error={error} /></label>;
   if (field.field_type === "select" || field.field_type === "user") return <label className="field"><span>{label}</span><select {...common} value={String(value ?? "")} onChange={(event) => onChange(field.key, event.target.value)}><option value="">Выберите значение</option>{field.field_type === "user" ? users.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>) : options.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label ?? option.value}</option>)}</select><FieldHelp field={field} /><FieldError error={error} /></label>;
   if (field.field_type === "multiselect") return <label className="field"><span>{label}</span><select {...common} multiple value={Array.isArray(value) ? value.map(String) : []} onChange={(event) => onChange(field.key, Array.from(event.target.selectedOptions, (option) => option.value))}>{options.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label ?? option.value}</option>)}</select><FieldHelp field={field} /><FieldError error={error} /></label>;
   if (field.field_type === "checkbox") return <label className="field"><span className="checkbox-field"><input {...common} type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(field.key, event.target.checked)} />{label}</span><FieldError error={error} /></label>;
@@ -169,3 +174,4 @@ function DynamicField({ field, value, files, existingAttachments, users, require
 function FieldHelp({ field }: { field: ServiceDeskTemplateField }) { return field.help_text ? <small className="field-help">{field.help_text}</small> : null; }
 function FieldError({ error }: { error?: string }) { return error ? <small className="field-error">{error}</small> : null; }
 function formatSize(size: number) { return size < 1024 ? `${size} Б` : size < 1024 * 1024 ? `${(size / 1024).toFixed(1)} КБ` : `${(size / 1024 / 1024).toFixed(1)} МБ`; }
+async function downloadExistingAttachment(ticketId: string, attachment: ServiceDeskAttachment) { const blob = await downloadServiceDeskAttachment(ticketId, attachment.id); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = attachment.file_name; link.click(); URL.revokeObjectURL(url); }
