@@ -162,7 +162,7 @@ def test_user_options_are_safe_active_and_capability_filtered(client, db_session
         headers={"Authorization": f"Bearer {access_token(requester_identity)}"},
     )
     assert approver_options.status_code == 200
-    assert approver.id in {item["id"] for item in approver_options.json()}
-    assert inactive.id not in {item["id"] for item in approver_options.json()}
+    assert str(approver.id) in {item["id"] for item in approver_options.json()}
+    assert str(inactive.id) not in {item["id"] for item in approver_options.json()}
 
     assert client.get("/users/options").status_code == 401

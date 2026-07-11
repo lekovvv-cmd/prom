@@ -17,5 +17,5 @@ const landingOptions = [
 export function getServiceDeskAdminLanding(user: ServiceDeskAdminLandingUser | null | undefined) {
   if (!user) return null;
   if (user.access_type === "service_desk_admin") return "/admin/service-desk";
-  return landingOptions.find(([capability]) => user.capabilities.includes(capability))?.[1] ?? null;
+  return landingOptions.find(([capability]) => (user.capabilities ?? []).includes(capability))?.[1] ?? null;
 }
