@@ -17,7 +17,7 @@ const roleLabels = {
 export function Header() {
   const { canManageProjects, isAdmin, logout, token, user } = useAuth();
   const { user: serviceDeskUser } = useServiceDeskAccess();
-  const canUseWorkbench = serviceDeskUser?.access_type === "service_desk_admin" || ["service_desk.be_assignee", "service_desk.approve", "service_desk.assign", "service_desk.change_priority", "service_desk.view_all_tickets"].some((capability) => serviceDeskUser?.capabilities.includes(capability));
+  const canUseWorkbench = serviceDeskUser?.access_type === "service_desk_admin" || ["service_desk.be_assignee", "service_desk.approve", "service_desk.assign", "service_desk.change_priority", "service_desk.view_all_tickets"].some((capability) => serviceDeskUser?.capabilities?.includes(capability));
 
   return (
     <header className="app-header">
