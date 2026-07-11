@@ -86,6 +86,17 @@ export type ServiceDeskTicket = {
   status: ServiceDeskTicketStatus;
   priority: ServiceDeskPriority;
   field_values: Record<string, unknown>;
+  routing_snapshot?: Record<string, unknown> | null;
+  sla_snapshot?: Record<string, unknown> | null;
+  sla_policy_id?: string | null;
+  first_response_due_at?: string | null;
+  resolution_due_at?: string | null;
+  first_response_at?: string | null;
+  response_breached_at?: string | null;
+  resolution_breached_at?: string | null;
+  is_response_breached?: boolean;
+  is_resolution_breached?: boolean;
+  paused_seconds?: number;
   submitted_at: string | null;
   approval_started_at: string | null;
   approved_at: string | null;
@@ -104,4 +115,17 @@ export type ServiceDeskTicket = {
   updated_at: string;
   deleted_at: string | null;
   history: ServiceDeskTicketHistory[];
+};
+
+export type ServiceDeskAttachment = {
+  id: string;
+  owner_type: "service_desk_ticket" | "service_desk_comment" | "service_desk_field_value";
+  owner_id: string;
+  ticket_id: string;
+  field_key: string | null;
+  file_name: string;
+  content_type: string | null;
+  size_bytes: number;
+  uploaded_by_user_id: string;
+  created_at: string;
 };

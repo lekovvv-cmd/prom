@@ -17,6 +17,9 @@ import { ServiceDeskTicketDetailsPage } from "../../pages/service-desk-ticket-de
 import { ServiceDeskWorkbenchPage } from "../../pages/service-desk-workbench/ui/ServiceDeskWorkbenchPage";
 import { ServiceDeskAdminDashboardPage } from "../../pages/service-desk-admin-dashboard/ui/ServiceDeskAdminDashboardPage";
 import { ServiceDeskAdminAccessPage } from "../../pages/service-desk-admin-access/ui/ServiceDeskAdminAccessPage";
+import { ServiceDeskCatalogPage } from "../../pages/service-desk-catalog/ui/ServiceDeskCatalogPage";
+import { ServiceDeskMyTicketsPage } from "../../pages/service-desk-my-tickets/ui/ServiceDeskMyTicketsPage";
+import { ServiceDeskServiceFormPage } from "../../pages/service-desk-service-form/ui/ServiceDeskServiceFormPage";
 import { ProjectDetailsPage } from "../../pages/project-details/ui/ProjectDetailsPage";
 import { ProjectsListPage } from "../../pages/projects-list/ui/ProjectsListPage";
 import { Spinner } from "../../shared/ui/Spinner";
@@ -146,6 +149,9 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
+      <Route path="/service-desk" element={<ServiceDeskCatalogPage />} />
+      <Route path="/service-desk/catalog" element={<ServiceDeskCatalogPage />} />
+      <Route path="/service-desk/services/:serviceId" element={<ServiceDeskServiceFormPage />} />
       <Route
         path="/admin/service-desk"
         element={<ServiceDeskRoute><ServiceDeskReportsRoute><ServiceDeskAdminLayout><ServiceDeskAdminDashboardPage /></ServiceDeskAdminLayout></ServiceDeskReportsRoute></ServiceDeskRoute>}
@@ -154,6 +160,14 @@ export function AppRouter() {
       <Route
         path="/service-desk/workbench"
         element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><Header /><ServiceDeskWorkbenchPage /></ServiceDeskWorkbenchRoute></ServiceDeskRoute>}
+      />
+      <Route
+        path="/service-desk/my-tickets"
+        element={<ServiceDeskRoute><ServiceDeskMyTicketsPage /></ServiceDeskRoute>}
+      />
+      <Route
+        path="/service-desk/tickets"
+        element={<ServiceDeskRoute><ServiceDeskMyTicketsPage /></ServiceDeskRoute>}
       />
       <Route
         path="/service-desk/tickets/:ticketId"

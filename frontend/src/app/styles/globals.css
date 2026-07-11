@@ -3303,3 +3303,42 @@ button.chip {
 .service-desk-admin-nav a { white-space: nowrap; padding: 8px 10px; border-radius: 8px; color: inherit; text-decoration: none; }
 .service-desk-admin-nav a.active { background: #eaf0ff; color: #1748bd; font-weight: 600; }
 .capability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 5px 12px; min-width: 420px; }
+
+.service-desk-catalog-toolbar,
+.service-desk-ticket-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.service-desk-catalog-toolbar .field,
+.service-desk-ticket-toolbar .field { flex: 1; max-width: 520px; }
+.service-desk-catalog-groups { display: grid; gap: 28px; }
+.service-desk-catalog-group { display: grid; gap: 12px; }
+.service-desk-service-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.service-desk-service-card { display: flex; flex-direction: column; justify-content: space-between; gap: 18px; min-height: 180px; }
+.service-desk-service-card h3 { margin: 5px 0 8px; }
+.service-desk-service-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+.service-desk-eyebrow { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.service-desk-form-layout { max-width: 920px; }
+.service-desk-form-card { display: grid; gap: 20px; }
+.service-desk-form-intro { display: grid; gap: 8px; }
+.service-desk-form-intro p { margin: 0; line-height: 1.55; }
+.service-desk-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.field-wide { grid-column: 1 / -1; }
+.field-help { display: block; margin-top: 5px; color: var(--muted); line-height: 1.35; }
+.field-error { display: block; margin-top: 5px; color: #b42318; font-size: 12px; }
+.success-text { color: #16794c; }
+.checkbox-field { display: flex; align-items: center; gap: 8px; min-height: 42px; }
+.checkbox-field input { width: 18px; height: 18px; }
+.service-desk-my-tickets-table td a { display: inline-flex; flex-direction: column; gap: 3px; color: inherit; text-decoration: none; }
+.service-desk-my-tickets-table td a:hover strong { color: var(--accent); }
+.service-desk-my-tickets-table td small { color: var(--muted); }
+.filter-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-pills button { border: 1px solid var(--border); border-radius: 999px; padding: 8px 12px; background: #fff; color: var(--muted-strong); cursor: pointer; }
+.filter-pills button.active { border-color: var(--accent); background: #edf3ff; color: var(--accent); font-weight: 700; }
+
+@media (max-width: 720px) {
+  .service-desk-catalog-toolbar,
+  .service-desk-ticket-toolbar { align-items: stretch; flex-direction: column; }
+  .service-desk-catalog-toolbar .field,
+  .service-desk-ticket-toolbar .field { max-width: none; }
+  .service-desk-form-grid { grid-template-columns: 1fr; }
+  .field-wide { grid-column: auto; }
+  .service-desk-my-tickets-table { min-width: 760px; }
+}

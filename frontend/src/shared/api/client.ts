@@ -8,10 +8,12 @@ type RequestOptions = RequestInit & {
 
 export class ApiError extends Error {
   status: number;
+  details: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, details: unknown = null) {
     super(message);
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -173,6 +175,18 @@ export function normalizeApiErrorMessage(payload: unknown) {
     return normalizeValidationMessage(detail as ApiValidationError);
   }
 
+  if (detail && typeof detail === "object" && "message" in detail) {
+    const message = (detail as { message?: unknown }).message;
+    const errors = (detail as { errors?: unknown }).errors;
+    if (Array.isArray(errors)) {
+      const fieldMessages = errors
+        .filter((item): item is { field_key?: unknown; message?: unknown } => Boolean(item && typeof item === "object"))
+        .map((item) => `${typeof item.field_key === "string" ? getFieldLabel(item.field_key) : "Поле"}: ${typeof item.message === "string" ? item.message : "некорректное значение"}`);
+      return [typeof message === "string" ? message : "Проверьте заполнение формы", ...fieldMessages].join(". ");
+    }
+    if (typeof message === "string") return message;
+  }
+
   return "Ошибка API";
 }
 
@@ -181,7 +195,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
   const payload = contentType.includes("application/json") ? await response.json() : null;
   if (!response.ok) {
     const message = normalizeApiErrorMessage(payload);
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, payload);
   }
   if (response.status === 204) {
     return undefined as T;
