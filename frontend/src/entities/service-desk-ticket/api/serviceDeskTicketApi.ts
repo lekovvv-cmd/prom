@@ -6,6 +6,10 @@ export function getServiceDeskTicket(ticketId: string) {
   return serviceDeskApiClient.request<ServiceDeskTicket>(`/tickets/${ticketId}`);
 }
 
+export function getServiceDeskTicketForm(ticketId: string) {
+  return serviceDeskApiClient.request<import("../../service-desk-catalog/model/types").ServiceDeskPublishedForm>(`/tickets/${ticketId}/form`);
+}
+
 export function getMyServiceDeskTickets(status?: string) {
   const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
   return serviceDeskApiClient.request<ServiceDeskTicket[]>(`/me/tickets${suffix}`);
@@ -31,6 +35,10 @@ export function uploadServiceDeskFieldAttachment(ticketId: string, fieldKey: str
   const formData = new FormData();
   formData.append("file", file);
   return serviceDeskApiClient.request<ServiceDeskAttachment>(`/tickets/${ticketId}/fields/${encodeURIComponent(fieldKey)}/attachments`, { method: "POST", body: formData });
+}
+
+export function listServiceDeskFieldAttachments(ticketId: string, fieldKey: string) {
+  return serviceDeskApiClient.request<ServiceDeskAttachment[]>(`/tickets/${ticketId}/fields/${encodeURIComponent(fieldKey)}/attachments`);
 }
 
 export function uploadServiceDeskTicketAttachment(ticketId: string, file: File) {

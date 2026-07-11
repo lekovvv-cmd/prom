@@ -154,6 +154,7 @@ export function AppRouter() {
       <Route path="/service-desk" element={<ServiceDeskCatalogPage />} />
       <Route path="/service-desk/catalog" element={<ServiceDeskCatalogPage />} />
       <Route path="/service-desk/services/:serviceId" element={<ServiceDeskServiceFormPage />} />
+      <Route path="/service-desk/tickets/:ticketId/edit" element={<ServiceDeskRoute><ServiceDeskServiceFormPage /></ServiceDeskRoute>} />
       <Route
         path="/admin/service-desk"
         element={<ServiceDeskRoute><ServiceDeskReportsRoute><ServiceDeskAdminLayout><ServiceDeskAdminDashboardPage /></ServiceDeskAdminLayout></ServiceDeskReportsRoute></ServiceDeskRoute>}

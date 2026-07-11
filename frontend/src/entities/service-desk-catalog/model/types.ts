@@ -36,8 +36,8 @@ export type ServiceDeskTemplateField = {
   effective_options?: Array<{ label?: string; value?: string; position?: number; is_active?: boolean }>;
   dictionary_code: string | null;
   validation: Record<string, unknown> | null;
-  visibility_rules: Record<string, unknown> | null;
-  required_rules: Record<string, unknown> | null;
+  visibility_rules: Record<string, unknown> | Array<Record<string, unknown>> | null;
+  required_rules: Record<string, unknown> | Array<Record<string, unknown>> | null;
 };
 
 export type ServiceDeskPublishedForm = {

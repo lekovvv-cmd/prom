@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.enums import (
+    ServiceDeskAccessType,
     ServiceDeskAttachmentOwnerType,
     ServiceDeskCommentVisibility,
     ServiceDeskTicketStatus,
@@ -71,6 +72,7 @@ class AttachmentService:
     ) -> ServiceDeskAttachment:
         ticket = self._require_ticket(ticket_id)
         self.policy.require_view(ticket, actor)
+        self._ensure_mutable_ticket(ticket)
         return await self._store(
             owner_type=ServiceDeskAttachmentOwnerType.TICKET,
             owner_id=ticket.id,
@@ -92,6 +94,12 @@ class AttachmentService:
         if not comment or comment.ticket_id != ticket.id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Комментарий не найден")
         self.policy.require_view(ticket, actor)
+        self._ensure_mutable_ticket(ticket)
+        if comment.author_user_id != actor.id and actor.access_type != ServiceDeskAccessType.SERVICE_DESK_ADMIN:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Прикреплять файл к чужому комментарию может только автор или администратор Service Desk",
+            )
         if comment.visibility == ServiceDeskCommentVisibility.INTERNAL:
             self.policy.require_internal_comments(ticket, actor)
         return await self._store(
@@ -135,15 +143,16 @@ class AttachmentService:
         actor: ServiceDeskUser,
     ) -> ServiceDeskAttachment:
         ticket = self._require_ticket(ticket_id)
+        self._ensure_mutable_ticket(ticket)
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Files for template fields are only accepted in a draft")
+            raise HTTPException(status.HTTP_409_CONFLICT, "Файлы полей можно прикреплять только к черновику")
         if actor.id != ticket.requester_user_id:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the requester can upload template field files")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Прикреплять файлы полей может только заявитель")
         field = self.template_repository.get_field_by_key(ticket.template_version_id, field_key)
         if not field:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Template field not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Поле формы не найдено")
         if field.field_type != TemplateFieldType.FILE:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Attachment is available only for a file field")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Вложение доступно только для поля типа «Файл»")
 
         rules = field.validation or {}
         configured_limit = rules.get("max_files", settings.max_attachments_per_owner)
@@ -152,9 +161,9 @@ class AttachmentService:
         except (TypeError, ValueError):
             max_files = settings.max_attachments_per_owner
         if max_files < 1:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Template field file limit must be positive")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Лимит файлов поля должен быть положительным")
         if self.repository.count_for_field_value(ticket.id, field.key) >= max_files:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Template field file limit exceeded")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Превышен лимит файлов поля")
 
         allowed_extensions = rules.get("allowed_extensions")
         return await self._store(
@@ -178,9 +187,9 @@ class AttachmentService:
         self.policy.require_view(ticket, actor)
         field = self.template_repository.get_field_by_key(ticket.template_version_id, field_key)
         if not field:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Template field not found")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Поле формы не найдено")
         if field.field_type != TemplateFieldType.FILE:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Attachment is available only for a file field")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Вложение доступно только для поля типа «Файл»")
         return self.repository.list_for_field_value(ticket.id, field.key)
 
     def field_value_payload(self, ticket_id: uuid.UUID) -> dict[str, list[dict[str, object]]]:
@@ -242,7 +251,7 @@ class AttachmentService:
         if allowed_extensions:
             normalized_extensions = {str(item).lower().lstrip(".") for item in allowed_extensions}
             if extension.lstrip(".") not in normalized_extensions:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid file extension for template field")
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Недопустимое расширение файла для поля формы")
         storage_key = f"{owner_type.value}/{owner_id}/{uuid.uuid4().hex}{extension}"
         path = self._storage_path(storage_key)
         try:
@@ -409,3 +418,11 @@ class AttachmentService:
         if not ticket:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
         return ticket
+
+    @staticmethod
+    def _ensure_mutable_ticket(ticket: ServiceDeskTicket) -> None:
+        if ticket.status in {ServiceDeskTicketStatus.CLOSED, ServiceDeskTicketStatus.CANCELLED}:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "В закрытую или отменённую заявку нельзя добавлять вложения",
+            )

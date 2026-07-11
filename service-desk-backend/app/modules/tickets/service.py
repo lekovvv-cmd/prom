@@ -258,6 +258,18 @@ class TicketService:
         self.policy.require_view(ticket, actor)
         return self._read_for_actor(ticket, actor)
 
+    def get_draft_for_edit(
+        self,
+        ticket_id: uuid.UUID,
+        actor: ServiceDeskUser,
+    ) -> ServiceDeskTicket:
+        ticket = self._require_ticket(ticket_id)
+        if ticket.requester_user_id != actor.id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Редактировать черновик может только заявитель")
+        if ticket.status != ServiceDeskTicketStatus.DRAFT:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Редактировать можно только черновик заявки")
+        return ticket
+
     def get_approval_snapshot(
         self,
         ticket_id: uuid.UUID,

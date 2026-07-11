@@ -77,7 +77,7 @@ export function ServiceDeskTicketComments({
                 ) : null}
               </div>
               <p>{comment.body}</p>
-              <CommentAttachments ticketId={ticket.id} commentId={comment.id} canUpload={!isLocked} />
+              <CommentAttachments ticketId={ticket.id} commentId={comment.id} canUpload={!isLocked && (comment.author_user_id === currentUser.id || currentUser.access_type === "service_desk_admin")} />
               {comment.updated_at ? <span className="muted">Изменён</span> : null}
             </li>
           ))}
