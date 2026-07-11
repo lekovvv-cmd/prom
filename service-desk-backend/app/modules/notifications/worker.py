@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.modules.notifications.domain import NotificationEvent, NotificationEventType
 from app.modules.notifications.repository import NotificationOutboxRepository, NotificationRepository
 from app.modules.notifications.service import InAppChannel
@@ -15,7 +16,10 @@ class NotificationOutboxWorker:
 
     def run_once(self, *, now: datetime | None = None) -> dict[str, int]:
         occurred_at = now or datetime.now(UTC)
-        records = self.repository.ready_for_processing(occurred_at)
+        batch_size = settings.notification_outbox_batch_size
+        if batch_size < 1:
+            raise ValueError("notification_outbox_batch_size must be positive")
+        records = self.repository.ready_for_processing(occurred_at, limit=batch_size)
         result = {"processed": len(records), "sent": 0, "failed": 0}
         for record in records:
             record.status = "processing"

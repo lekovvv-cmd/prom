@@ -1,8 +1,8 @@
 import { serviceDeskApiClient } from "../../../shared/api/client";
 import type { ServiceDeskContextualCounters, ServiceDeskNotification } from "../model/types";
 
-export function getServiceDeskNotifications() {
-  return serviceDeskApiClient.request<ServiceDeskNotification[]>("/notifications");
+export function getServiceDeskNotifications(limit = 30) {
+  return serviceDeskApiClient.request<ServiceDeskNotification[]>(`/notifications?limit=${limit}`);
 }
 
 export function getServiceDeskUnreadCount() {

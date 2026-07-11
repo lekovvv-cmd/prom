@@ -28,13 +28,13 @@ class NotificationRepository:
     def add(self, notification: ServiceDeskNotification) -> None:
         self.db.add(notification)
 
-    def list_for_recipient(self, recipient_user_id: uuid.UUID, *, unread_only: bool = False):
+    def list_for_recipient(self, recipient_user_id: uuid.UUID, *, unread_only: bool = False, limit: int = 30):
         statement = select(ServiceDeskNotification).where(
             ServiceDeskNotification.recipient_user_id == recipient_user_id
         )
         if unread_only:
             statement = statement.where(ServiceDeskNotification.is_read.is_(False))
-        return list(self.db.scalars(statement.order_by(ServiceDeskNotification.created_at.desc())).all())
+        return list(self.db.scalars(statement.order_by(ServiceDeskNotification.created_at.desc()).limit(limit)).all())
 
     def unread_count(self, recipient_user_id: uuid.UUID) -> int:
         return self.db.scalar(select(func.count()).select_from(ServiceDeskNotification).where(
@@ -76,11 +76,11 @@ class NotificationOutboxRepository:
         self.db.add(record)
         return record
 
-    def ready_for_processing(self, now):
+    def ready_for_processing(self, now, *, limit: int = 50):
         return list(self.db.scalars(
             select(ServiceDeskNotificationOutbox).where(
                 ServiceDeskNotificationOutbox.status.in_(("pending", "failed")),
                 (ServiceDeskNotificationOutbox.next_retry_at.is_(None))
                 | (ServiceDeskNotificationOutbox.next_retry_at <= now),
-            ).order_by(ServiceDeskNotificationOutbox.created_at).with_for_update(skip_locked=True)
+            ).order_by(ServiceDeskNotificationOutbox.created_at).limit(limit).with_for_update(skip_locked=True)
         ).all())

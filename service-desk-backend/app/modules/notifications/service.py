@@ -13,6 +13,7 @@ from app.modules.notifications.domain import NotificationChannel, NotificationEv
 from app.modules.notifications.models import ServiceDeskNotification, ServiceDeskNotificationOutbox
 from app.modules.notifications.repository import NotificationOutboxRepository, NotificationRepository
 from app.modules.tickets.models import ServiceDeskTicket
+from app.core.config import settings
 
 
 class InAppChannel:
@@ -191,8 +192,10 @@ class NotificationService:
         self.db = db
         self.repository = NotificationRepository(db)
 
-    def list_current_user(self, actor: ServiceDeskUser, *, unread_only: bool = False):
-        return self.repository.list_for_recipient(actor.id, unread_only=unread_only)
+    def list_current_user(self, actor: ServiceDeskUser, *, unread_only: bool = False, limit: int | None = None):
+        requested_limit = limit if limit is not None else settings.notification_list_default_limit
+        bounded_limit = min(max(1, requested_limit), settings.notification_list_max_limit)
+        return self.repository.list_for_recipient(actor.id, unread_only=unread_only, limit=bounded_limit)
 
     def unread_count(self, actor: ServiceDeskUser) -> int:
         return self.repository.unread_count(actor.id)

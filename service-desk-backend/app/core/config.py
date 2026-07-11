@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     max_attachment_size_bytes: int = 10 * 1024 * 1024
     max_attachments_per_owner: int = 10
     sla_worker_poll_interval_seconds: int = 60
+    notification_list_default_limit: int = 30
+    notification_list_max_limit: int = 100
+    notification_outbox_batch_size: int = 50
 
     model_config = SettingsConfigDict(
         env_file=".env",

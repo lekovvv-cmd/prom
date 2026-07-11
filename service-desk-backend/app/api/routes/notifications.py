@@ -20,9 +20,10 @@ def contextual_counters(actor: CurrentServiceDeskUser, db: Session = Depends(get
 def list_notifications(
     actor: CurrentServiceDeskUser,
     unread_only: bool = Query(False),
+    limit: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
 ):
-    return NotificationService(db).list_current_user(actor, unread_only=unread_only)
+    return NotificationService(db).list_current_user(actor, unread_only=unread_only, limit=limit)
 
 
 @router.get("/unread-count", response_model=schemas.UnreadCount)
