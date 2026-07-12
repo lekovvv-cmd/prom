@@ -26,7 +26,7 @@ def upgrade() -> None:
                 FROM (
                     SELECT id,
                            row_number() OVER (
-                               PARTITION BY dictionary_id, lower(btrim(value))
+                               PARTITION BY dictionary_id, lower(trim(value))
                                ORDER BY created_at, id
                            ) AS duplicate_number
                     FROM service_desk_dictionary_items
@@ -39,7 +39,7 @@ def upgrade() -> None:
     op.create_index(
         "uq_service_desk_dictionary_items_dictionary_value_normalized",
         "service_desk_dictionary_items",
-        ["dictionary_id", sa.text("lower(btrim(value))")],
+        ["dictionary_id", sa.text("lower(trim(value))")],
         unique=True,
     )
 

@@ -24,11 +24,11 @@ def _deduplicate_categories(connection) -> None:
                 FROM (
                     SELECT id,
                            first_value(id) OVER (
-                               PARTITION BY parent_id, lower(btrim(title))
+                               PARTITION BY parent_id, lower(trim(title))
                                ORDER BY created_at, id
                            ) AS canonical_id,
                            row_number() OVER (
-                               PARTITION BY parent_id, lower(btrim(title))
+                               PARTITION BY parent_id, lower(trim(title))
                                ORDER BY created_at, id
                            ) AS duplicate_number
                     FROM service_desk_categories
@@ -69,11 +69,11 @@ def _deduplicate_services(connection) -> None:
                 FROM (
                     SELECT id,
                            first_value(id) OVER (
-                               PARTITION BY category_id, lower(btrim(title))
+                               PARTITION BY category_id, lower(trim(title))
                                ORDER BY created_at, id
                            ) AS canonical_id,
                            row_number() OVER (
-                               PARTITION BY category_id, lower(btrim(title))
+                               PARTITION BY category_id, lower(trim(title))
                                ORDER BY created_at, id
                            ) AS duplicate_number
                     FROM service_desk_services
@@ -131,13 +131,16 @@ def upgrade() -> None:
     op.create_index(
         "uq_sd_categories_parent_normalized_title",
         "service_desk_categories",
-        [sa.text("coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid)"), sa.text("lower(btrim(title))")],
+        [
+            sa.text("coalesce(parent_id, '00000000-0000-0000-0000-000000000000')"),
+            sa.text("lower(trim(title))"),
+        ],
         unique=True,
     )
     op.create_index(
         "uq_sd_services_category_normalized_title",
         "service_desk_services",
-        ["category_id", sa.text("lower(btrim(title))")],
+        ["category_id", sa.text("lower(trim(title))")],
         unique=True,
     )
 
