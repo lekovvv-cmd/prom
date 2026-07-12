@@ -3,7 +3,7 @@ import type { ServiceDeskCategory, ServiceDeskPublishedForm, ServiceDeskService 
 
 export function getServiceDeskCategories(query = "") {
   const params = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
-  return serviceDeskApiClient.request<ServiceDeskCategory[]>(`/categories${params}`, { auth: false });
+  return serviceDeskApiClient.request<ServiceDeskCategory[]>(`/categories${params}`);
 }
 
 export function getServiceDeskServices(categoryId = "", query = "") {
@@ -11,13 +11,13 @@ export function getServiceDeskServices(categoryId = "", query = "") {
   if (categoryId) params.set("category_id", categoryId);
   if (query.trim()) params.set("q", query.trim());
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  return serviceDeskApiClient.request<ServiceDeskService[]>(`/services${suffix}`, { auth: false });
+  return serviceDeskApiClient.request<ServiceDeskService[]>(`/services${suffix}`);
 }
 
 export function getServiceDeskService(serviceId: string) {
-  return serviceDeskApiClient.request<ServiceDeskService>(`/services/${serviceId}`, { auth: false });
+  return serviceDeskApiClient.request<ServiceDeskService>(`/services/${serviceId}`);
 }
 
 export function getServiceDeskServiceForm(serviceId: string) {
-  return serviceDeskApiClient.request<ServiceDeskPublishedForm>(`/services/${serviceId}/form`, { auth: false });
+  return serviceDeskApiClient.request<ServiceDeskPublishedForm>(`/services/${serviceId}/form`);
 }

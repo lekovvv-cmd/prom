@@ -41,7 +41,7 @@ export function ServiceDeskCatalogPage() {
   return (
     <>
       <Header />
-      <PageLayout title="Каталог Service Desk" subtitle="Выберите услугу, чтобы создать заявку. Каталог доступен без входа.">
+      <PageLayout title="Каталог Service Desk" subtitle="Выберите услугу, чтобы создать заявку.">
         <div className="service-desk-catalog-toolbar">
           <Input label="Поиск услуги или категории" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Например, доступ к системе" />
           <Link className="button button-secondary" to="/service-desk/my-tickets"><Ticket size={16} aria-hidden="true" />Мои заявки</Link>

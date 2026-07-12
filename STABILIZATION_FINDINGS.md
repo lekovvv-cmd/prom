@@ -29,8 +29,10 @@
 - Симптом: после входа каталог показывает текст «Каталог доступен без входа».
 - Шаги воспроизведения: войти в Service Desk и открыть `/service-desk`.
 - Корневая причина: устаревший frontend copy и catalog API calls с `auth: false`.
-- Исправление: в работе.
-- Проверка: catalog endpoints без JWT возвращают 401; UI не содержит публичного обещания.
+- Исправление: catalog client использует bearer token; публичный copy удалён, backend routes
+  закрыты `CurrentServiceDeskUser`.
+- Проверка: catalog endpoints без JWT возвращают 401; frontend tests/build проходят, UI не
+  содержит публичного обещания.
 
 ## F-005 — clean Docker baseline
 
