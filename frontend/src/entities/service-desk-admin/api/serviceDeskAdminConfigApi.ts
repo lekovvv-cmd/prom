@@ -1,7 +1,7 @@
 import { serviceDeskApiClient } from "../../../shared/api/client";
 import type { ServiceDeskCategory, ServiceDeskService, ServiceDeskTemplateField, ServiceDeskTemplateFieldType } from "../../service-desk-catalog/model/types";
 
-export type AdminTemplateVersion = { id: string; service_id: string; version: number; status: "draft" | "published" | "archived"; approval_mode: "none" | "workflow"; system_settings: Record<string, unknown>; fields: ServiceDeskTemplateField[] };
+export type AdminTemplateVersion = { id: string; service_id: string; version: number; status: "draft" | "published" | "archived"; approval_mode: "none" | "workflow"; system_settings: Record<string, unknown>; default_assignee_user_id: string | null; fields: ServiceDeskTemplateField[] };
 export type AdminDictionaryItem = { id: string; dictionary_id: string; label: string; value: string; position: number; is_active: boolean };
 export type AdminDictionary = { id: string; code: string; title: string; description: string | null; is_active: boolean; items: AdminDictionaryItem[] };
 export type ApprovalConfiguration = { template_version_id: string; approval_mode: "none" | "workflow"; workflow: { id: string; name: string; is_active: boolean; stages: Array<{ id: string; title: string; position: number; decision_rule: "any" | "all"; approvers: Array<{ id: string; service_desk_user_id: string }> }> } | null };
@@ -16,6 +16,7 @@ export const toggleAdminCatalogItem = (kind: "categories" | "services", id: stri
 
 export const listAdminTemplateVersions = (serviceId: string) => serviceDeskApiClient.request<AdminTemplateVersion[]>(`/admin/services/${serviceId}/versions`);
 export const createAdminTemplateVersion = (serviceId: string) => serviceDeskApiClient.request<AdminTemplateVersion>(`/admin/services/${serviceId}/versions`, { method: "POST", body: JSON.stringify({}) });
+export const updateAdminTemplateVersion = (versionId: string, payload: { system_settings: Record<string, unknown>; default_assignee_user_id: string | null }) => serviceDeskApiClient.request<AdminTemplateVersion>(`/admin/template-versions/${versionId}`, { method: "PATCH", body: JSON.stringify(payload) });
 export const createAdminTemplateField = (versionId: string, payload: { key: string; label: string; field_type: ServiceDeskTemplateFieldType; is_required: boolean; position: number; options?: Array<{ label: string; value: string }>; placeholder?: string; help_text?: string; dictionary_code?: string; validation?: Record<string, unknown>; visibility_rules?: Record<string, unknown> | Array<Record<string, unknown>>; required_rules?: Record<string, unknown> | Array<Record<string, unknown>> }) => serviceDeskApiClient.request<ServiceDeskTemplateField>(`/admin/template-versions/${versionId}/fields`, { method: "POST", body: JSON.stringify(payload) });
 export const updateAdminTemplateField = (fieldId: string, payload: Record<string, unknown>) => serviceDeskApiClient.request<ServiceDeskTemplateField>(`/admin/template-fields/${fieldId}`, { method: "PATCH", body: JSON.stringify(payload) });
 export const reorderAdminTemplateFields = (versionId: string, fieldIds: string[]) => serviceDeskApiClient.request<ServiceDeskTemplateField[]>(`/admin/template-versions/${versionId}/reorder-fields`, { method: "POST", body: JSON.stringify({ field_ids: fieldIds }) });
