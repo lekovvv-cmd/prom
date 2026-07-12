@@ -108,3 +108,14 @@
   кнопкой без submit-required validation.
 - Проверка: frontend `82 passed`, TypeScript/Vite production build проходит. Production
   Playwright submit/draft/file/double-click ещё требует доступного Docker engine.
+
+## F-012 — browser E2E обходил production stack
+
+- Симптом: CI поднимал SQLite, два uvicorn и Vite вручную; PostgreSQL, Compose DAG, Nginx proxy,
+  bootstrap jobs и SLA worker не участвовали.
+- Шаги воспроизведения: проверить исходный job `e2e` в `.github/workflows/ci.yml`.
+- Корневая причина: legacy dev-oriented orchestration внутри shell step.
+- Исправление: job запускает `docker compose up --build -d --wait`, Playwright ходит через
+  production Nginx, а failure artifacts включают Compose ps/logs, traces и screenshots.
+- Проверка: Playwright discovery компилирует `12 tests` в трёх specs; фактический Docker run
+  обновлённого job ожидает доступного engine/CI.

@@ -4,11 +4,11 @@ const serviceDeskUrl = process.env.E2E_SERVICE_DESK_URL ?? "http://127.0.0.1:800
 
 async function loginAsManager(page: Page) {
   await page.goto("/login");
-  await page.getByRole("button", { name: /Руководитель/ }).click();
+  await page.getByRole("button", { name: /Администратор Service Desk/ }).click();
   await page.getByRole("button", { name: /^Войти$/ }).click();
   await expect(page).toHaveURL(/\/projects$/);
   await expect(
-    page.getByRole("banner").getByRole("link", { name: /manager@utmn\.ru/ })
+    page.getByRole("banner").getByRole("link", { name: /sd\.admin@utmn\.ru/ })
   ).toBeVisible();
   const token = await page.evaluate(() => localStorage.getItem("shpiu_project_showcase_token"));
   expect(token).toBeTruthy();
@@ -17,7 +17,7 @@ async function loginAsManager(page: Page) {
 
 async function loginAsEmployee(page: Page) {
   await page.goto("/login");
-  await page.getByRole("button", { name: /Сотрудник/ }).click();
+  await page.getByRole("button", { name: /Менеджер Service Desk/ }).click();
   await page.getByRole("button", { name: /^Войти$/ }).click();
   await expect(page).toHaveURL(/\/projects$/);
 }
@@ -150,7 +150,7 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   const recipients = await serviceDeskRequest<Array<{ id: string; email: string }>>(
     request, token, "get", "/admin/sla/recipients"
   );
-  const managerRecipient = recipients.find((recipient) => recipient.email === "manager@utmn.ru");
+  const managerRecipient = recipients.find((recipient) => recipient.email === "sd.manager@utmn.ru");
   expect(managerRecipient).toBeTruthy();
   await page.goto("/service-desk/admin/sla");
   await expect(page.getByRole("heading", { name: "SLA Service Desk" })).toBeVisible();
@@ -269,7 +269,7 @@ test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ pa
   const assignees = await serviceDeskRequest<Array<{ id: string; display_name: string }>>(
     request, token, "get", "/workbench/users?eligible_assignees=true"
   );
-  const employee = assignees.find((item) => item.display_name === "Сотрудник ШПИУ");
+  const employee = assignees.find((item) => item.display_name === "Менеджер Service Desk");
   expect(employee).toBeTruthy();
   const suffix = Date.now();
   const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: `E2E Workbench ${suffix}` });
@@ -291,7 +291,7 @@ test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ pa
   let dialog = page.getByRole("dialog");
   await dialog.getByLabel("Исполнитель").selectOption(employee?.id);
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
-  await expect(row.getByText(employee?.display_name ?? "Сотрудник ШПИУ")).toBeVisible();
+  await expect(row.getByText(employee?.display_name ?? "Менеджер Service Desk")).toBeVisible();
 
   await loginAsEmployee(page);
   await page.goto("/service-desk/workbench");
@@ -312,7 +312,7 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
   const token = await loginAsManager(page);
   const manager = await serviceDeskRequest<{ id: string }>(request, token, "get", "/me");
   const assignees = await serviceDeskRequest<Array<{ id: string; display_name: string }>>(request, token, "get", "/workbench/users?eligible_assignees=true");
-  const employee = assignees.find((item) => item.display_name === "Сотрудник ШПИУ");
+  const employee = assignees.find((item) => item.display_name === "Менеджер Service Desk");
   expect(employee).toBeTruthy();
   const suffix = Date.now();
   const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: `E2E requester category ${suffix}` });

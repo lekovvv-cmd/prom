@@ -8,9 +8,9 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function loginAs(page: Page, roleLabel: "Админ" | "Сотрудник") {
+async function loginAs(page: Page, roleLabel: "Администратор платформы" | "Сотрудник") {
   await page.goto("/login");
-  await page.getByRole("button", { name: new RegExp(roleLabel) }).click();
+  await page.getByRole("button", { name: new RegExp(roleLabel), exact: true }).click();
   await page.getByRole("button", { name: /^Войти$/ }).click();
   await expect(page.getByRole("link", { name: "Витрина" })).toBeVisible();
 }
@@ -30,7 +30,7 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   const projectTitle = uniqueProjectTitle();
   const responseName = `E2E Сотрудник ${Date.now()}`;
 
-  await loginAs(page, "Админ");
+  await loginAs(page, "Администратор платформы");
 
   await page.getByRole("link", { name: /Управление/ }).click();
   await expect(page.getByRole("heading", { name: "Управление проектами" })).toBeVisible();
@@ -100,7 +100,7 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   await expect(page.getByText("Отклик отправлен")).toBeVisible();
 
   await logout(page);
-  await loginAs(page, "Админ");
+  await loginAs(page, "Администратор платформы");
 
   await page.getByRole("link", { name: /Отклики/ }).click();
   await expect(page.getByRole("heading", { name: "Очередь откликов" })).toBeVisible();
@@ -127,7 +127,7 @@ test("MVP flow: admin creates project, employee responds, admin updates status a
   await expect(page.getByRole("heading", { name: "Откликнуться на проект" })).toHaveCount(0);
 
   await logout(page);
-  await loginAs(page, "Админ");
+  await loginAs(page, "Администратор платформы");
 
   await page.getByRole("link", { name: /Статистика/ }).click();
   await expect(page.getByRole("heading", { name: "Статистика витрины" })).toBeVisible();

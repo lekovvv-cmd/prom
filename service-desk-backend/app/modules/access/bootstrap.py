@@ -23,7 +23,6 @@ DEMO_PROFILE_RULES: dict[str, dict[str, Any] | None] = {
             "service_desk.approve",
             "service_desk.assign",
             "service_desk.change_priority",
-            "service_desk.view_all_tickets",
         ),
     },
     "sd.admin@utmn.ru": {

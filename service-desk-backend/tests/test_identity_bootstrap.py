@@ -53,7 +53,6 @@ def test_identity_bootstrap_repairs_old_uuid_and_replaces_demo_capabilities(db_s
             "service_desk.approve",
             "service_desk.assign",
             "service_desk.change_priority",
-            "service_desk.view_all_tickets",
         }
         assert db.query(ServiceDeskUserCapability).filter_by(service_desk_user_id=user.id).count() > 0
 
