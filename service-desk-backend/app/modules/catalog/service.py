@@ -67,13 +67,24 @@ class CatalogService:
         category_id: uuid.UUID | None = None,
         active: bool | None = None,
         include_deleted: bool = False,
+        public: bool = False,
     ) -> list[ServiceDeskService]:
-        return self.repository.list_services(
+        services = self.repository.list_services(
             q=q,
             category_id=category_id,
             active=active,
             include_deleted=include_deleted,
         )
+        if not public:
+            return services
+        from app.modules.templates.repository import TemplateRepository
+
+        templates = TemplateRepository(self.db)
+        return [
+            service
+            for service in services
+            if templates.get_published_version(service.id) is not None
+        ]
 
     def get_service(self, service_id: uuid.UUID, *, public: bool = False) -> ServiceDeskService:
         service = self._require_service(service_id)

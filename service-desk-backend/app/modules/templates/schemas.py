@@ -36,8 +36,8 @@ class TemplateFieldCreate(BaseModel):
     options: list[dict[str, Any]] | None = None
     dictionary_code: str | None = Field(default=None, max_length=128)
     validation: dict[str, Any] | None = None
-    visibility_rules: dict[str, Any] | None = None
-    required_rules: dict[str, Any] | None = None
+    visibility_rules: dict[str, Any] | list[dict[str, Any]] | None = None
+    required_rules: dict[str, Any] | list[dict[str, Any]] | None = None
 
 
 class TemplateFieldUpdate(BaseModel):
@@ -51,8 +51,8 @@ class TemplateFieldUpdate(BaseModel):
     options: list[dict[str, Any]] | None = None
     dictionary_code: str | None = Field(default=None, max_length=128)
     validation: dict[str, Any] | None = None
-    visibility_rules: dict[str, Any] | None = None
-    required_rules: dict[str, Any] | None = None
+    visibility_rules: dict[str, Any] | list[dict[str, Any]] | None = None
+    required_rules: dict[str, Any] | list[dict[str, Any]] | None = None
 
 
 class TemplateFieldRead(BaseModel):
@@ -68,8 +68,8 @@ class TemplateFieldRead(BaseModel):
     options: list[dict[str, Any]] | None
     dictionary_code: str | None
     validation: dict[str, Any] | None
-    visibility_rules: dict[str, Any] | None
-    required_rules: dict[str, Any] | None
+    visibility_rules: dict[str, Any] | list[dict[str, Any]] | None
+    required_rules: dict[str, Any] | list[dict[str, Any]] | None
     created_at: datetime
     updated_at: datetime
 
@@ -116,14 +116,14 @@ class TemplateVersionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TemplateFieldPreviewRead(TemplateFieldRead):
+    effective_options: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class PublishedTemplateRead(BaseModel):
     service_id: uuid.UUID
     template_version: TemplateVersionRead
-    fields: list[TemplateFieldRead] = Field(default_factory=list)
-
-
-class TemplateFieldPreviewRead(TemplateFieldRead):
-    effective_options: list[dict[str, Any]] = Field(default_factory=list)
+    fields: list[TemplateFieldPreviewRead] = Field(default_factory=list)
 
 
 class TemplatePreviewRead(BaseModel):

@@ -130,7 +130,7 @@ class ApprovalWorkflowService:
         if not self._can_approve(user):
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "У пользователя нет capability service_desk.approve",
+                "У пользователя нет права согласовывать заявки Service Desk",
             )
         if self.repository.get_stage_approver(stage.id, user.id):
             raise HTTPException(status.HTTP_409_CONFLICT, "Пользователь уже добавлен в этап")
@@ -157,7 +157,7 @@ class ApprovalWorkflowService:
             return
         workflow = self.repository.get_workflow_by_version(version.id)
         if not workflow or not workflow.is_active:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Настройте активный workflow согласования")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Настройте активный процесс согласования")
         if not workflow.stages:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Добавьте этап согласования")
         for stage in workflow.stages:
@@ -181,13 +181,13 @@ class ApprovalWorkflowService:
     def _require_draft_version(self, version_id: uuid.UUID) -> ServiceDeskTemplateVersion:
         version = self._require_version(version_id)
         if version.status != TemplateVersionStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Согласование настраивается только для draft-версии")
+            raise HTTPException(status.HTTP_409_CONFLICT, "Согласование настраивается только для черновой версии")
         return version
 
     def _require_workflow(self, workflow_id: uuid.UUID) -> ServiceDeskApprovalWorkflow:
         workflow = self.repository.get_workflow(workflow_id)
         if not workflow:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Workflow согласования не найден")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Процесс согласования не найден")
         return workflow
 
     def _require_stage(self, stage_id: uuid.UUID) -> ServiceDeskApprovalStage:
@@ -199,7 +199,7 @@ class ApprovalWorkflowService:
     @staticmethod
     def _ensure_workflow_mode(version: ServiceDeskTemplateVersion) -> None:
         if version.approval_mode != ApprovalMode.WORKFLOW:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Для версии не включён workflow согласования")
+            raise HTTPException(status.HTTP_409_CONFLICT, "Для версии не включён процесс согласования")
 
     @staticmethod
     def _can_approve(user: ServiceDeskUser) -> bool:

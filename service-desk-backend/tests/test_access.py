@@ -137,3 +137,32 @@ def test_me_rejects_missing_invalid_unknown_and_inactive_access(client, db_sessi
         headers={"Authorization": f"Bearer {access_token(identity_user_id)}"},
     )
     assert inactive.status_code == 403
+
+
+def test_user_options_are_safe_active_and_capability_filtered(client, db_session_factory):
+    requester_identity = str(uuid.uuid4())
+    create_service_desk_user(db_session_factory, identity_user_id=requester_identity)
+    approver = create_service_desk_user(
+        db_session_factory,
+        capabilities=("service_desk.access", "service_desk.approve"),
+    )
+    inactive = create_service_desk_user(db_session_factory, is_active=False)
+
+    response = client.get(
+        "/users/options",
+        headers={"Authorization": f"Bearer {access_token(requester_identity)}"},
+    )
+    assert response.status_code == 200
+    assert inactive.id not in {item["id"] for item in response.json()}
+    assert {"id", "display_name", "department", "position"} == set(response.json()[0])
+    assert "capabilities" not in response.json()[0]
+
+    approver_options = client.get(
+        "/users/options?capability=service_desk.approve",
+        headers={"Authorization": f"Bearer {access_token(requester_identity)}"},
+    )
+    assert approver_options.status_code == 200
+    assert str(approver.id) in {item["id"] for item in approver_options.json()}
+    assert str(inactive.id) not in {item["id"] for item in approver_options.json()}
+
+    assert client.get("/users/options").status_code == 401

@@ -14,6 +14,8 @@ from app.modules.comments import schemas as comment_schemas
 from app.modules.comments.service import TicketCommentService
 from app.modules.tickets import schemas
 from app.modules.tickets.service import TicketService
+from app.modules.templates import schemas as template_schemas
+from app.modules.templates.service import TemplateService
 
 router = APIRouter(tags=["tickets"])
 
@@ -44,6 +46,16 @@ def submit_ticket_draft(
     db: Session = Depends(get_db),
 ):
     return TicketService(db).submit_draft(ticket_id, current_user)
+
+
+@router.get("/tickets/{ticket_id}/form", response_model=template_schemas.PublishedTemplateRead)
+def get_ticket_form(
+    ticket_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    ticket = TicketService(db).get_draft_for_edit(ticket_id, current_user)
+    return TemplateService(db).get_version_form(ticket.template_version_id)
 
 
 @router.post("/tickets/{ticket_id}/assign", response_model=schemas.TicketRead)

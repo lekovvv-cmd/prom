@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getWorkbenchCategories, getWorkbenchCounters, getWorkbenchServices, getWorkbenchTickets, getWorkbenchUsers, performWorkbenchAction } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
 import type { CatalogOption, WorkbenchCounters, WorkbenchQuickView, WorkbenchTicket, WorkbenchUserOption } from "../../../entities/service-desk-workbench/model/types";
 import type { ServiceDeskAllowedAction } from "../../../entities/service-desk-ticket/model/types";
-import { Header } from "../../../widgets/header/ui/Header";
 import { ServiceDeskWorkbenchTable } from "../../../widgets/service-desk-workbench-table/ui/ServiceDeskWorkbenchTable";
 import { subscribeToServiceDeskRefresh } from "../../../shared/lib/serviceDeskRefresh";
 import { Button } from "../../../shared/ui/Button";
@@ -90,7 +89,7 @@ export function ServiceDeskWorkbenchPage() {
       setError(null);
     } catch (reason) {
       if (requestSeq.current !== seq) return;
-      setError(reason instanceof Error ? reason.message : "Не удалось загрузить Workbench");
+      setError(reason instanceof Error ? reason.message : "Не удалось загрузить рабочее место");
     } finally {
       if (requestSeq.current === seq) setLoading(false);
     }
@@ -154,7 +153,6 @@ export function ServiceDeskWorkbenchPage() {
 
   return (
     <>
-      <Header />
       <PageLayout title="Рабочее место Service Desk" subtitle="Операционная очередь заявок, согласований и SLA">
         <div className="workbench-quick-views">
           {counters && (Object.keys(quickLabels) as WorkbenchQuickView[])

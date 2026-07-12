@@ -2,6 +2,8 @@
 
 MVP для внутренней витрины проектов: админ или руководитель проекта создаёт проекты, сотрудник ищет проект по статусу, компетенциям и тексту, отправляет отклик и прикладывает файлы, админ меняет статус отклика и видит обновлённую статистику.
 
+PROM также включает Service Desk: публичный каталог услуг (`/service-desk`), динамические формы с черновиками и вложениями, «Мои заявки», карточку заявки с SLA/историей/действиями и capability-guarded настройки каталога, шаблонов, справочников, согласований, маршрутизации, SLA и доступа. Переключение между модулями доступно в общем Header.
+
 ## Стек
 
 - Backend: Python 3.14, FastAPI, Pydantic 2, SQLAlchemy 2, Alembic, PostgreSQL.
@@ -104,5 +106,16 @@ Set `SERVICE_DESK_SLA_WORKER_POLL_INTERVAL_SECONDS` (default: `60`) in the
 Service Desk environment to control polling. The process creates a fresh DB
 session for each iteration, rolls back a failed iteration, and exits cleanly on
 `SIGINT` or `SIGTERM`.
+
+Notification outbox processing is intentionally a bounded one-shot command:
+
+```bash
+cd service-desk-backend
+python scripts/process_notification_outbox.py
+```
+
+Run it from the deployment platform scheduler. It processes at most
+`SERVICE_DESK_NOTIFICATION_OUTBOX_BATCH_SIZE` records per invocation; email
+records remain `blocked_external` until a real CIT integration is provided.
 
 В CI запускаются три проверки: backend `pytest`, frontend `vitest` + `build`, browser e2e на основном MVP-сценарии.

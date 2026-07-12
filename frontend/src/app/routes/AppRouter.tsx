@@ -1,4 +1,4 @@
-import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useAuth } from "../providers/AppProviders";
 import { useServiceDeskAccess } from "../providers/ServiceDeskAccessProvider";
@@ -7,6 +7,7 @@ import { AdminProjectsPage } from "../../pages/admin-projects/ui/AdminProjectsPa
 import { AdminResponsesPage } from "../../pages/admin-responses/ui/AdminResponsesPage";
 import { AdminStatsPage } from "../../pages/admin-stats/ui/AdminStatsPage";
 import { LoginPage } from "../../pages/login/ui/LoginPage";
+import { ModuleSelectorPage } from "../../pages/module-selector/ui/ModuleSelectorPage";
 import { MyProjectDetailsPage } from "../../pages/my-project-details/ui/MyProjectDetailsPage";
 import { MyProjectsPage } from "../../pages/my-projects/ui/MyProjectsPage";
 import { MyResponsesPage } from "../../pages/my-responses/ui/MyResponsesPage";
@@ -17,41 +18,49 @@ import { ServiceDeskTicketDetailsPage } from "../../pages/service-desk-ticket-de
 import { ServiceDeskWorkbenchPage } from "../../pages/service-desk-workbench/ui/ServiceDeskWorkbenchPage";
 import { ServiceDeskAdminDashboardPage } from "../../pages/service-desk-admin-dashboard/ui/ServiceDeskAdminDashboardPage";
 import { ServiceDeskAdminAccessPage } from "../../pages/service-desk-admin-access/ui/ServiceDeskAdminAccessPage";
+import { ServiceDeskAdminConfigurationPage, type ServiceDeskAdminConfigSection } from "../../pages/service-desk-admin-configuration/ui/ServiceDeskAdminConfigurationPage";
+import { ServiceDeskCatalogPage } from "../../pages/service-desk-catalog/ui/ServiceDeskCatalogPage";
+import { ServiceDeskMyTicketsPage } from "../../pages/service-desk-my-tickets/ui/ServiceDeskMyTicketsPage";
+import { ServiceDeskServiceFormPage } from "../../pages/service-desk-service-form/ui/ServiceDeskServiceFormPage";
+import { getServiceDeskAdminLanding } from "../../entities/service-desk-admin/model/adminLanding";
 import { ProjectDetailsPage } from "../../pages/project-details/ui/ProjectDetailsPage";
 import { ProjectsListPage } from "../../pages/projects-list/ui/ProjectsListPage";
 import { Spinner } from "../../shared/ui/Spinner";
 import { Card } from "../../shared/ui/Card";
 import { PageLayout } from "../../shared/ui/PageLayout";
 import { Header } from "../../widgets/header/ui/Header";
+import { ServiceDeskAdminLayout } from "../../widgets/service-desk-admin-layout/ui/ServiceDeskAdminLayout";
 import { ServiceDeskContextualCounters } from "../../widgets/service-desk-notifications/ui/ServiceDeskContextualCounters";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, isLoading, token } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <Spinner label="Проверяем авторизацию" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   if (!isAdmin) {
     return <Navigate to="/projects" replace />;
   }
 
-  return <><ServiceDeskContextualCounters />{children}</>;
+  return children;
 }
 
 function ManagerRoute({ children }: { children: React.ReactNode }) {
   const { canManageProjects, isLoading, token } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <Spinner label="Проверяем авторизацию" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   if (!canManageProjects) {
@@ -63,13 +72,14 @@ function ManagerRoute({ children }: { children: React.ReactNode }) {
 
 function UserRoute({ children }: { children: React.ReactNode }) {
   const { isLoading, token } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <Spinner label="Проверяем авторизацию" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   return children;
@@ -78,13 +88,14 @@ function UserRoute({ children }: { children: React.ReactNode }) {
 function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
   const { isLoading: isAuthLoading, token } = useAuth();
   const { error, isLoading, user } = useServiceDeskAccess();
+  const location = useLocation();
 
   if (isAuthLoading || isLoading) {
     return <Spinner label="Проверяем доступ к Service Desk" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   if (!user) {
@@ -104,7 +115,7 @@ function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return children;
+  return <><ServiceDeskContextualCounters />{children}</>;
 }
 
 function ServiceDeskRoutingAdminRoute({ children }: { children: React.ReactNode }) {
@@ -137,22 +148,45 @@ function ServiceDeskReportsRoute({ children }: { children: React.ReactNode }) {
   return user?.capabilities.includes("service_desk.view_reports") ? children : <Navigate to="/projects" replace />;
 }
 function ServiceDeskAccessAdminRoute({ children }: { children: React.ReactNode }) { const { user } = useServiceDeskAccess(); return user?.capabilities.includes("service_desk.manage_access") ? children : <Navigate to="/projects" replace />; }
+function ServiceDeskConfigAdminRoute({ capability, children }: { capability: string; children: React.ReactNode }) { const { user } = useServiceDeskAccess(); return user?.access_type === "service_desk_admin" || user?.capabilities.includes(capability) ? children : <Navigate to="/projects" replace />; }
+function ServiceDeskAdminIndexRoute() {
+  const { user } = useServiceDeskAccess();
+  const landing = getServiceDeskAdminLanding(user);
+  if (!landing) return <Navigate to="/projects" replace />;
+  if (landing !== "/admin/service-desk") return <Navigate to={landing} replace />;
+  return <ServiceDeskAdminLayout><ServiceDeskAdminDashboardPage /></ServiceDeskAdminLayout>;
+}
 
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/projects" replace />} />
+      <Route path="/" element={<ModuleSelectorPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
+      <Route path="/service-desk" element={<ServiceDeskRoute><ServiceDeskCatalogPage /></ServiceDeskRoute>} />
+      <Route path="/service-desk/catalog" element={<ServiceDeskRoute><ServiceDeskCatalogPage /></ServiceDeskRoute>} />
+      <Route path="/service-desk/services/:serviceId" element={<ServiceDeskRoute><ServiceDeskServiceFormPage /></ServiceDeskRoute>} />
+      <Route path="/service-desk/tickets/:ticketId/edit" element={<ServiceDeskRoute><ServiceDeskServiceFormPage /></ServiceDeskRoute>} />
       <Route
         path="/admin/service-desk"
-        element={<ServiceDeskRoute><ServiceDeskReportsRoute><ServiceDeskAdminDashboardPage /></ServiceDeskReportsRoute></ServiceDeskRoute>}
+        element={<ServiceDeskRoute><ServiceDeskAdminIndexRoute /></ServiceDeskRoute>}
       />
-      <Route path="/admin/service-desk/access" element={<ServiceDeskRoute><ServiceDeskAccessAdminRoute><ServiceDeskAdminAccessPage/></ServiceDeskAccessAdminRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/access" element={<ServiceDeskRoute><ServiceDeskAccessAdminRoute><ServiceDeskAdminLayout><ServiceDeskAdminAccessPage /></ServiceDeskAdminLayout></ServiceDeskAccessAdminRoute></ServiceDeskRoute>} />
+      {(["catalog", "templates", "dictionaries", "approvals"] as ServiceDeskAdminConfigSection[]).map((section) => (
+        <Route key={section} path={`/admin/service-desk/${section}`} element={<ServiceDeskRoute><ServiceDeskConfigAdminRoute capability={section === "catalog" ? "service_desk.manage_catalog" : section === "templates" || section === "dictionaries" ? "service_desk.manage_templates" : "service_desk.manage_approval_workflows"}><ServiceDeskAdminLayout><ServiceDeskAdminConfigurationPage section={section} /></ServiceDeskAdminLayout></ServiceDeskConfigAdminRoute></ServiceDeskRoute>} />
+      ))}
       <Route
         path="/service-desk/workbench"
-        element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><ServiceDeskWorkbenchPage /></ServiceDeskWorkbenchRoute></ServiceDeskRoute>}
+        element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><Header /><ServiceDeskWorkbenchPage /></ServiceDeskWorkbenchRoute></ServiceDeskRoute>}
+      />
+      <Route
+        path="/service-desk/my-tickets"
+        element={<ServiceDeskRoute><ServiceDeskMyTicketsPage /></ServiceDeskRoute>}
+      />
+      <Route
+        path="/service-desk/tickets"
+        element={<ServiceDeskRoute><ServiceDeskMyTicketsPage /></ServiceDeskRoute>}
       />
       <Route
         path="/service-desk/tickets/:ticketId"
@@ -163,20 +197,20 @@ export function AppRouter() {
         }
       />
       <Route
-        path="/service-desk/admin/routing"
+        path="/admin/service-desk/routing"
         element={
           <ServiceDeskRoute>
             <ServiceDeskRoutingAdminRoute>
-              <ServiceDeskAdminRoutingPage />
+              <ServiceDeskAdminLayout><ServiceDeskAdminRoutingPage /></ServiceDeskAdminLayout>
             </ServiceDeskRoutingAdminRoute>
           </ServiceDeskRoute>
         }
       />
-      <Route path="/admin/service-desk/tickets" element={<Navigate to="/service-desk/workbench" replace />} />
-      <Route path="/admin/service-desk/routing" element={<Navigate to="/service-desk/admin/routing" replace />} />
-      <Route path="/admin/service-desk/sla" element={<Navigate to="/service-desk/admin/sla" replace />} />
-      <Route path="/admin/service-desk/calendars" element={<Navigate to="/service-desk/admin/sla" replace />} />
-      <Route path="/service-desk/admin/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminSlaPage /></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/tickets" element={<ServiceDeskRoute><ServiceDeskWorkbenchRoute><ServiceDeskAdminLayout><ServiceDeskWorkbenchPage /></ServiceDeskAdminLayout></ServiceDeskWorkbenchRoute></ServiceDeskRoute>} />
+      <Route path="/service-desk/admin/routing" element={<Navigate to="/admin/service-desk/routing" replace />} />
+      <Route path="/admin/service-desk/sla" element={<ServiceDeskRoute><ServiceDeskSlaAdminRoute><ServiceDeskAdminLayout><ServiceDeskAdminSlaPage /></ServiceDeskAdminLayout></ServiceDeskSlaAdminRoute></ServiceDeskRoute>} />
+      <Route path="/admin/service-desk/calendars" element={<Navigate to="/admin/service-desk/sla?section=calendars" replace />} />
+      <Route path="/service-desk/admin/sla" element={<Navigate to="/admin/service-desk/sla" replace />} />
       <Route
         path="/profile"
         element={
@@ -245,4 +279,9 @@ export function AppRouter() {
       <Route path="*" element={<Navigate to="/projects" replace />} />
     </Routes>
   );
+}
+
+function loginPath(next: string) {
+  const normalized = next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : "/projects";
+  return `/login?next=${encodeURIComponent(normalized)}`;
 }

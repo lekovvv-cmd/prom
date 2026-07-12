@@ -91,8 +91,20 @@ class TemplateService:
         version = self.repository.get_published_version(service_id)
         if not version:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Опубликованный шаблон услуги не найден")
-        fields = sorted(version.fields, key=lambda field: (field.position, field.label))
+        fields = [
+            self._build_field_preview(field)
+            for field in sorted(version.fields, key=lambda field: (field.position, field.label))
+        ]
         return schemas.PublishedTemplateRead(service_id=service_id, template_version=version, fields=fields)
+
+    def get_version_form(self, version_id: uuid.UUID) -> schemas.PublishedTemplateRead:
+        """Return the saved form contract for a draft, including archived versions."""
+        version = self._require_version(version_id)
+        fields = [
+            self._build_field_preview(field)
+            for field in sorted(version.fields, key=lambda field: (field.position, field.label))
+        ]
+        return schemas.PublishedTemplateRead(service_id=version.service_id, template_version=version, fields=fields)
 
     def preview_version(self, version_id: uuid.UUID) -> schemas.TemplatePreviewRead:
         version = self._require_version(version_id)

@@ -9,8 +9,6 @@ import {
   updateAccessUser
 } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import type { ServiceDeskUser } from "../../../entities/service-desk-user/model/types";
-import { Header } from "../../../widgets/header/ui/Header";
-import { ServiceDeskAdminNav } from "../../../widgets/service-desk-admin-nav/ui/ServiceDeskAdminNav";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { Input } from "../../../shared/ui/Input";
@@ -91,6 +89,7 @@ export function ServiceDeskAdminAccessPage() {
   const [pending, setPending] = useState(false);
   const [editing, setEditing] = useState<ServiceDeskUser | null>(null);
   const [confirming, setConfirming] = useState<ServiceDeskUser | null>(null);
+  const [confirmingAction, setConfirmingAction] = useState<{ title: string; message: string; action: () => Promise<void> } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -117,11 +116,13 @@ export function ServiceDeskAdminAccessPage() {
       await action();
       await load();
       if (targetUserId === actor?.id) await refresh();
+      return true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Изменение не сохранено");
     } finally {
       setPending(false);
     }
+    return false;
   }
 
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -143,15 +144,35 @@ export function ServiceDeskAdminAccessPage() {
     event.preventDefault();
     if (!editing) return;
     const form = event.currentTarget;
-    await mutate(() => updateAccessUser(editing.id, userPayload(form)), editing.id);
-    setEditing(null);
+    const payload = userPayload(form);
+    const save = async () => {
+      if (await mutate(() => updateAccessUser(editing.id, payload), editing.id)) setEditing(null);
+    };
+    const dangerous = editing.access_type === "service_desk_admin" && payload.access_type === "manager";
+    const selfChange = editing.id === actor?.id && payload.access_type !== editing.access_type;
+    if (dangerous || selfChange) {
+      setConfirmingAction({
+        title: "Подтвердите изменение доступа",
+        message: selfChange
+          ? "После сохранения текущая страница может стать недоступной для вашего профиля."
+          : "Пользователь перестанет быть администратором Service Desk, а явные права будут очищены.",
+        action: save
+      });
+      return;
+    }
+    await save();
   }
 
   async function toggleCapability(user: ServiceDeskUser, capability: string) {
     const next = user.capabilities.includes(capability)
       ? user.capabilities.filter((value) => value !== capability)
       : [...user.capabilities, capability];
-    await mutate(() => replaceUserCapabilities(user.id, next), user.id);
+    const save = () => mutate(() => replaceUserCapabilities(user.id, next), user.id).then(() => undefined);
+    if (user.id === actor?.id && capability === "service_desk.manage_access" && !next.includes(capability)) {
+      setConfirmingAction({ title: "Снять право управления доступом?", message: "После сохранения вы потеряете доступ к разделу «Менеджеры и права».", action: save });
+      return;
+    }
+    await save();
   }
 
   async function applyActiveChange() {
@@ -163,12 +184,10 @@ export function ServiceDeskAdminAccessPage() {
 
   return (
     <>
-      <Header />
-      <ServiceDeskAdminNav />
       <PageLayout title="Менеджеры и права">
         <Card>
           <form className="filter-grid" onSubmit={(event) => void create(event)}>
-            <Input name="identity" label="Identity subject" required />
+            <Input name="identity" label="Идентификатор пользователя" required />
             <Input name="email" label="Email" type="email" required />
             <Input name="name" label="Имя" required />
             <Input name="department" label="Подразделение" />
@@ -276,6 +295,18 @@ export function ServiceDeskAdminAccessPage() {
             <div className="table-actions">
               <Button disabled={pending} onClick={() => void applyActiveChange()}>Подтвердить</Button>
               <Button variant="secondary" onClick={() => setConfirming(null)}>Отмена</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirmingAction && (
+        <Modal title={confirmingAction.title} onClose={() => setConfirmingAction(null)}>
+          <div className="modal-body">
+            <p>{confirmingAction.message}</p>
+            <div className="table-actions">
+              <Button disabled={pending} onClick={() => { const action = confirmingAction.action; setConfirmingAction(null); void action(); }}>Подтвердить</Button>
+              <Button type="button" variant="secondary" onClick={() => setConfirmingAction(null)}>Отмена</Button>
             </div>
           </div>
         </Modal>

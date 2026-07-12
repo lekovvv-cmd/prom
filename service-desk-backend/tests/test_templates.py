@@ -258,3 +258,38 @@ def test_template_preview_resolves_dictionary_and_inline_options(client: TestCli
     fields = {field["key"]: field for field in preview.json()["fields"]}
     assert [option["value"] for option in fields["gia_type"]["effective_options"]] == ["gos_exam", "vkr"]
     assert [option["value"] for option in fields["water_type"]["effective_options"]] == ["sparkling", "still"]
+
+
+def test_array_rules_survive_template_reads_preview_publish_and_public_form(client: TestClient):
+    service_id = create_catalog_service(client)
+    version = client.post(f"/admin/services/{service_id}/versions")
+    assert version.status_code == 201, version.text
+    version_id = version.json()["id"]
+    rules = [
+        {"field": "kind", "operator": "equals", "value": "exam"},
+        {"field": "count", "operator": "not_equals", "value": 0},
+    ]
+    created = client.post(
+        f"/admin/template-versions/{version_id}/fields",
+        json={
+            "key": "details",
+            "label": "Детали",
+            "field_type": "textarea",
+            "position": 0,
+            "visibility_rules": rules,
+            "required_rules": rules,
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["visibility_rules"] == rules
+    version_read = client.get(f"/admin/template-versions/{version_id}")
+    assert version_read.status_code == 200
+    assert version_read.json()["fields"][0]["required_rules"] == rules
+    preview = client.get(f"/admin/template-versions/{version_id}/preview")
+    assert preview.status_code == 200
+    assert preview.json()["fields"][0]["visibility_rules"] == rules
+    published = client.post(f"/admin/template-versions/{version_id}/publish")
+    assert published.status_code == 200
+    form = client.get(f"/services/{service_id}/form")
+    assert form.status_code == 200
+    assert form.json()["fields"][0]["visibility_rules"] == rules

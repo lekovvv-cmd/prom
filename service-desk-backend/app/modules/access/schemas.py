@@ -45,6 +45,13 @@ class ServiceDeskCapabilitiesRead(BaseModel):
     capabilities: list[str]
 
 
+class ServiceDeskUserOptionRead(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    department: str | None
+    position: str | None
+
+
 class AccessUserCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -144,9 +144,9 @@ class SlaBindingCondition(BaseModel):
     @model_validator(mode="after")
     def validate_field_key(self):
         if self.field == "field_value" and not self.field_key:
-            raise ValueError("field_value requires field_key")
+            raise ValueError("Для условия по значению поля укажите ключ поля")
         if self.field != "field_value" and self.field_key is not None:
-            raise ValueError("field_key is only allowed for field_value")
+            raise ValueError("Ключ поля можно указать только для условия по значению поля")
         return self
 
 
@@ -185,7 +185,7 @@ class EscalationRuleCreate(BaseModel):
     @model_validator(mode="after")
     def validate_recipient(self):
         if (self.recipient_type == "specific_user") != (self.recipient_user_id is not None):
-            raise ValueError("recipient_user_id is required only for specific_user")
+            raise ValueError("Для конкретного пользователя укажите получателя")
         return self
 
 

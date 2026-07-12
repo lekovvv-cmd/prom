@@ -5,6 +5,10 @@ import { useServiceDeskAccess } from "../../../app/providers/ServiceDeskAccessPr
 export const serviceDeskAdminNavItems = [
   ["Обзор", "/admin/service-desk", "service_desk.view_reports"],
   ["Заявки", "/admin/service-desk/tickets", "service_desk.view_all_tickets"],
+  ["Каталог", "/admin/service-desk/catalog", "service_desk.manage_catalog"],
+  ["Шаблоны", "/admin/service-desk/templates", "service_desk.manage_templates"],
+  ["Справочники", "/admin/service-desk/dictionaries", "service_desk.manage_templates"],
+  ["Согласования", "/admin/service-desk/approvals", "service_desk.manage_approval_workflows"],
   ["Маршрутизация", "/admin/service-desk/routing", "service_desk.manage_routing"],
   ["SLA", "/admin/service-desk/sla", "service_desk.manage_sla"],
   ["Рабочие календари", "/admin/service-desk/calendars", "service_desk.manage_sla"],
@@ -24,7 +28,15 @@ export function ServiceDeskAdminNav() {
           <NavLink
             key={to}
             to={to}
-            className={() => location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : ""}
+            className={() => {
+              if (to === "/admin/service-desk/calendars") {
+                return location.pathname === "/admin/service-desk/sla" && new URLSearchParams(location.search).get("section") === "calendars" ? "active" : "";
+              }
+              if (to === "/admin/service-desk/sla") {
+                return location.pathname === to && new URLSearchParams(location.search).get("section") !== "calendars" ? "active" : "";
+              }
+              return location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : "";
+            }}
           >
             {label}
           </NavLink>

@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import sys
 import uuid
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import create_engine, or_, select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -279,42 +278,21 @@ def main(session_factory: Callable[[], Session] | sessionmaker[Session] = Sessio
         db.commit()
 
 
-def resolve_demo_identity_user_ids() -> dict[str, str]:
-    values = {payload["email"]: payload["identity_user_id"] for payload in DEMO_SERVICE_DESK_USERS}
-    identity_database_url = os.getenv("SERVICE_DESK_IDENTITY_DATABASE_URL")
-    if not identity_database_url:
-        return values
-
-    try:
-        engine = create_engine(identity_database_url)
-        with engine.connect() as connection:
-            rows = connection.execute(
-                text("select id::text as id, email from users where email = any(:emails)"),
-                {"emails": list(values)},
-            ).mappings()
-            for row in rows:
-                values[row["email"]] = row["id"]
-    except Exception as exc:  # pragma: no cover - local dev helper fallback
-        print(f"[seed] Could not sync Service Desk identity users: {exc}", file=sys.stderr)
-    return values
-
-
 def seed_service_desk_users(db: Session) -> None:
-    identity_user_ids = resolve_demo_identity_user_ids()
     for payload in DEMO_SERVICE_DESK_USERS:
-        identity_user_id = identity_user_ids[payload["email"]]
         user = db.scalar(
-            select(ServiceDeskUser).where(
-                or_(
-                    ServiceDeskUser.identity_user_id == identity_user_id,
-                    ServiceDeskUser.email == payload["email"],
+            select(ServiceDeskUser).where(ServiceDeskUser.email == payload["email"])
+        )
+        if user is None:
+            user = db.scalar(
+                select(ServiceDeskUser).where(
+                    ServiceDeskUser.identity_user_id == payload["identity_user_id"]
                 )
             )
-        )
         if not user:
             user = ServiceDeskUser(
                 id=uuid.uuid5(uuid.NAMESPACE_URL, f"prom:{payload['identity_user_id']}"),
-                identity_user_id=identity_user_id,
+                identity_user_id=payload["identity_user_id"],
                 email=payload["email"],
                 display_name=payload["display_name"],
                 department=payload["department"],
@@ -324,7 +302,8 @@ def seed_service_desk_users(db: Session) -> None:
             db.add(user)
             db.flush()
         else:
-            user.identity_user_id = identity_user_id
+            # The local identity bootstrap owns the cross-database UUID. Seed
+            # only updates the Service Desk profile and never rewrites it.
             user.email = payload["email"]
             user.display_name = payload["display_name"]
             user.department = payload["department"]
@@ -391,8 +370,8 @@ def seed_categories(db: Session) -> dict[str, ServiceDeskCategory]:
 def seed_services(
     db: Session,
     categories: dict[str, ServiceDeskCategory],
-) -> dict[str, ServiceDeskService]:
-    services: dict[str, ServiceDeskService] = {}
+) -> dict[tuple[str, str], ServiceDeskService]:
+    services: dict[tuple[str, str], ServiceDeskService] = {}
     for category_title, service_titles in SERVICES_BY_CATEGORY.items():
         category = categories[category_title]
         for position, title in enumerate(service_titles):
@@ -411,33 +390,50 @@ def seed_services(
                 )
                 db.add(service)
                 db.flush()
-            services[title] = service
+            services[(category_title, title)] = service
     return services
 
 
 def seed_templates(
     db: Session,
-    services: dict[str, ServiceDeskService],
+    services: dict[tuple[str, str], ServiceDeskService],
 ) -> None:
-    for service_title, fields in TEMPLATE_FIELDS.items():
-        service = services.get(service_title)
-        if not service:
-            continue
-        existing = db.scalar(
-            select(ServiceDeskTemplateVersion).where(ServiceDeskTemplateVersion.service_id == service.id)
+    for (category_title, service_title), service in services.items():
+        versions = list(
+            db.scalars(
+                select(ServiceDeskTemplateVersion)
+                .where(ServiceDeskTemplateVersion.service_id == service.id)
+                .order_by(ServiceDeskTemplateVersion.version.desc())
+            )
         )
-        if existing:
+        published = next((item for item in versions if item.status == TemplateVersionStatus.PUBLISHED), None)
+        if published:
             continue
-
         now = utc_now()
+        fields = TEMPLATE_FIELDS.get(service_title, [])
+        seed_version = next(
+            (
+                item
+                for item in versions
+                if item.system_settings.get("_seed_generated") is True
+            ),
+            None,
+        )
+        if seed_version and seed_version.status == TemplateVersionStatus.ARCHIVED:
+            version = seed_version
+            version.status = TemplateVersionStatus.PUBLISHED
+            version.published_at = now
+            version.archived_at = None
+            continue
         version = ServiceDeskTemplateVersion(
             service_id=service.id,
-            version=1,
+            version=max((item.version for item in versions), default=0) + 1,
             status=TemplateVersionStatus.PUBLISHED,
             system_settings={
                 **DEFAULT_SYSTEM_SETTINGS,
                 "default_title": service.title,
                 "help_text": "Заполните поля формы и приложите файлы при необходимости.",
+                "_seed_generated": True,
             },
             published_at=now,
         )

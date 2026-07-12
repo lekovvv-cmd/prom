@@ -10,14 +10,14 @@ describe("ContextualCounterList", () => {
     }} />);
     expect(html).toContain("Моё согласование");
     expect(html).toContain("Назначены мне");
-    expect(html).not.toContain("SLA breaches");
+    expect(html).not.toContain("Нарушения SLA");
   });
 
   it("renders SLA breaches when backend authorizes the counter", () => {
     const html = renderToStaticMarkup(<ContextualCounterList counters={{
       waiting_my_approval: 0, assigned_to_me: 0, awaiting_my_response: 0, sla_breaches: 3
     }} />);
-    expect(html).toContain("SLA breaches");
+    expect(html).toContain("Нарушения SLA");
     expect(html).toContain(">3<");
   });
 });

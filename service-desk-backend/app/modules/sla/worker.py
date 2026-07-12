@@ -9,7 +9,7 @@ from app.core.enums import ServiceDeskTicketStatus
 from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser
 from app.modules.notifications.domain import NotificationChannel, NotificationEventType
-from app.modules.notifications.service import NotificationDispatcher, ticket_notification
+from app.modules.notifications.service import NotificationDispatcher, sla_notification
 from app.modules.sla.engine import (
     business_seconds_between,
     effective_business_seconds_between,
@@ -59,7 +59,7 @@ class SlaWorker:
                 ticket.is_response_breached = True
                 ticket.response_breached_at = occurred_at
                 self._history(ticket, "first_response", occurred_at)
-                self._notify(ticket, NotificationEventType.SLA_BREACHED)
+                self._notify(ticket, NotificationEventType.SLA_BREACHED, "first_response")
                 counts["response_breaches"] += 1
             if (
                 ticket.resolved_at is None
@@ -71,7 +71,7 @@ class SlaWorker:
                 ticket.is_resolution_breached = True
                 ticket.resolution_breached_at = occurred_at
                 self._history(ticket, "resolution", occurred_at)
-                self._notify(ticket, NotificationEventType.SLA_BREACHED)
+                self._notify(ticket, NotificationEventType.SLA_BREACHED, "resolution")
                 counts["resolution_breaches"] += 1
             self._evaluate_escalations(ticket, occurred_at)
         self.db.commit()
@@ -141,12 +141,14 @@ class SlaWorker:
                     NotificationChannel.IN_APP if rule.action_type == "create_in_app_notification"
                     else NotificationChannel.EMAIL
                 })
-                NotificationDispatcher(self.db).dispatch(ticket_notification(
+                NotificationDispatcher(self.db).dispatch(sla_notification(
                     NotificationEventType.SLA_WARNING if rule.threshold_percent < 100 else NotificationEventType.SLA_BREACHED,
                     ticket.id,
                     recipient_user_ids=tuple(recipient_ids),
                     event_id=escalation_event.id,
                     channels=channels,
+                    metric=rule.metric,
+                    threshold_percent=rule.threshold_percent,
                 ))
 
     def _resolution_elapsed_seconds(
@@ -193,5 +195,5 @@ class SlaWorker:
             created_at=occurred_at,
         ))
 
-    def _notify(self, ticket: ServiceDeskTicket, event_type: NotificationEventType) -> None:
-        NotificationDispatcher(self.db).dispatch(ticket_notification(event_type, ticket.id))
+    def _notify(self, ticket: ServiceDeskTicket, event_type: NotificationEventType, metric: str) -> None:
+        NotificationDispatcher(self.db).dispatch(sla_notification(event_type, ticket.id, metric=metric))

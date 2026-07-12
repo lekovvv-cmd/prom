@@ -1,8 +1,9 @@
-import { BarChart3, FolderKanban, LogIn, LogOut, MessageSquare, Table2, UserRound } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { Archive, BarChart3, FileText, FolderKanban, LogIn, LogOut, MessageSquare, Table2, UserRound } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
 import { useServiceDeskAccess } from "../../../app/providers/ServiceDeskAccessProvider";
+import { getServiceDeskAdminLanding } from "../../../entities/service-desk-admin/model/adminLanding";
 import utmnLogo from "../../../shared/assets/utmn-logo.png";
 import { Button } from "../../../shared/ui/Button";
 import { ServiceDeskNotificationCenter } from "../../service-desk-notifications/ui/ServiceDeskNotificationCenter";
@@ -16,63 +17,59 @@ const roleLabels = {
 export function Header() {
   const { canManageProjects, isAdmin, logout, token, user } = useAuth();
   const { user: serviceDeskUser } = useServiceDeskAccess();
+  const location = useLocation();
+  const isServiceDeskRoute = location.pathname.startsWith("/service-desk") || location.pathname.startsWith("/admin/service-desk");
   const canUseWorkbench = serviceDeskUser?.access_type === "service_desk_admin" || ["service_desk.be_assignee", "service_desk.approve", "service_desk.assign", "service_desk.change_priority", "service_desk.view_all_tickets"].some((capability) => serviceDeskUser?.capabilities?.includes(capability));
+  const adminLanding = getServiceDeskAdminLanding(serviceDeskUser);
 
   return (
     <header className="app-header">
-      <NavLink className="brand" to="/projects">
+      <NavLink className="brand" to={isServiceDeskRoute ? "/service-desk" : "/projects"}>
         <img className="brand-logo" src={utmnLogo} alt="UTMN" />
         <span className="brand-copy">
-          <strong>ШПИУ Проекты</strong>
+          <strong>{isServiceDeskRoute ? "ШПИУ Service Desk" : "ШПИУ Проекты"}</strong>
           <small>Тюменский государственный университет</small>
         </span>
       </NavLink>
       <nav className="main-nav">
-        <NavLink to="/projects">
-          <FolderKanban size={15} />
-          Витрина
-        </NavLink>
-        {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
-        {canUseWorkbench && <NavLink to="/service-desk/workbench"><Table2 size={15} />Workbench</NavLink>}
-        {token && user?.role !== "admin" && (
+        {isServiceDeskRoute ? (
           <>
-            <NavLink to="/my/projects">
-              <FolderKanban size={15} />
-              Мои проекты
-            </NavLink>
-            <NavLink to="/my/responses">
-              <MessageSquare size={15} />
-              Мои отклики
-            </NavLink>
+            <NavLink to="/service-desk"><Table2 size={15} aria-hidden="true" />Каталог</NavLink>
+            {token && <NavLink to="/service-desk/my-tickets"><FileText size={15} aria-hidden="true" />Мои заявки</NavLink>}
+            {canUseWorkbench && <NavLink to="/service-desk/workbench"><Archive size={15} aria-hidden="true" />Рабочее место</NavLink>}
+            {adminLanding ? <NavLink to={adminLanding}><BarChart3 size={15} aria-hidden="true" />Администрирование</NavLink> : null}
+            {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
+          </>
+        ) : (
+          <>
+            <NavLink to="/projects"><FolderKanban size={15} aria-hidden="true" />Витрина</NavLink>
+            {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
+            {token && user?.role !== "admin" && (
+              <>
+                <NavLink to="/my/projects"><FolderKanban size={15} aria-hidden="true" />Мои проекты</NavLink>
+                <NavLink to="/my/responses"><MessageSquare size={15} aria-hidden="true" />Мои отклики</NavLink>
+              </>
+            )}
+            {canManageProjects && (
+              <>
+                <NavLink to="/admin/projects"><Table2 size={15} aria-hidden="true" />Управление</NavLink>
+                <NavLink to="/admin/responses"><MessageSquare size={15} aria-hidden="true" />Отклики</NavLink>
+              </>
+            )}
+            {isAdmin && <NavLink to="/admin/stats"><BarChart3 size={15} aria-hidden="true" />Статистика</NavLink>}
           </>
         )}
-        {canManageProjects && (
-          <>
-            <NavLink to="/admin/projects">
-              <Table2 size={15} />
-              Управление
-            </NavLink>
-            <NavLink to="/admin/responses">
-              <MessageSquare size={15} />
-              Отклики
-            </NavLink>
-          </>
-        )}
-        {isAdmin && (
-          <>
-            <NavLink to="/admin/stats">
-              <BarChart3 size={15} />
-              Статистика
-            </NavLink>
-          </>
-        )}
+      </nav>
+      <nav className="module-switcher" aria-label="Переключатель модулей">
+        <NavLink to="/projects" className={({ isActive }) => !isServiceDeskRoute && isActive ? "active" : ""}>Проекты</NavLink>
+        <NavLink to="/service-desk" className={() => isServiceDeskRoute ? "active" : ""}>Service Desk</NavLink>
       </nav>
       <div className="header-auth">
         {token ? (
           <>
             <NavLink className="user-chip user-chip-link" to="/profile">
               <UserRound size={15} />
-              <span>{user ? roleLabels[user.role] : "Пользователь"}</span>
+              <span>{isServiceDeskRoute ? (serviceDeskUser?.access_type === "service_desk_admin" ? "Администратор Service Desk" : serviceDeskUser ? "Менеджер Service Desk" : "Пользователь Service Desk") : user ? roleLabels[user.role] : "Пользователь"}</span>
               <small>{user?.email}</small>
             </NavLink>
             <Button variant="ghost" onClick={logout}>
