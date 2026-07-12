@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 
 import type { ServiceDeskTemplateField } from "../../../entities/service-desk-catalog/model/types";
-import { getFieldOptions, matchesRules, type FormValues } from "../../../entities/service-desk-catalog/model/rules";
+import { getFieldOptions, isFieldRequired, isFieldVisible, normalizeFieldValue, type FormValues } from "../../../entities/service-desk-catalog/model/rules";
 
 type UserOption = { id: string; display_name: string };
 
 export function ServiceDeskDynamicFields({ fields, values, onChange, mode = "edit", users = [], errors = {}, renderFileField }: { fields: ServiceDeskTemplateField[]; values: FormValues; onChange: (key: string, value: unknown) => void; mode?: "edit" | "preview" | "readonly"; users?: UserOption[]; errors?: Record<string, string>; renderFileField?: (field: ServiceDeskTemplateField, required: boolean, error?: string) => ReactNode }) {
   const disabled = mode === "readonly";
-  return <>{fields.filter((field) => matchesRules(field.visibility_rules, values, true)).sort((a, b) => a.position - b.position).map((field) => {
-    const required = field.is_required || matchesRules(field.required_rules, values, false);
+  return <>{fields.filter((field) => isFieldVisible(field, values)).sort((a, b) => a.position - b.position).map((field) => {
+    const required = isFieldRequired(field, values);
     const label = `${field.label}${required ? " *" : ""}`;
     const options = getFieldOptions(field);
     const error = errors[field.key];
@@ -20,7 +20,7 @@ export function ServiceDeskDynamicFields({ fields, values, onChange, mode = "edi
           : field.field_type === "checkbox" ? <input {...common} type="checkbox" checked={Boolean(values[field.key])} onChange={(event) => onChange(field.key, event.target.checked)} />
             : field.field_type === "file" ? <input {...common} type="file" multiple onChange={(event) => onChange(field.key, Array.from(event.target.files ?? [], (file) => file.name))} />
               : ["textarea", "rich_text"].includes(field.field_type) ? <textarea {...common} rows={4} placeholder={field.placeholder ?? undefined} value={String(values[field.key] ?? "")} onChange={(event) => onChange(field.key, event.target.value)} />
-                : <input {...common} type={inputType(field.field_type)} placeholder={field.placeholder ?? undefined} value={String(values[field.key] ?? "")} onChange={(event) => onChange(field.key, field.field_type === "number" && event.target.value !== "" ? Number(event.target.value) : event.target.value)} />}
+                : <input {...common} type={inputType(field.field_type)} placeholder={field.placeholder ?? undefined} value={String(values[field.key] ?? "")} onChange={(event) => onChange(field.key, normalizeFieldValue(field.field_type, event.target.value))} />}
       {field.help_text ? <small className="field-help">{field.help_text}</small> : null}
       {validationHint(field) ? <small className="field-help">{validationHint(field)}</small> : null}
       {error ? <small className="field-error">{error}</small> : null}
