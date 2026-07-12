@@ -9,7 +9,9 @@ from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
 from app.modules.notifications.models import ServiceDeskNotification
 from app.modules.sla.engine import add_business_minutes, add_business_seconds, business_seconds_between
 from app.modules.sla.models import (
+    ServiceDeskBusinessCalendar,
     ServiceDeskEscalationRule,
+    ServiceDeskSlaPolicy,
     ServiceDeskSlaEscalationEvent,
     ServiceDeskTicketSlaPause,
 )
@@ -47,6 +49,26 @@ def _template_ids(db) -> tuple[uuid.UUID, uuid.UUID]:
     return service.id, version.id
 
 
+def _sla_policy(db, policy_id: uuid.UUID) -> None:
+    calendar = ServiceDeskBusinessCalendar(
+        name=f"SLA {uuid.uuid4()}",
+        timezone="Asia/Yekaterinburg",
+    )
+    db.add(calendar)
+    db.flush()
+    db.add(
+        ServiceDeskSlaPolicy(
+            id=policy_id,
+            name=f"SLA {uuid.uuid4()}",
+            business_calendar_id=calendar.id,
+            first_response_minutes=60,
+            resolution_minutes=600,
+            pause_statuses=["waiting_requester"],
+        )
+    )
+    db.flush()
+
+
 def test_resolution_escalations_use_pause_adjusted_effective_progress_once(
     db_session_factory,
 ):
@@ -60,6 +82,7 @@ def test_resolution_escalations_use_pause_adjusted_effective_progress_once(
     adjusted_due_at = add_business_seconds(base_due_at, lost_business_seconds, snapshot)
 
     with db_session_factory() as db:
+        _sla_policy(db, policy_id)
         service_id, template_version_id = _template_ids(db)
         requester = ServiceDeskUser(
             identity_user_id=str(uuid.uuid4()),
@@ -182,6 +205,7 @@ def test_sla_worker_does_not_hide_first_response_behind_resolution_pause(
     snapshot = _snapshot(selected_at)
     policy_id = uuid.UUID(snapshot["policy_id"])
     with db_session_factory() as db:
+        _sla_policy(db, policy_id)
         service_id, template_version_id = _template_ids(db)
         requester = ServiceDeskUser(
             identity_user_id=str(uuid.uuid4()),
