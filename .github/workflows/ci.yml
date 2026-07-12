@@ -99,8 +99,14 @@ jobs:
         with:
           python-version: "3.14"
       - run: pip install -e ".[dev]"
-      - name: Run PostgreSQL concurrency contour
-        run: pytest -q tests/test_postgres_concurrency.py tests/test_notification_outbox.py tests/test_sla_worker.py tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
+      - name: Check parallel ticket numbers
+        run: pytest -q tests/test_postgres_concurrency.py
+      - name: Check notification outbox locking
+        run: pytest -q tests/test_notification_outbox.py
+      - name: Check SLA event idempotency
+        run: pytest -q tests/test_sla_worker.py
+      - name: Check last administrator guard
+        run: pytest -q tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
 
   frontend:
     name: Frontend tests and build
