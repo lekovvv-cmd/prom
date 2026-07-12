@@ -1,4 +1,5 @@
 from collections.abc import Generator
+import logging
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
@@ -9,6 +10,9 @@ from app.core.security import InvalidAccessTokenError, decode_access_token
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.repository import ServiceDeskAccessRepository
 from app.modules.access.service import ServiceDeskAccessService
+
+
+logger = logging.getLogger("service_desk.access")
 
 
 def get_db() -> Generator[Session]:
@@ -30,9 +34,14 @@ def get_current_service_desk_user(
     except InvalidAccessTokenError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
     user = ServiceDeskAccessRepository(db).get_by_identity_user_id(identity_user_id)
-    if not user or not user.is_active:
+    if not user:
+        logger.info("service_desk_profile_not_found")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
+    if not user.is_active:
+        logger.info("service_desk_profile_inactive")
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
     if "service_desk.access" not in ServiceDeskAccessService.capabilities_for(user):
+        logger.info("service_desk_access_capability_missing")
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
     return user
 

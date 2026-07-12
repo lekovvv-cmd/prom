@@ -281,10 +281,14 @@ def main(session_factory: Callable[[], Session] | sessionmaker[Session] = Sessio
 def seed_service_desk_users(db: Session) -> None:
     for payload in DEMO_SERVICE_DESK_USERS:
         user = db.scalar(
-            select(ServiceDeskUser).where(
-                ServiceDeskUser.identity_user_id == payload["identity_user_id"]
-            )
+            select(ServiceDeskUser).where(ServiceDeskUser.email == payload["email"])
         )
+        if user is None:
+            user = db.scalar(
+                select(ServiceDeskUser).where(
+                    ServiceDeskUser.identity_user_id == payload["identity_user_id"]
+                )
+            )
         if not user:
             user = ServiceDeskUser(
                 id=uuid.uuid5(uuid.NAMESPACE_URL, f"prom:{payload['identity_user_id']}"),
@@ -298,6 +302,8 @@ def seed_service_desk_users(db: Session) -> None:
             db.add(user)
             db.flush()
         else:
+            # The local identity bootstrap owns the cross-database UUID. Seed
+            # only updates the Service Desk profile and never rewrites it.
             user.email = payload["email"]
             user.display_name = payload["display_name"]
             user.department = payload["department"]
