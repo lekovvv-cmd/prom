@@ -12,9 +12,10 @@ def create_requester(
     db_session_factory,
 ) -> str:
     with db_session_factory() as db:
+        identity_user_id = str(uuid.uuid4())
         user = ServiceDeskUser(
-            identity_user_id=str(uuid.uuid4()),
-            email="requester@utmn.ru",
+            identity_user_id=identity_user_id,
+            email=f"requester-{identity_user_id}@utmn.ru",
             display_name="Заявитель Service Desk",
             access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
             is_active=True,

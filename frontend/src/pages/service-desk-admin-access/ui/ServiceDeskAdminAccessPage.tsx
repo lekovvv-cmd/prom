@@ -9,6 +9,8 @@ import {
   updateAccessUser
 } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import type { ServiceDeskUser } from "../../../entities/service-desk-user/model/types";
+import { getUserDirectory } from "../../../entities/user/api/userApi";
+import type { User } from "../../../entities/user/model/types";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { Input } from "../../../shared/ui/Input";
@@ -84,8 +86,28 @@ export function ServiceDeskAdminAccessPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [editing, setEditing] = useState<ServiceDeskUser | null>(null);
+  const [projectQuery, setProjectQuery] = useState("");
+  const [projectUsers, setProjectUsers] = useState<User[]>([]);
+  const [selectedProjectUserId, setSelectedProjectUserId] = useState("");
   const [confirming, setConfirming] = useState<ServiceDeskUser | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<{ title: string; message: string; action: () => Promise<void> } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      void getUserDirectory(projectQuery.trim() || undefined)
+        .then((items) => {
+          if (active) setProjectUsers(items);
+        })
+        .catch((reason: unknown) => {
+          if (active) setError(reason instanceof Error ? reason.message : "Не удалось загрузить пользователей Projects");
+        });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [projectQuery]);
 
   const load = useCallback(async () => {
     try {
@@ -125,13 +147,23 @@ export function ServiceDeskAdminAccessPage() {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    const projectUser = projectUsers.find((user) => user.id === selectedProjectUserId);
+    if (!projectUser) {
+      setError("Выберите пользователя Projects");
+      return;
+    }
     await mutate(async () => {
       const created = await createAccessUser({
-        identity_user_id: data.get("identity"),
-        ...userPayload(form),
+        identity_user_id: projectUser.id,
+        email: projectUser.email,
+        display_name: projectUser.full_name,
+        department: projectUser.department,
+        position: projectUser.position,
+        access_type: data.get("type"),
         capabilities: []
       });
       form.reset();
+      setSelectedProjectUserId("");
       return created;
     });
   }
@@ -183,11 +215,11 @@ export function ServiceDeskAdminAccessPage() {
       <PageLayout title="Менеджеры и права">
         <Card>
           <form className="filter-grid" onSubmit={(event) => void create(event)}>
-            <Input name="identity" label="Идентификатор пользователя" required />
-            <Input name="email" label="Email" type="email" required />
-            <Input name="name" label="Имя" required />
-            <Input name="department" label="Подразделение" />
-            <Input name="position" label="Должность" />
+            <Input label="Поиск пользователя Projects" value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="Email или имя" />
+            <Select label="Пользователь Projects" value={selectedProjectUserId} onChange={(event) => setSelectedProjectUserId(event.target.value)} required>
+              <option value="">Выберите пользователя</option>
+              {projectUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name} · {user.email}</option>)}
+            </Select>
             <Select name="type" label="Тип доступа">
               <option value="service_desk_manager">Менеджер Service Desk</option>
               <option value="service_desk_admin">Администратор Service Desk</option>

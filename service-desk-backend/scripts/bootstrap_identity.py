@@ -10,7 +10,13 @@ from app.core.database import SessionLocal
 from app.modules.access.bootstrap import repair_service_desk_users
 
 
-DEMO_EMAILS = ("admin@utmn.ru", "manager@utmn.ru", "employee@utmn.ru", "analyst@utmn.ru")
+DEMO_EMAILS = (
+    "admin@utmn.ru",
+    "employee@utmn.ru",
+    "project.manager@utmn.ru",
+    "sd.manager@utmn.ru",
+    "sd.admin@utmn.ru",
+)
 
 
 def read_project_demo_users(projects_database_url: str) -> list[dict[str, Any]]:

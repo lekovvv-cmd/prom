@@ -12,32 +12,23 @@ from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 
 
-DEMO_PROFILE_RULES: dict[str, dict[str, Any]] = {
-    "admin@utmn.ru": {
-        "access_type": ServiceDeskAccessType.SERVICE_DESK_ADMIN,
-        "capabilities": (),
-    },
-    "manager@utmn.ru": {
-        "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
-        "capabilities": (
-            "service_desk.approve",
-            "service_desk.assign",
-            "service_desk.view_reports",
-            "service_desk.manage_catalog",
-            "service_desk.manage_templates",
-            "service_desk.manage_approval_workflows",
-            "service_desk.manage_sla",
-        ),
-    },
-    "employee@utmn.ru": {
-        "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
-        "capabilities": ("service_desk.be_assignee",),
-    },
-    "analyst@utmn.ru": {
+DEMO_PROFILE_RULES: dict[str, dict[str, Any] | None] = {
+    "employee@utmn.ru": None,
+    "project.manager@utmn.ru": None,
+    "admin@utmn.ru": None,
+    "sd.manager@utmn.ru": {
         "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         "capabilities": (
             "service_desk.be_assignee",
+            "service_desk.approve",
+            "service_desk.assign",
+            "service_desk.change_priority",
+            "service_desk.view_all_tickets",
         ),
+    },
+    "sd.admin@utmn.ru": {
+        "access_type": ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+        "capabilities": (),
     },
 }
 
@@ -58,17 +49,29 @@ def repair_service_desk_users(
         email = str(project_user.get("email") or "").strip().lower()
         rule = DEMO_PROFILE_RULES.get(email)
         identity_user_id = str(project_user.get("id") or "").strip()
-        if not rule or not email or not identity_user_id:
+        if email not in DEMO_PROFILE_RULES or not email or not identity_user_id:
             skipped += 1
             continue
 
-        user = db.scalar(select(ServiceDeskUser).where(ServiceDeskUser.email == email))
+        rule = DEMO_PROFILE_RULES[email]
+        user = db.scalar(
+            select(ServiceDeskUser).where(ServiceDeskUser.identity_user_id == identity_user_id)
+        )
         if user is None:
             user = db.scalar(
-                select(ServiceDeskUser).where(
-                    ServiceDeskUser.identity_user_id == identity_user_id
-                )
+                select(ServiceDeskUser).where(ServiceDeskUser.email == email)
             )
+        if rule is None:
+            if user is None:
+                skipped += 1
+                continue
+            user.identity_user_id = identity_user_id
+            user.email = email
+            user.display_name = str(project_user.get("full_name") or email)
+            user.is_active = False
+            user.capabilities.clear()
+            updated += 1
+            continue
         if user is None:
             user = ServiceDeskUser(
                 id=uuid.uuid5(uuid.NAMESPACE_URL, f"prom:service-desk:{identity_user_id}"),
@@ -93,10 +96,11 @@ def repair_service_desk_users(
             user.is_active = True
             updated += 1
 
+        user.capabilities.clear()
         if user.access_type != ServiceDeskAccessType.SERVICE_DESK_ADMIN:
-            existing = {item.capability for item in user.capabilities}
-            for capability in rule["capabilities"]:
-                if capability not in existing:
-                    db.add(ServiceDeskUserCapability(service_desk_user_id=user.id, capability=capability))
+            user.capabilities.extend(
+                ServiceDeskUserCapability(capability=capability)
+                for capability in rule["capabilities"]
+            )
 
     return IdentityBootstrapResult(created=created, updated=updated, skipped=skipped)

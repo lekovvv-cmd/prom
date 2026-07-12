@@ -40,20 +40,7 @@ def test_seed_models_exist_after_script(client, db_session_factory):
         assert db.scalar(select(ServiceDeskService).limit(1)) is not None
         assert db.scalar(select(ServiceDeskTemplateVersion).limit(1)) is not None
         users = list(db.scalars(select(ServiceDeskUser).order_by(ServiceDeskUser.email)))
-        assert [user.email for user in users] == [
-            "admin@utmn.ru",
-            "analyst@utmn.ru",
-            "employee@utmn.ru",
-            "manager@utmn.ru",
-        ]
-        manager = next(user for user in users if user.email == "manager@utmn.ru")
-        assert manager.identity_user_id == "00000000-0000-0000-0000-000000000002"
-        assert {item.capability for item in manager.capabilities} >= {
-            "service_desk.approve",
-            "service_desk.manage_catalog",
-            "service_desk.manage_templates",
-            "service_desk.manage_approval_workflows",
-        }
+        assert users == []
 
 
 def test_seed_publishes_every_active_service_and_resolves_dictionary_options(client, db_session_factory):

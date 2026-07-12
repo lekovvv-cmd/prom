@@ -9,8 +9,8 @@ import { Button } from "../../../shared/ui/Button";
 import { ServiceDeskNotificationCenter } from "../../service-desk-notifications/ui/ServiceDeskNotificationCenter";
 
 const roleLabels = {
-  platform_admin: "Админ",
-  project_manager: "Руководитель",
+  platform_admin: "Администратор платформы",
+  project_manager: "Руководитель проектов",
   employee: "Сотрудник"
 };
 

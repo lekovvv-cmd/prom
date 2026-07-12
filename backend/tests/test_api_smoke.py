@@ -27,7 +27,7 @@ def project_payload(title, status):
         "start_date": None,
         "end_date": None,
         "responsible_user_id": None,
-        "contact_email": "manager@utmn.ru",
+        "contact_email": "project.manager@utmn.ru",
         "required_competencies": "Testing",
         "planned_tasks": "Submit response",
     }
@@ -91,7 +91,7 @@ def test_user_can_update_profile_competencies(client):
 def test_half_year_reports_are_profile_based_and_admin_controlled(client):
     headers = admin_headers(client)
     employee_headers = auth_headers(client, "employee@utmn.ru")
-    manager_headers = auth_headers(client, "manager@utmn.ru")
+    manager_headers = auth_headers(client, "project.manager@utmn.ru")
 
     before_open = client.get("/api/reports/current", headers=employee_headers)
     assert before_open.status_code == 200
@@ -171,7 +171,7 @@ def test_half_year_reports_are_profile_based_and_admin_controlled(client):
     reports = client.get("/api/admin/reports", params={"period_id": period_id}, headers=headers)
     assert reports.status_code == 200
     payload = reports.json()
-    assert {item["user"]["email"] for item in payload} == {"employee@utmn.ru", "manager@utmn.ru"}
+    assert {item["user"]["email"] for item in payload} == {"employee@utmn.ru", "project.manager@utmn.ru"}
     assert all(item["period"]["id"] == period_id for item in payload)
 
     periods = client.get("/api/admin/reports/periods", headers=headers)
@@ -303,7 +303,7 @@ def test_competencies_catalog_and_role_access(client):
     assert any("SQL" in competencies for competencies in multi_competencies)
     assert any("Наставничество" in competencies for competencies in multi_competencies)
 
-    manager_headers = auth_headers(client, "manager@utmn.ru")
+    manager_headers = auth_headers(client, "project.manager@utmn.ru")
     me = client.get("/api/me", headers=manager_headers)
     assert me.status_code == 200
     assert me.json()["role"] == "project_manager"
@@ -344,7 +344,7 @@ def test_response_availability_depends_on_project_status(client):
         f"/api/projects/{paused.json()['id']}/responses",
         json={
             **employee_response_payload("Pytest Anonymous Response Employee"),
-            "email": "analyst@utmn.ru",
+            "email": "sd.manager@utmn.ru",
         },
     )
     assert anonymous_response.status_code == 401
@@ -402,8 +402,8 @@ def test_response_availability_depends_on_project_status(client):
 def test_manager_sees_only_own_project_responses(client):
     headers = admin_headers(client)
     employee_headers = auth_headers(client, "employee@utmn.ru")
-    analyst_headers = auth_headers(client, "analyst@utmn.ru")
-    manager_headers = auth_headers(client, "manager@utmn.ru")
+    analyst_headers = auth_headers(client, "sd.manager@utmn.ru")
+    manager_headers = auth_headers(client, "project.manager@utmn.ru")
     manager = client.get("/api/me", headers=manager_headers)
     assert manager.status_code == 200
     manager_id = manager.json()["id"]
@@ -431,7 +431,7 @@ def test_manager_sees_only_own_project_responses(client):
         f"/api/projects/{other_project.json()['id']}/responses",
         json={
             **employee_response_payload("Scoped Hidden Employee"),
-            "email": "analyst@utmn.ru",
+            "email": "sd.manager@utmn.ru",
         },
         headers=analyst_headers,
     )
@@ -506,7 +506,7 @@ def test_manager_sees_only_own_project_responses(client):
 def test_user_response_list_withdraw_and_admin_delete(client):
     headers = admin_headers(client)
     employee_headers = auth_headers(client, "employee@utmn.ru")
-    analyst_headers = auth_headers(client, "analyst@utmn.ru")
+    analyst_headers = auth_headers(client, "sd.manager@utmn.ru")
 
     created = client.post(
         "/api/admin/projects",
@@ -547,7 +547,7 @@ def test_user_response_list_withdraw_and_admin_delete(client):
 
     analyst_payload = {
         **employee_response_payload("Self Service Analyst"),
-        "email": "analyst@utmn.ru",
+        "email": "sd.manager@utmn.ru",
     }
     analyst_response = client.post(
         f"/api/projects/{project_id}/responses",
@@ -581,11 +581,11 @@ def test_user_response_list_withdraw_and_admin_delete(client):
 def test_my_projects_include_accepted_responses_and_working_group(client):
     headers = admin_headers(client)
     employee_headers = auth_headers(client, "employee@utmn.ru")
-    analyst_headers = auth_headers(client, "analyst@utmn.ru")
+    analyst_headers = auth_headers(client, "sd.manager@utmn.ru")
 
     users = client.get("/api/admin/users", headers=headers)
     assert users.status_code == 200
-    analyst = next(user for user in users.json() if user["email"] == "analyst@utmn.ru")
+    analyst = next(user for user in users.json() if user["email"] == "sd.manager@utmn.ru")
 
     accepted_project = client.post(
         "/api/admin/projects",
@@ -651,7 +651,7 @@ def test_my_projects_include_accepted_responses_and_working_group(client):
 def test_project_competency_blocks_and_coverage(client):
     headers = admin_headers(client)
     employee_headers = auth_headers(client, "employee@utmn.ru")
-    analyst_headers = auth_headers(client, "analyst@utmn.ru")
+    analyst_headers = auth_headers(client, "sd.manager@utmn.ru")
 
     payload = project_payload("Pytest competency coverage project", "active")
     payload["required_competencies"] = None
@@ -674,7 +674,7 @@ def test_project_competency_blocks_and_coverage(client):
         f"/api/projects/{project_id}/responses",
         json={
             "full_name": "Pytest SQL Analyst",
-            "email": "analyst@utmn.ru",
+            "email": "sd.manager@utmn.ru",
             "comment": "Закрываю SQL вторым участником.",
             "competencies": "SQL",
         },
@@ -751,12 +751,12 @@ def test_project_recommendations_and_profile_competency_response(client):
 def test_project_tasks_workspace_and_result_files(client):
     headers = admin_headers(client)
     employee_headers = auth_headers(client, "employee@utmn.ru")
-    analyst_headers = auth_headers(client, "analyst@utmn.ru")
-    manager_headers = auth_headers(client, "manager@utmn.ru")
+    analyst_headers = auth_headers(client, "sd.manager@utmn.ru")
+    manager_headers = auth_headers(client, "project.manager@utmn.ru")
 
     users = client.get("/api/admin/users", headers=headers)
     assert users.status_code == 200
-    manager = next(user for user in users.json() if user["email"] == "manager@utmn.ru")
+    manager = next(user for user in users.json() if user["email"] == "project.manager@utmn.ru")
     employee = next(user for user in users.json() if user["email"] == "employee@utmn.ru")
 
     payload = project_payload("Pytest project task workspace", "active")
@@ -835,12 +835,12 @@ def test_project_tasks_workspace_and_result_files(client):
 
 def test_manager_scope_admin_only_and_project_hunting(client):
     headers = admin_headers(client)
-    manager_headers = auth_headers(client, "manager@utmn.ru")
+    manager_headers = auth_headers(client, "project.manager@utmn.ru")
     employee_headers = auth_headers(client, "employee@utmn.ru")
 
     users_for_admin = client.get("/api/admin/users", headers=headers)
     assert users_for_admin.status_code == 200
-    analyst = next(user for user in users_for_admin.json() if user["email"] == "analyst@utmn.ru")
+    analyst = next(user for user in users_for_admin.json() if user["email"] == "sd.manager@utmn.ru")
 
     manager_users = client.get("/api/admin/users", headers=manager_headers)
     assert manager_users.status_code == 403
@@ -849,7 +849,7 @@ def test_manager_scope_admin_only_and_project_hunting(client):
 
     directory = client.get("/api/users/directory", params={"search": "SQL"}, headers=manager_headers)
     assert directory.status_code == 200
-    assert any(user["email"] == "analyst@utmn.ru" for user in directory.json())
+    assert any(user["email"] == "sd.manager@utmn.ru" for user in directory.json())
 
     own_payload = project_payload("Pytest manager hunting project", "active")
     own_payload["required_competencies"] = None
@@ -864,7 +864,7 @@ def test_manager_scope_admin_only_and_project_hunting(client):
         headers=manager_headers,
     )
     assert candidates.status_code == 200, candidates.text
-    analyst_candidate = next(item for item in candidates.json()["items"] if item["email"] == "analyst@utmn.ru")
+    analyst_candidate = next(item for item in candidates.json()["items"] if item["email"] == "sd.manager@utmn.ru")
     assert analyst_candidate["match_score"] >= 1
     assert analyst_candidate["matched_competencies"] == ["SQL"]
 
@@ -874,7 +874,7 @@ def test_manager_scope_admin_only_and_project_hunting(client):
     )
     assert add_member.status_code == 200, add_member.text
     assert any(
-        member["email"] == "analyst@utmn.ru" and member["member_role"] == "working_group_member"
+        member["email"] == "sd.manager@utmn.ru" and member["member_role"] == "working_group_member"
         for member in add_member.json()["members"]
     )
 
@@ -891,7 +891,7 @@ def test_manager_scope_admin_only_and_project_hunting(client):
     assert forbidden_candidates.status_code == 403
 
     employee_directory = client.get("/api/users/directory", headers=employee_headers)
-    assert employee_directory.status_code == 403
+    assert employee_directory.status_code == 200
 
 
 def test_full_mvp_flow(client):
@@ -902,9 +902,9 @@ def test_full_mvp_flow(client):
 
     users = client.get("/api/admin/users", headers=headers)
     assert users.status_code == 200
-    manager = next(user for user in users.json() if user["email"] == "manager@utmn.ru")
+    manager = next(user for user in users.json() if user["email"] == "project.manager@utmn.ru")
     employee = next(user for user in users.json() if user["email"] == "employee@utmn.ru")
-    analyst = next(user for user in users.json() if user["email"] == "analyst@utmn.ru")
+    analyst = next(user for user in users.json() if user["email"] == "sd.manager@utmn.ru")
     employee_headers = auth_headers(client, "employee@utmn.ru")
 
     project_payload = {
@@ -920,7 +920,7 @@ def test_full_mvp_flow(client):
         "end_date": None,
         "responsible_user_id": manager["id"],
         "working_group_member_ids": [employee["id"], analyst["id"]],
-        "contact_email": "manager@utmn.ru",
+        "contact_email": "project.manager@utmn.ru",
         "required_competencies": "API, тестирование",
         "planned_tasks": "Создать проект, отправить отклик, сменить статус",
     }

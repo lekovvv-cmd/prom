@@ -7,7 +7,7 @@ export function LoginPage() {
       <Header />
       <main className="login-page">
         <section>
-          <h1>Вход в витрину проектов</h1>
+          <h1>Вход в PROM</h1>
           <p>Для MVP используется email на домене @utmn.ru и dev-код 000000.</p>
           <LoginForm />
         </section>

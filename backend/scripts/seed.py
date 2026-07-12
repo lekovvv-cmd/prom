@@ -18,9 +18,10 @@ from app.modules.users.repository import UserRepository
 
 DEMO_IDENTITY_USER_IDS = {
     "admin@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000001"),
-    "manager@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000002"),
+    "project.manager@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000002"),
     "employee@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000003"),
-    "analyst@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000004"),
+    "sd.manager@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000004"),
+    "sd.admin@utmn.ru": uuid.UUID("00000000-0000-0000-0000-000000000005"),
 }
 
 
@@ -98,10 +99,10 @@ def main() -> None:
             department="ШПИУ",
             position="Администратор витрины",
         )
-        manager = upsert_user(
+        project_manager = upsert_user(
             repo,
-            email="manager@utmn.ru",
-            user_id=DEMO_IDENTITY_USER_IDS["manager@utmn.ru"],
+            email="project.manager@utmn.ru",
+            user_id=DEMO_IDENTITY_USER_IDS["project.manager@utmn.ru"],
             full_name="Руководитель проекта",
             role=UserRole.PROJECT_MANAGER,
             department="ШПИУ",
@@ -120,16 +121,25 @@ def main() -> None:
             competencies="Коммуникации, Русский язык, Наставничество, Организация встреч",
             about="Помогает с коммуникациями, методическими материалами и сопровождением участников.",
         )
-        analyst = upsert_user(
+        sd_manager = upsert_user(
             repo,
-            email="analyst@utmn.ru",
-            user_id=DEMO_IDENTITY_USER_IDS["analyst@utmn.ru"],
-            full_name="Аналитик ШПИУ",
+            email="sd.manager@utmn.ru",
+            user_id=DEMO_IDENTITY_USER_IDS["sd.manager@utmn.ru"],
+            full_name="Менеджер Service Desk",
             role=UserRole.EMPLOYEE,
-            department="Аналитика",
-            position="Аналитик данных",
+            department="Service Desk",
+            position="Менеджер Service Desk",
             competencies="SQL, Аналитика данных, Интервью, Визуализация данных",
-            about="Собирает данные, проводит интервью и готовит аналитические выводы.",
+            about="Создаёт заявки и участвует в работе Service Desk.",
+        )
+        upsert_user(
+            repo,
+            email="sd.admin@utmn.ru",
+            user_id=DEMO_IDENTITY_USER_IDS["sd.admin@utmn.ru"],
+            full_name="Администратор Service Desk",
+            role=UserRole.EMPLOYEE,
+            department="Service Desk",
+            position="Администратор Service Desk",
         )
 
         if db.query(Project).count() == 0:
@@ -144,8 +154,8 @@ def main() -> None:
                     priority=ProjectPriority.CRITICAL,
                     status=ProjectStatus.ACTIVE,
                     start_date=date(2026, 9, 1),
-                    responsible_user_id=manager.id,
-                    contact_email="manager@utmn.ru",
+                    responsible_user_id=project_manager.id,
+                    contact_email="project.manager@utmn.ru",
                     required_competencies="Аналитика данных, SQL, Интервью, Визуализация данных",
                     competency_blocks=competency_blocks(
                         ("Аналитика и данные", ["Аналитика данных", "SQL", "Визуализация данных"]),
@@ -163,8 +173,8 @@ def main() -> None:
                     project_type=ProjectType.STRATEGIC,
                     priority=ProjectPriority.HIGH,
                     status=ProjectStatus.ACTIVE,
-                    responsible_user_id=manager.id,
-                    contact_email="manager@utmn.ru",
+                    responsible_user_id=project_manager.id,
+                    contact_email="project.manager@utmn.ru",
                     required_competencies="Методология образования, Коммуникации, Фасилитация, Наставничество",
                     competency_blocks=competency_blocks(
                         ("Методология", ["Методология образования", "Наставничество"]),
@@ -184,8 +194,8 @@ def main() -> None:
                     status=ProjectStatus.ACTIVE,
                     start_date=date(2026, 10, 1),
                     end_date=date(2026, 12, 15),
-                    responsible_user_id=analyst.id,
-                    contact_email="analyst@utmn.ru",
+                    responsible_user_id=sd_manager.id,
+                    contact_email="sd.manager@utmn.ru",
                     required_competencies="Опросы, Интервью, Аналитика данных",
                     competency_blocks=competency_blocks(
                         ("Полевое исследование", ["Опросы", "Интервью"]),
@@ -233,10 +243,10 @@ def main() -> None:
             db.flush()
             db.add_all(
                 [
-                    ProjectMember(project_id=projects[0].id, user_id=manager.id, member_role=ProjectMemberRole.MANAGER),
+                    ProjectMember(project_id=projects[0].id, user_id=project_manager.id, member_role=ProjectMemberRole.MANAGER),
                     ProjectMember(
                         project_id=projects[0].id,
-                        user_id=analyst.id,
+                        user_id=sd_manager.id,
                         member_role=ProjectMemberRole.WORKING_GROUP_MEMBER,
                     ),
                     ProjectMember(
@@ -255,9 +265,9 @@ def main() -> None:
                     ),
                     ProjectResponse(
                         project_id=projects[0].id,
-                        user_id=analyst.id,
-                        full_name=analyst.full_name,
-                        email=analyst.email,
+                        user_id=sd_manager.id,
+                        full_name=sd_manager.full_name,
+                        email=sd_manager.email,
                         comment="Готов подключиться к аналитике и структуре данных.",
                         competencies="SQL, аналитика, визуализация",
                         status=ProjectResponseStatus.CONTACTED,
@@ -277,9 +287,9 @@ def main() -> None:
                     ),
                     ProjectResponse(
                         project_id=projects[2].id,
-                        user_id=analyst.id,
-                        full_name=analyst.full_name,
-                        email=analyst.email,
+                        user_id=sd_manager.id,
+                        full_name=sd_manager.full_name,
+                        email=sd_manager.email,
                         comment="Могу провести интервью и обработать результаты.",
                         competencies="Интервью, анализ качественных данных",
                         status=ProjectResponseStatus.VIEWED,

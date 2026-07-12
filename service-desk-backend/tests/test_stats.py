@@ -12,9 +12,10 @@ from app.modules.tickets.models import ServiceDeskTicket
 
 def _manager(db_session_factory, auth_headers_for_user, *capabilities):
     with db_session_factory() as db:
+        identity_user_id = str(uuid.uuid4())
         user = ServiceDeskUser(
-            identity_user_id=str(uuid.uuid4()),
-            email="reports@utmn.ru",
+            identity_user_id=identity_user_id,
+            email=f"reports-{identity_user_id}@utmn.ru",
             display_name="Reports",
             access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         )

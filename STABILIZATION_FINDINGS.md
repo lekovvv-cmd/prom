@@ -81,3 +81,15 @@
 - Исправление: все routes закрыты backend guard; frontend скрывает switch и показывает стабильный
   access denied без redirect-loop.
 - Проверка: API regression проверяет 401 без token и доступ с активной ролью.
+
+## F-010 — seed и bootstrap были двумя identity writers
+
+- Симптом: catalog seed создавал старые profiles, bootstrap затем менял UUID и только добавлял
+  capabilities; employee получал скрытый SD profile.
+- Шаги воспроизведения: дважды запустить старые bootstrap/seed при изменённом Projects UUID.
+- Корневая причина: два writer-а, неуникальный email и additive capability semantics.
+- Исправление: Projects UUID — source; только platform-bootstrap синхронизирует/деактивирует
+  profiles, catalog seed не пишет users. Capabilities заменяются, duplicate migration переносит
+  FK references и создаёт unique email.
+- Проверка: tests покрывают UUID repair, replace semantics, повторный запуск без дубля и отзыв
+  доступа employee/project manager/platform admin.

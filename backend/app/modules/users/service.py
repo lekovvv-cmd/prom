@@ -37,7 +37,10 @@ class UserService:
             )
         else:
             expected_role = self._role_for_email(normalized)
-            if user.role != expected_role and normalized in {"admin@utmn.ru", "manager@utmn.ru"}:
+            if user.role != expected_role and normalized in {
+                "admin@utmn.ru",
+                "project.manager@utmn.ru",
+            }:
                 user.role = expected_role
 
         self.db.commit()
@@ -71,7 +74,7 @@ class UserService:
     def _role_for_email(email: str) -> UserRole:
         if email == "admin@utmn.ru":
             return UserRole.PLATFORM_ADMIN
-        if email == "manager@utmn.ru":
+        if email == "project.manager@utmn.ru":
             return UserRole.PROJECT_MANAGER
         return UserRole.EMPLOYEE
 
@@ -79,8 +82,12 @@ class UserService:
     def _default_full_name(email: str) -> str:
         if email == "admin@utmn.ru":
             return "Администратор ШПИУ"
-        if email == "manager@utmn.ru":
+        if email == "project.manager@utmn.ru":
             return "Руководитель проекта"
+        if email == "sd.manager@utmn.ru":
+            return "Менеджер Service Desk"
+        if email == "sd.admin@utmn.ru":
+            return "Администратор Service Desk"
         if email == "employee@utmn.ru":
             return "Сотрудник ШПИУ"
         return email.split("@", maxsplit=1)[0].replace(".", " ").title()

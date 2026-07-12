@@ -19,7 +19,7 @@ class ServiceDeskUser(Base):
     identity_user_id: Mapped[str] = mapped_column(
         String(64), unique=True, index=True, nullable=False
     )
-    email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     department: Mapped[str | None] = mapped_column(String(255), nullable=True)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)

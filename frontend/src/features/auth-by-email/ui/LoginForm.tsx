@@ -9,9 +9,11 @@ import { isUtmnEmail, normalizeEmail } from "../../../shared/lib/email";
 import { requestCode, verifyCode } from "../api/authApi";
 
 const demoUsers = [
-  { label: "Админ", email: "admin@utmn.ru", description: "проекты, отклики, статистика" },
-  { label: "Руководитель", email: "manager@utmn.ru", description: "ведение проектов и откликов" },
-  { label: "Сотрудник", email: "employee@utmn.ru", description: "витрина и отклик" }
+  { label: "Сотрудник", email: "employee@utmn.ru", description: "Projects, без Service Desk" },
+  { label: "Руководитель проектов", email: "project.manager@utmn.ru", description: "управление Projects, без Service Desk" },
+  { label: "Менеджер Service Desk", email: "sd.manager@utmn.ru", description: "каталог, заявки и рабочее место" },
+  { label: "Администратор Service Desk", email: "sd.admin@utmn.ru", description: "полный доступ к Service Desk" },
+  { label: "Администратор платформы", email: "admin@utmn.ru", description: "полный доступ к Projects и Service Desk" }
 ];
 
 export function LoginForm() {
