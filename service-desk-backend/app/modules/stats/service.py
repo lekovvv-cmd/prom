@@ -27,13 +27,17 @@ from app.modules.tickets.models import ServiceDeskTicket
 from app.modules.workbench.service import sla_state_predicate
 from app.modules.workbench.schemas import WorkbenchSlaState
 
-TERMINAL_STATUSES = (ServiceDeskTicketStatus.CLOSED, ServiceDeskTicketStatus.CANCELLED)
+TERMINAL_STATUSES = (
+    ServiceDeskTicketStatus.REJECTED,
+    ServiceDeskTicketStatus.RESOLVED,
+    ServiceDeskTicketStatus.CLOSED,
+    ServiceDeskTicketStatus.CANCELLED,
+)
 CURRENT_ASSIGNED = (
     ServiceDeskTicketStatus.ASSIGNED,
     ServiceDeskTicketStatus.IN_PROGRESS,
     ServiceDeskTicketStatus.WAITING_REQUESTER,
     ServiceDeskTicketStatus.WAITING_EXTERNAL,
-    ServiceDeskTicketStatus.RESOLVED,
 )
 
 

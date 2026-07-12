@@ -208,3 +208,43 @@ def test_assignee_stats_are_set_based_and_do_not_double_count_breached_ticket(
     assert rows["Assignee 0"]["in_progress"] == 1
     assert rows["Assignee 0"]["breached_tickets"] == 1
     assert rows["Assignee 0"]["median_resolution_seconds"] == 10800
+
+
+def test_current_backlog_excludes_draft_and_terminal_statuses(
+    client, db_session_factory, auth_headers_for_user
+):
+    active_statuses = {
+        ServiceDeskTicketStatus.SUBMITTED,
+        ServiceDeskTicketStatus.PENDING_APPROVAL,
+        ServiceDeskTicketStatus.APPROVED,
+        ServiceDeskTicketStatus.ASSIGNED,
+        ServiceDeskTicketStatus.IN_PROGRESS,
+        ServiceDeskTicketStatus.WAITING_REQUESTER,
+        ServiceDeskTicketStatus.WAITING_EXTERNAL,
+    }
+    with db_session_factory() as db:
+        service = _service(db)
+        requester = _user(db, "Requester")
+        reports = _user(db, "Reports", reports=True)
+        for ticket_status in ServiceDeskTicketStatus:
+            _ticket(
+                db,
+                service,
+                requester,
+                reports,
+                title=f"Status {ticket_status.value}",
+                status=ticket_status,
+                submitted_at=None
+                if ticket_status == ServiceDeskTicketStatus.DRAFT
+                else datetime(2026, 7, 11, tzinfo=UTC),
+            )
+        db.commit()
+        headers = auth_headers_for_user(str(reports.id))
+
+    summary = client.get("/admin/stats/summary", headers=headers)
+    assert summary.status_code == 200, summary.text
+    assert summary.json()["current_backlog"] == len(active_statuses)
+
+    aging = client.get("/admin/stats/backlog-aging", headers=headers)
+    assert aging.status_code == 200, aging.text
+    assert sum(bucket["count"] for bucket in aging.json()) == len(active_statuses)
