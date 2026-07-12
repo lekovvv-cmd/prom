@@ -5,16 +5,25 @@ from typing import Any
 import jwt
 
 from app.core.config import settings
+from app.core.enums import UserRole
 from app.core.exceptions import DomainError
 
 UTMN_EMAIL_PATTERN = re.compile(r"^[^\s@]+@utmn\.ru$")
 
 
-def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
+def create_access_token(
+    subject: str,
+    platform_role: UserRole,
+    expires_delta: timedelta | None = None,
+) -> str:
     expire = datetime.now(UTC) + (
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
-    payload: dict[str, Any] = {"sub": subject, "exp": expire}
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "platform_role": platform_role.value,
+        "exp": expire,
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 

@@ -39,3 +39,16 @@
 - Корневая причина: внешний prerequisite Docker Desktop был остановлен; кодовый bootstrap после запуска daemon завершился успешно.
 - Исправление: код не требуется; wrapper должен ясно сообщать о недоступном daemon.
 - Проверка: clean Compose завершился успешно; все DB/API/frontend/worker healthchecks green.
+
+## F-006 — JWT не передавал platform role
+
+- Симптом: Service Desk не мог отличить `platform_admin` по доверенному claim и всегда искал
+  локальный `ServiceDeskUser`.
+- Шаги воспроизведения: декодировать исходный Projects token — присутствовали только `sub` и
+  `exp`; открыть Service Desk platform admin без локального profile — 403.
+- Корневая причина: Projects не подписывал `platform_role`, Service Desk decoder возвращал
+  только `sub`.
+- Исправление: Projects подписывает `platform_role`; Service Desk валидирует подпись, срок,
+  UUID subject и роль. `platform_admin` получает полный bypass.
+- Проверка: API tests покрывают platform admin без заранее созданного profile, обе SD роли,
+  employee/project manager без SD profile, inactive profile и поддельную подпись.

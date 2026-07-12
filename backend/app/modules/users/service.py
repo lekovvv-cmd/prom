@@ -42,7 +42,7 @@ class UserService:
 
         self.db.commit()
         self.db.refresh(user)
-        token = create_access_token(str(user.id))
+        token = create_access_token(str(user.id), user.role)
         return user, token
 
     def get_by_id(self, user_id: object) -> User:

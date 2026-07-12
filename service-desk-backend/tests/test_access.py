@@ -8,12 +8,95 @@ from app.core.enums import SERVICE_DESK_CAPABILITIES, ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 
 
-def access_token(subject: str, *, secret: str | None = None) -> str:
+def access_token(
+    subject: str,
+    *,
+    platform_role: str | None = None,
+    secret: str | None = None,
+) -> str:
+    payload = {"sub": subject, "exp": datetime.now(UTC) + timedelta(minutes=5)}
+    if platform_role is not None:
+        payload["platform_role"] = platform_role
     return jwt.encode(
-        {"sub": subject, "exp": datetime.now(UTC) + timedelta(minutes=5)},
+        payload,
         secret or settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )
+
+
+def test_platform_admin_without_local_profile_receives_full_access(
+    client, db_session_factory
+):
+    identity_user_id = str(uuid.uuid4())
+
+    response = client.get(
+        "/me",
+        headers={
+            "Authorization": f"Bearer {access_token(identity_user_id, platform_role='platform_admin')}"
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["identity_user_id"] == identity_user_id
+    assert response.json()["capabilities"] == list(SERVICE_DESK_CAPABILITIES)
+    with db_session_factory() as db:
+        shadow = db.query(ServiceDeskUser).filter_by(identity_user_id=identity_user_id).one()
+        assert shadow.access_type == ServiceDeskAccessType.SERVICE_DESK_MANAGER
+
+
+def test_platform_roles_without_service_desk_profile_are_rejected(client):
+    for platform_role in ("employee", "project_manager"):
+        response = client.get(
+            "/me",
+            headers={
+                "Authorization": (
+                    f"Bearer {access_token(str(uuid.uuid4()), platform_role=platform_role)}"
+                )
+            },
+        )
+        assert response.status_code == 403
+
+
+def test_active_service_desk_roles_are_admitted_with_platform_claim(
+    client, db_session_factory
+):
+    for access_type in (
+        ServiceDeskAccessType.SERVICE_DESK_MANAGER,
+        ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+    ):
+        user = create_service_desk_user(
+            db_session_factory,
+            access_type=access_type,
+            capabilities=("service_desk.access",),
+        )
+        response = client.get(
+            "/me",
+            headers={
+                "Authorization": f"Bearer {access_token(user.identity_user_id, platform_role='employee')}"
+            },
+        )
+        assert response.status_code == 200
+
+
+def test_inactive_profile_and_forged_jwt_are_rejected(client, db_session_factory):
+    inactive = create_service_desk_user(db_session_factory, is_active=False)
+    response = client.get(
+        "/me",
+        headers={
+            "Authorization": f"Bearer {access_token(inactive.identity_user_id, platform_role='employee')}"
+        },
+    )
+    assert response.status_code == 403
+
+    forged = client.get(
+        "/me",
+        headers={
+            "Authorization": (
+                f"Bearer {access_token(str(uuid.uuid4()), platform_role='platform_admin', secret='forged-secret')}"
+            )
+        },
+    )
+    assert forged.status_code == 401
 
 
 def create_service_desk_user(

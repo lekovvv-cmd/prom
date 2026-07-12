@@ -26,7 +26,10 @@ class ServiceDeskAccessService:
 
     @staticmethod
     def capabilities_for(user: ServiceDeskUser) -> list[str]:
-        if user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
+        if (
+            getattr(user, "_is_platform_admin", False)
+            or user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+        ):
             return list(SERVICE_DESK_CAPABILITIES)
         return sorted({item.capability for item in user.capabilities})
 

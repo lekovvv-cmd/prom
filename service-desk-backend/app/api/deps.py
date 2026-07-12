@@ -3,9 +3,11 @@ import logging
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_session
+from app.core.enums import ServiceDeskAccessType
 from app.core.security import InvalidAccessTokenError, decode_access_token
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.repository import ServiceDeskAccessRepository
@@ -30,10 +32,31 @@ def get_current_service_desk_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Требуется авторизация")
     token = authorization.split(" ", maxsplit=1)[1]
     try:
-        identity_user_id = decode_access_token(token)
+        claims = decode_access_token(token)
     except InvalidAccessTokenError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
-    user = ServiceDeskAccessRepository(db).get_by_identity_user_id(identity_user_id)
+    repository = ServiceDeskAccessRepository(db)
+    user = repository.get_by_identity_user_id(claims.subject)
+    if claims.platform_role == "platform_admin":
+        if user is None:
+            user = ServiceDeskUser(
+                identity_user_id=claims.subject,
+                email=f"platform-admin-{claims.subject}@local.invalid",
+                display_name="Администратор платформы",
+                access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
+                is_active=True,
+            )
+            db.add(user)
+            try:
+                db.commit()
+                db.refresh(user)
+            except IntegrityError:
+                db.rollback()
+                user = repository.get_by_identity_user_id(claims.subject)
+                if user is None:
+                    raise
+        user._is_platform_admin = True
+        return user
     if not user:
         logger.info("service_desk_profile_not_found")
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
