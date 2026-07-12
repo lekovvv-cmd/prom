@@ -12,6 +12,7 @@ from app.core.enums import (
     TemplateVersionStatus,
 )
 from app.modules.access.models import ServiceDeskUser
+from app.modules.access.service import ServiceDeskAccessService
 from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.models import ServiceDeskTicketApprovalStage
@@ -48,6 +49,7 @@ class TicketService:
         payload: schemas.TicketDraftCreate,
         actor: ServiceDeskUser,
     ) -> schemas.TicketRead:
+        self._require_request_creation(actor)
         service = self.catalog_repository.get_service(payload.service_id)
         if not service or not service.is_active or service.deleted_at is not None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
@@ -110,6 +112,7 @@ class TicketService:
         return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
     def submit_draft(self, ticket_id: uuid.UUID, actor: ServiceDeskUser) -> schemas.TicketRead:
+        self._require_request_creation(actor)
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
@@ -169,6 +172,15 @@ class TicketService:
         )
         self.db.commit()
         return self._read_for_actor(self._require_ticket(ticket.id), actor)
+
+    @staticmethod
+    def _require_request_creation(actor: ServiceDeskUser) -> None:
+        capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
+        if "service_desk.create_request" not in capabilities:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Недостаточно прав для создания заявки Service Desk",
+            )
 
     def perform_action(
         self,

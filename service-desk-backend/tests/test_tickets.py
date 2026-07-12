@@ -7,7 +7,12 @@ from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 
 
-def create_requester(client: TestClient, db_session_factory) -> str:
+def create_requester(
+    client: TestClient,
+    db_session_factory,
+    *,
+    can_create_request: bool = True,
+) -> str:
     with db_session_factory() as db:
         user = ServiceDeskUser(
             identity_user_id=str(uuid.uuid4()),
@@ -24,9 +29,38 @@ def create_requester(client: TestClient, db_session_factory) -> str:
                 capability="service_desk.access",
             )
         )
+        if can_create_request:
+            db.add(
+                ServiceDeskUserCapability(
+                    service_desk_user_id=user.id,
+                    capability="service_desk.create_request",
+                )
+            )
         db.commit()
         db.refresh(user)
         return str(user.id)
+
+
+def test_ticket_creation_requires_create_request_capability(
+    client: TestClient,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    requester_id = create_requester(
+        client,
+        db_session_factory,
+        can_create_request=False,
+    )
+    service_id, _ = create_service_with_template(client)
+
+    response = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Заявка без права"},
+        headers=auth_headers_for_user(requester_id),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Недостаточно прав для создания заявки Service Desk"
 
 
 def create_service_with_template(client: TestClient) -> tuple[str, str]:
