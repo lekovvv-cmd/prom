@@ -52,3 +52,32 @@
   UUID subject и роль. `platform_admin` получает полный bypass.
 - Проверка: API tests покрывают platform admin без заранее созданного profile, обе SD роли,
   employee/project manager без SD profile, inactive profile и поддельную подпись.
+
+## F-007 — базовый доступ зависел от редактируемых capability
+
+- Симптом: активный manager без `service_desk.access` получал 403, создание заявки отдельно
+  требовало `service_desk.create_request`.
+- Шаги воспроизведения: активировать manager с пустым capability set и вызвать `/me` или создать
+  draft.
+- Корневая причина: две базовые функции ошибочно находились в редактируемом capability enum.
+- Исправление: обе capability удалены из enum/API/UI и legacy rows; активная роль включает вход,
+  draft и submit.
+- Проверка: API tests подтверждают `/me` и создание draft с пустым capability set.
+
+## F-008 — устаревшие runtime-значения ролей
+
+- Симптом: backend/frontend принимали `admin` и `manager`, но не целевые значения.
+- Шаги воспроизведения: проверить enums и schema исходного HEAD.
+- Корневая причина: отсутствовали сквозные migrations и синхронное обновление типов/guards.
+- Исправление: migrations переименовывают роли в `platform_admin` и `service_desk_manager`;
+  backend, frontend, seeds и tests обновлены синхронно.
+- Проверка: clean migration chains, backend/frontend suites и TypeScript build проходят.
+
+## F-009 — catalog API был публичным
+
+- Симптом: четыре catalog/form endpoint отдавали данные без Service Desk principal.
+- Шаги воспроизведения: вызвать `/categories`, `/services`, `/services/{id}` и form без token.
+- Корневая причина: catalog router не зависел от `CurrentServiceDeskUser`.
+- Исправление: все routes закрыты backend guard; frontend скрывает switch и показывает стабильный
+  access denied без redirect-loop.
+- Проверка: API regression проверяет 401 без token и доступ с активной ролью.

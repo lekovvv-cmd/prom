@@ -96,8 +96,6 @@ class ServiceDeskTicketAction(StrEnum):
 
 
 SERVICE_DESK_CAPABILITIES: tuple[str, ...] = (
-    "service_desk.access",
-    "service_desk.create_request",
     "service_desk.be_assignee",
     "service_desk.approve",
     "service_desk.assign",

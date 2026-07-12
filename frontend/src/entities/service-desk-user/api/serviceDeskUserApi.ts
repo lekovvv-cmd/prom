@@ -4,6 +4,9 @@ import type { ServiceDeskUser } from "../model/types";
 export function getCurrentServiceDeskUser() {
   return serviceDeskApiClient.request<ServiceDeskUser>("/me");
 }
+export function getServiceDeskAccessStatus() {
+  return serviceDeskApiClient.request<{ has_access: boolean }>("/access/status");
+}
 export type ServiceDeskUserOption = { id: string; display_name: string; department: string | null; position: string | null };
 export function getServiceDeskUserOptions(capability?: string) {
   const suffix = capability ? `?capability=${encodeURIComponent(capability)}` : "";

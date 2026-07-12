@@ -41,7 +41,7 @@ def test_identity_bootstrap_repairs_old_uuid_and_preserves_demo_capabilities(db_
         assert user.display_name == "Руководитель"
         assert user.department == "ШПИУ"
         assert {item.capability for item in user.capabilities} >= {
-            "service_desk.access",
-            "service_desk.create_request",
+            "service_desk.approve",
+            "service_desk.assign",
         }
         assert db.query(ServiceDeskUserCapability).filter_by(service_desk_user_id=user.id).count() > 0

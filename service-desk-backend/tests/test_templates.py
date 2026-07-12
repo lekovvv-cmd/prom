@@ -42,7 +42,7 @@ def test_template_versions_publish_and_archive_previous(client: TestClient):
     )
     assert blocked.status_code == 409
 
-    form = client.get(f"/services/{service_id}/form")
+    form = client.get(f"/services/{service_id}/form", headers=client.admin_headers)
     assert form.status_code == 200
     assert form.json()["template_version"]["id"] == first_id
     assert form.json()["fields"] == []
@@ -121,7 +121,7 @@ def test_template_fields_and_dictionaries_are_versioned(client: TestClient):
     published = client.post(f"/admin/template-versions/{version_id}/publish")
     assert published.status_code == 200
 
-    form = client.get(f"/services/{service_id}/form")
+    form = client.get(f"/services/{service_id}/form", headers=client.admin_headers)
     assert form.status_code == 200
     assert [field["key"] for field in form.json()["fields"]] == ["building_address", "event_date"]
     assert form.json()["fields"][0]["dictionary_code"] == "building_addresses"
@@ -290,6 +290,6 @@ def test_array_rules_survive_template_reads_preview_publish_and_public_form(clie
     assert preview.json()["fields"][0]["visibility_rules"] == rules
     published = client.post(f"/admin/template-versions/{version_id}/publish")
     assert published.status_code == 200
-    form = client.get(f"/services/{service_id}/form")
+    form = client.get(f"/services/{service_id}/form", headers=client.admin_headers)
     assert form.status_code == 200
     assert form.json()["fields"][0]["visibility_rules"] == rules

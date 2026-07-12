@@ -62,7 +62,9 @@ export function Header() {
       </nav>
       <nav className="module-switcher" aria-label="Переключатель модулей">
         <NavLink to="/projects" className={({ isActive }) => !isServiceDeskRoute && isActive ? "active" : ""}>Проекты</NavLink>
-        <NavLink to="/service-desk" className={() => isServiceDeskRoute ? "active" : ""}>Service Desk</NavLink>
+        {!token || serviceDeskUser ? (
+          <NavLink to="/service-desk" className={() => isServiceDeskRoute ? "active" : ""}>Service Desk</NavLink>
+        ) : null}
       </nav>
       <div className="header-auth">
         {token ? (

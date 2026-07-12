@@ -24,15 +24,31 @@ def get_db() -> Generator[Session]:
 DbSession = Annotated[Session, Depends(get_db)]
 
 
+def get_service_desk_access_status(
+    db: Session,
+    authorization: str | None,
+) -> bool:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Требуется авторизация")
+    token = authorization.split(" ", maxsplit=1)[1]
+    try:
+        claims = decode_access_token(token)
+    except InvalidAccessTokenError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
+    if claims.platform_role == "platform_admin":
+        return True
+    user = ServiceDeskAccessRepository(db).get_by_identity_user_id(claims.subject)
+    return bool(user and user.is_active)
+
+
 def get_current_service_desk_user(
     db: DbSession,
     authorization: Annotated[str | None, Header()] = None,
 ) -> ServiceDeskUser:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Требуется авторизация")
-    token = authorization.split(" ", maxsplit=1)[1]
     try:
-        claims = decode_access_token(token)
+        claims = decode_access_token(authorization.split(" ", maxsplit=1)[1])
     except InvalidAccessTokenError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
     repository = ServiceDeskAccessRepository(db)
@@ -62,9 +78,6 @@ def get_current_service_desk_user(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
     if not user.is_active:
         logger.info("service_desk_profile_inactive")
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
-    if "service_desk.access" not in ServiceDeskAccessService.capabilities_for(user):
-        logger.info("service_desk_access_capability_missing")
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
     return user
 

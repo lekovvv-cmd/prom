@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { getCurrentServiceDeskUser } from "../../entities/service-desk-user/api/serviceDeskUserApi";
+import {
+  getCurrentServiceDeskUser,
+  getServiceDeskAccessStatus
+} from "../../entities/service-desk-user/api/serviceDeskUserApi";
 import type { ServiceDeskUser } from "../../entities/service-desk-user/model/types";
 
 type ServiceDeskAccessContextValue = {
@@ -38,7 +41,13 @@ export function ServiceDeskAccessProvider({
     setIsLoading(true);
     setUser(null);
     setError(null);
-    void getCurrentServiceDeskUser()
+    void getServiceDeskAccessStatus()
+      .then(async ({ has_access: hasAccess }) => {
+        if (!hasAccess) {
+          throw new Error("У вашей учётной записи нет доступа к Service Desk.");
+        }
+        return getCurrentServiceDeskUser();
+      })
       .then((currentUser) => {
         if (isCurrent) {
           setUser(currentUser);

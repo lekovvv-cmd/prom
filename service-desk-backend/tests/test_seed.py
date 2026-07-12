@@ -12,18 +12,22 @@ def test_service_desk_seed_is_idempotent(client, db_session_factory):
     seed_main(db_session_factory)
     seed_main(db_session_factory)
 
-    categories = client.get("/categories")
+    categories = client.get("/categories", headers=client.admin_headers)
     assert categories.status_code == 200
     category_titles = {item["title"] for item in categories.json()}
     assert "Сопровождение учебного процесса" in category_titles
     assert "Практика: Сопровождение" in category_titles
 
-    services = client.get("/services", params={"q": "Бронирование аудиторий"})
+    services = client.get(
+        "/services",
+        params={"q": "Бронирование аудиторий"},
+        headers=client.admin_headers,
+    )
     assert services.status_code == 200
     assert services.json()
     service_id = services.json()[0]["id"]
 
-    form = client.get(f"/services/{service_id}/form")
+    form = client.get(f"/services/{service_id}/form", headers=client.admin_headers)
     assert form.status_code == 200
     assert any(field["key"] == "building_address" for field in form.json()["fields"])
 
@@ -45,7 +49,6 @@ def test_seed_models_exist_after_script(client, db_session_factory):
         manager = next(user for user in users if user.email == "manager@utmn.ru")
         assert manager.identity_user_id == "00000000-0000-0000-0000-000000000002"
         assert {item.capability for item in manager.capabilities} >= {
-            "service_desk.access",
             "service_desk.approve",
             "service_desk.manage_catalog",
             "service_desk.manage_templates",
@@ -72,14 +75,18 @@ def test_seed_publishes_every_active_service_and_resolves_dictionary_options(cli
                     ServiceDeskTemplateVersion.status == TemplateVersionStatus.PUBLISHED,
                 )
             ) is not None
-    services = client.get("/services")
+    services = client.get("/services", headers=client.admin_headers)
     assert services.status_code == 200
     assert services.json()
     for service in services.json():
-        form = client.get(f"/services/{service['id']}/form")
+        form = client.get(
+            f"/services/{service['id']}/form", headers=client.admin_headers
+        )
         assert form.status_code == 200, form.text
     water = next(item for item in services.json() if item["title"] == "Заказ воды")
-    water_form = client.get(f"/services/{water['id']}/form")
+    water_form = client.get(
+        f"/services/{water['id']}/form", headers=client.admin_headers
+    )
     fields = {field["key"]: field for field in water_form.json()["fields"]}
     assert fields["gia_type"]["effective_options"] == [{"label": "Государственный экзамен", "value": "state_exam", "position": 0, "is_active": True, "metadata": {}} , {"label": "ВКР", "value": "vkr", "position": 1, "is_active": True, "metadata": {}}]
 

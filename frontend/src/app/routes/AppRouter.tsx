@@ -105,7 +105,7 @@ function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
         <PageLayout title="Service Desk">
           <Card>
             <h3>Нет доступа</h3>
-            <p className="muted">{error ?? "Профиль Service Desk для пользователя не найден."}</p>
+            <p className="muted">{error ?? "У вашей учётной записи нет доступа к Service Desk."}</p>
             <Link className="button button-secondary" to="/projects">
               Вернуться к проектам
             </Link>

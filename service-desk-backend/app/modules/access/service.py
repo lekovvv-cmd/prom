@@ -31,7 +31,8 @@ class ServiceDeskAccessService:
             or user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
         ):
             return list(SERVICE_DESK_CAPABILITIES)
-        return sorted({item.capability for item in user.capabilities})
+        allowed = set(SERVICE_DESK_CAPABILITIES)
+        return sorted({item.capability for item in user.capabilities if item.capability in allowed})
 
     def user_read(self, user: ServiceDeskUser) -> ServiceDeskUserRead:
         return ServiceDeskUserRead(

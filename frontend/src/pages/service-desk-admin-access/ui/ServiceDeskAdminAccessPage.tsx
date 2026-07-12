@@ -18,8 +18,6 @@ import { Select } from "../../../shared/ui/Select";
 import { Table } from "../../../shared/ui/Table";
 
 const capabilities = [
-  "service_desk.access",
-  "service_desk.create_request",
   "service_desk.be_assignee",
   "service_desk.approve",
   "service_desk.assign",
@@ -35,8 +33,6 @@ const capabilities = [
 ];
 
 const labels: Record<string, string> = {
-  "service_desk.access": "Основной доступ",
-  "service_desk.create_request": "Создание заявок",
   "service_desk.be_assignee": "Работа исполнителем",
   "service_desk.approve": "Согласование",
   "service_desk.assign": "Назначение",
@@ -133,7 +129,7 @@ export function ServiceDeskAdminAccessPage() {
       const created = await createAccessUser({
         identity_user_id: data.get("identity"),
         ...userPayload(form),
-        capabilities: data.get("type") === "service_desk_manager" ? ["service_desk.access"] : []
+        capabilities: []
       });
       form.reset();
       return created;

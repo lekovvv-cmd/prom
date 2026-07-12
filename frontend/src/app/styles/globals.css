@@ -133,6 +133,17 @@ button {
   outline: none;
 }
 
+.module-selector-card-disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.module-selector-card-disabled:hover {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+
 .module-selector-icon {
   display: grid;
   place-items: center;

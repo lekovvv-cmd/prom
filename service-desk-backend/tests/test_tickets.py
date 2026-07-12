@@ -4,14 +4,12 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from app.core.enums import ServiceDeskAccessType
-from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
+from app.modules.access.models import ServiceDeskUser
 
 
 def create_requester(
     client: TestClient,
     db_session_factory,
-    *,
-    can_create_request: bool = True,
 ) -> str:
     with db_session_factory() as db:
         user = ServiceDeskUser(
@@ -23,44 +21,26 @@ def create_requester(
         )
         db.add(user)
         db.flush()
-        db.add(
-            ServiceDeskUserCapability(
-                service_desk_user_id=user.id,
-                capability="service_desk.access",
-            )
-        )
-        if can_create_request:
-            db.add(
-                ServiceDeskUserCapability(
-                    service_desk_user_id=user.id,
-                    capability="service_desk.create_request",
-                )
-            )
         db.commit()
         db.refresh(user)
         return str(user.id)
 
 
-def test_ticket_creation_requires_create_request_capability(
+def test_ticket_creation_is_included_in_active_service_desk_role(
     client: TestClient,
     db_session_factory,
     auth_headers_for_user,
 ):
-    requester_id = create_requester(
-        client,
-        db_session_factory,
-        can_create_request=False,
-    )
+    requester_id = create_requester(client, db_session_factory)
     service_id, _ = create_service_with_template(client)
 
     response = client.post(
         "/tickets/drafts",
-        json={"service_id": service_id, "title": "Заявка без права"},
+        json={"service_id": service_id, "title": "Заявка базовой роли"},
         headers=auth_headers_for_user(requester_id),
     )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Недостаточно прав для создания заявки Service Desk"
+    assert response.status_code == 201
 
 
 def test_ticket_priority_change_requires_capability_and_writes_history(

@@ -14,18 +14,18 @@ def test_admin_can_manage_local_access_with_audit(client, db_session_factory):
             "email": "manager@utmn.ru",
             "display_name": "Manager",
             "access_type": "service_desk_manager",
-            "capabilities": ["service_desk.access", "service_desk.view_reports"],
+            "capabilities": ["service_desk.view_reports"],
         },
     )
     assert response.status_code == 201
     user = response.json()
-    assert user["capabilities"] == ["service_desk.access", "service_desk.view_reports"]
+    assert user["capabilities"] == ["service_desk.view_reports"]
     replaced = client.put(
         f"/admin/access/users/{user['id']}/capabilities",
-        json={"capabilities": ["service_desk.access", "service_desk.access"]},
+        json={"capabilities": ["service_desk.view_reports", "service_desk.view_reports"]},
     )
     assert replaced.status_code == 200 and replaced.json()["capabilities"] == [
-        "service_desk.access"
+        "service_desk.view_reports"
     ]
     assert (
         client.put(
@@ -76,7 +76,7 @@ def test_access_patch_validation_and_capability_mutation_are_isolated(
             "department": "  IT  ",
             "position": "  Analyst  ",
             "access_type": "service_desk_manager",
-            "capabilities": ["service_desk.access"],
+            "capabilities": [],
         },
     )
     assert created.status_code == 201, created.text
@@ -110,14 +110,14 @@ def test_access_patch_validation_and_capability_mutation_are_isolated(
     assert updated.json()["display_name"] == "Updated User"
     assert updated.json()["department"] is None
     assert updated.json()["position"] == "Lead"
-    assert updated.json()["capabilities"] == ["service_desk.access"]
+    assert updated.json()["capabilities"] == []
 
     replaced = client.put(
         f"/admin/access/users/{user['id']}/capabilities",
-        json={"capabilities": ["service_desk.access", "service_desk.view_reports"]},
+        json={"capabilities": ["service_desk.view_reports"]},
     )
     assert replaced.status_code == 200
-    assert replaced.json()["capabilities"] == ["service_desk.access", "service_desk.view_reports"]
+    assert replaced.json()["capabilities"] == ["service_desk.view_reports"]
 
     with db_session_factory() as db:
         events = db.scalars(
@@ -130,11 +130,8 @@ def test_access_patch_validation_and_capability_mutation_are_isolated(
             "access_profile_updated",
             "capabilities_replaced",
         ]
-        assert events[-1].before_state["capabilities"] == ["service_desk.access"]
-        assert events[-1].after_state["capabilities"] == [
-            "service_desk.access",
-            "service_desk.view_reports",
-        ]
+        assert events[-1].before_state["capabilities"] == []
+        assert events[-1].after_state["capabilities"] == ["service_desk.view_reports"]
 
 
 def test_last_active_service_desk_admin_is_protected(client):

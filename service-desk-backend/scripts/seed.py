@@ -57,8 +57,6 @@ DEMO_SERVICE_DESK_USERS = (
         "position": "Руководитель проектных инициатив",
         "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         "capabilities": (
-            "service_desk.access",
-            "service_desk.create_request",
             "service_desk.approve",
             "service_desk.assign",
             "service_desk.view_reports",
@@ -76,7 +74,6 @@ DEMO_SERVICE_DESK_USERS = (
         "position": "Методист проектных программ",
         "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         "capabilities": (
-            "service_desk.access",
             "service_desk.be_assignee",
         ),
     },
@@ -88,8 +85,6 @@ DEMO_SERVICE_DESK_USERS = (
         "position": "Аналитик данных",
         "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         "capabilities": (
-            "service_desk.access",
-            "service_desk.create_request",
             "service_desk.be_assignee",
         ),
     },

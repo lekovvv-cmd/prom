@@ -136,7 +136,7 @@ def test_me_returns_local_projection_and_capabilities(client, db_session_factory
     user = create_service_desk_user(
         db_session_factory,
         identity_user_id=identity_user_id,
-        capabilities=("service_desk.access", "service_desk.approve"),
+        capabilities=("service_desk.approve",),
     )
 
     response = client.get(
@@ -154,7 +154,7 @@ def test_me_returns_local_projection_and_capabilities(client, db_session_factory
         "position": "Менеджер",
         "access_type": "service_desk_manager",
         "is_active": True,
-        "capabilities": ["service_desk.access", "service_desk.approve"],
+        "capabilities": ["service_desk.approve"],
         "created_at": user.created_at.isoformat().replace("+00:00", "Z"),
         "updated_at": user.updated_at.isoformat().replace("+00:00", "Z"),
     }
@@ -164,9 +164,7 @@ def test_me_returns_local_projection_and_capabilities(client, db_session_factory
         headers={"Authorization": f"Bearer {access_token(identity_user_id)}"},
     )
     assert capabilities.status_code == 200
-    assert capabilities.json() == {
-        "capabilities": ["service_desk.access", "service_desk.approve"]
-    }
+    assert capabilities.json() == {"capabilities": ["service_desk.approve"]}
 
 
 def test_service_desk_admin_receives_all_capabilities(client, db_session_factory):
@@ -203,11 +201,12 @@ def test_me_rejects_missing_invalid_unknown_and_inactive_access(client, db_sessi
         identity_user_id=no_access_identity,
         capabilities=(),
     )
-    no_access = client.get(
+    base_role_access = client.get(
         "/me",
         headers={"Authorization": f"Bearer {access_token(no_access_identity)}"},
     )
-    assert no_access.status_code == 403
+    assert base_role_access.status_code == 200
+    assert base_role_access.json()["capabilities"] == []
 
     identity_user_id = str(uuid.uuid4())
     create_service_desk_user(
