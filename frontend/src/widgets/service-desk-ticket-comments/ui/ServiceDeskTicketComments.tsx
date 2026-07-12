@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Download, Lock, MessageSquare, Paperclip, Send } from "lucide-react";
+import { Download, Lock, MessageSquare, Paperclip, Pencil, Send, Trash2 } from "lucide-react";
 
 import type { ServiceDeskTicket } from "../../../entities/service-desk-ticket/model/types";
 import { addTicketComment } from "../../../features/add-ticket-comment/api/addTicketComment";
-import { downloadServiceDeskAttachment, listServiceDeskCommentAttachments, uploadServiceDeskCommentAttachment } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
+import { deleteServiceDeskComment, downloadServiceDeskAttachment, listServiceDeskCommentAttachments, updateServiceDeskComment, uploadServiceDeskCommentAttachment } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
 import type { ServiceDeskAttachment } from "../../../entities/service-desk-ticket/model/types";
 import { formatDateTime } from "../../../shared/lib/date";
 import { Button } from "../../../shared/ui/Button";
@@ -26,6 +26,8 @@ export function ServiceDeskTicketComments({
   const [visibility, setVisibility] = useState<"public" | "internal">("public");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState("");
   const canAddInternal =
     currentUser.access_type === "service_desk_admin" ||
     currentUser.id === ticket.assignee_user_id ||
@@ -53,6 +55,18 @@ export function ServiceDeskTicketComments({
     }
   }
 
+  async function saveEdit(commentId: string) {
+    if (editingBody.trim().length < 2) { setError("Введите комментарий не короче 2 символов"); return; }
+    try { await updateServiceDeskComment(ticket.id, commentId, editingBody.trim()); setEditingId(null); setEditingBody(""); await onTicketChanged(); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Не удалось изменить комментарий"); }
+  }
+
+  async function removeComment(commentId: string) {
+    if (!window.confirm("Удалить комментарий?")) return;
+    try { await deleteServiceDeskComment(ticket.id, commentId); await onTicketChanged(); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Не удалось удалить комментарий"); }
+  }
+
   return (
     <Card className="service-desk-comments">
       <div className="service-desk-section-heading">
@@ -76,7 +90,8 @@ export function ServiceDeskTicketComments({
                   <span className="service-desk-comment-visibility"><Lock size={12} /> Внутренний</span>
                 ) : null}
               </div>
-              <p>{comment.body}</p>
+              {editingId === comment.id ? <div className="service-desk-comment-form"><Textarea label="Комментарий" value={editingBody} onChange={(event) => setEditingBody(event.target.value)} maxLength={5000} /><div className="button-row"><Button onClick={() => void saveEdit(comment.id)}>Сохранить</Button><Button variant="ghost" onClick={() => setEditingId(null)}>Отмена</Button></div></div> : <p>{comment.body}</p>}
+              {!isLocked && (comment.author_user_id === currentUser.id || currentUser.access_type === "service_desk_admin") ? <div className="button-row"><Button variant="ghost" onClick={() => { setEditingId(comment.id); setEditingBody(comment.body); }}><Pencil size={14} />Изменить</Button><Button variant="ghost" onClick={() => void removeComment(comment.id)}><Trash2 size={14} />Удалить</Button></div> : null}
               <CommentAttachments ticketId={ticket.id} commentId={comment.id} canUpload={!isLocked && (comment.author_user_id === currentUser.id || currentUser.access_type === "service_desk_admin")} />
               {comment.updated_at ? <span className="muted">Изменён</span> : null}
             </li>

@@ -70,6 +70,19 @@ export function uploadServiceDeskCommentAttachment(ticketId: string, commentId: 
   return serviceDeskApiClient.request<ServiceDeskAttachment>(`/tickets/${ticketId}/comments/${commentId}/attachments`, { method: "POST", body: formData });
 }
 
+export function updateServiceDeskComment(ticketId: string, commentId: string, body: string) {
+  return serviceDeskApiClient.request(`/tickets/${ticketId}/comments/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ body })
+  });
+}
+
+export function deleteServiceDeskComment(ticketId: string, commentId: string) {
+  return serviceDeskApiClient.request<void>(`/tickets/${ticketId}/comments/${commentId}`, {
+    method: "DELETE"
+  });
+}
+
 export function performServiceDeskTicketAction(ticketId: string, action: string, payload: Record<string, string> = {}) {
   const endpoint = `/tickets/${ticketId}/${action.replace("request_clarification", "request-clarification").replace("wait_external", "wait-external")}`;
   return serviceDeskApiClient.request<ServiceDeskTicket>(endpoint, { method: "POST", body: JSON.stringify(payload) });
