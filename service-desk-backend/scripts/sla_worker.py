@@ -6,6 +6,8 @@ from threading import Event
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.modules.approvals import models as approval_models  # noqa: F401
+from app.modules.comments import models as comment_models  # noqa: F401
 from app.modules.sla.runner import SlaWorkerRunner
 
 
