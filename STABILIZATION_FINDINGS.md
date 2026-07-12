@@ -40,7 +40,8 @@
 - Шаги воспроизведения: `docker compose down -v`, затем `docker compose up --build -d --wait`.
 - Корневая причина: внешний prerequisite Docker Desktop был остановлен; кодовый bootstrap после запуска daemon завершился успешно.
 - Исправление: код не требуется; wrapper должен ясно сообщать о недоступном daemon.
-- Проверка: clean Compose завершился успешно; все DB/API/frontend/worker healthchecks green.
+- Проверка: baseline Compose на `de3aa77` завершился успешно во внешнем контуре. После текущих
+  role/bootstrap/Compose изменений повторный smoke в этой WSL не выполнен: Docker socket недоступен.
 
 ## F-006 — JWT не передавал platform role
 

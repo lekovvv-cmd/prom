@@ -1,8 +1,8 @@
 # Витрина проектов ШПИУ
 
-MVP для внутренней витрины проектов: админ или руководитель проекта создаёт проекты, сотрудник ищет проект по статусу, компетенциям и тексту, отправляет отклик и прикладывает файлы, админ меняет статус отклика и видит обновлённую статистику.
+PROM объединяет Projects и закрытый Service Desk с общей Projects identity и подписанным JWT.
 
-PROM также включает Service Desk: публичный каталог услуг (`/service-desk`), динамические формы с черновиками и вложениями, «Мои заявки», карточку заявки с SLA/историей/действиями и capability-guarded настройки каталога, шаблонов, справочников, согласований, маршрутизации, SLA и доступа. Переключение между модулями доступно в общем Header.
+Service Desk включает защищённый каталог, динамические формы с черновиками и вложениями, «Мои заявки», lifecycle, SLA, уведомления, Workbench и capability-guarded администрирование. В модуль входят только `service_desk_manager`, `service_desk_admin` и `platform_admin`.
 
 ## Стек
 
@@ -27,6 +27,12 @@ chmod +x ./dev.sh
 ./dev.sh
 ```
 
+Прямая команда эквивалентного запуска:
+
+```bash
+docker compose up --build -d --wait
+```
+
 Скрипты являются тонкими обёртками над Docker Compose. Compose поднимает обе базы, применяет миграции, выполняет идемпотентные seed и identity bootstrap, затем запускает оба API, SLA worker и frontend.
 
 После запуска:
@@ -39,10 +45,16 @@ chmod +x ./dev.sh
 
 Демо-вход, код всегда `000000`:
 
-- админ: `admin@utmn.ru`
-- руководитель проекта: `manager@utmn.ru`
-- сотрудник: `employee@utmn.ru`
-- аналитик: `analyst@utmn.ru`
+- сотрудник Projects, без Service Desk: `employee@utmn.ru`
+- руководитель Projects, без Service Desk: `project.manager@utmn.ru`
+- менеджер Service Desk: `sd.manager@utmn.ru`
+- администратор Service Desk: `sd.admin@utmn.ru`
+- администратор платформы с полным доступом в обоих модулях: `admin@utmn.ru`
+
+Platform roles: `employee`, `project_manager`, `platform_admin`. Независимая Service Desk role
+может отсутствовать и имеет значения `service_desk_manager` или `service_desk_admin`.
+`platform_admin` проходит все Service Desk guards по подписанному JWT и не требует заранее
+созданного локального profile.
 
 Остановить всю платформу:
 
@@ -93,12 +105,13 @@ npm test
 npm run build
 ```
 
-E2E:
+Production-like E2E:
 
 ```bash
-# backend должен быть доступен на http://localhost:8000,
-# frontend должен быть доступен на http://localhost:5173
+docker compose up --build -d --wait
 cd frontend
+E2E_BASE_URL=http://127.0.0.1:5173 \
+E2E_SERVICE_DESK_URL=http://127.0.0.1:5173/service-desk-api \
 npm run test:e2e
 ```
 
@@ -128,4 +141,9 @@ Run it from the deployment platform scheduler. It processes at most
 `SERVICE_DESK_NOTIFICATION_OUTBOX_BATCH_SIZE` records per invocation; email
 records remain `blocked_external` until a real CIT integration is provided.
 
-В CI запускаются три проверки: backend `pytest`, frontend `vitest` + `build`, browser e2e на основном MVP-сценарии.
+CI сохраняет Projects/Service Desk pytest, ruff, PostgreSQL concurrency и frontend tests/build.
+Browser E2E поднимает реальный Docker Compose с PostgreSQL, migrations, bootstrap, SLA worker и
+production Nginx. При падении сохраняются Compose ps/logs, Playwright traces и screenshots.
+
+Корпоративный SSO и реальная email delivery остаются внешними интеграциями. Email outbox имеет
+статус `blocked_external`. `/metrics`, Prometheus/Grafana и fake SMTP в поставку не входят.

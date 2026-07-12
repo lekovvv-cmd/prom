@@ -1,6 +1,18 @@
 # Техническое задание: Service Desk для платформы PROM / ШПИУ
 
-> Актуализация corrective stage: обязательный технический `/metrics` и отдельный observability stack исключены. Stage 11 трактуется как release hardening. `platform_admin` отложен до появления общеплатформенного IAM; реализованный административный bypass ограничен ролью `service_desk_admin`. Локальная платформа запускается через `docker compose up --build` с отдельными Projects DB и Service Desk DB, migration/bootstrap jobs, API, SLA worker и frontend.
+> **Stabilization override 2026-07-12 (имеет приоритет над устаревшими фрагментами ниже):**
+> platform roles: `employee`, `project_manager`, `platform_admin`; Service Desk roles:
+> `service_desk_manager`, `service_desk_admin`. `platform_admin` реализован и получает полный
+> Service Desk bypass по подписанным JWT claims `sub` и `platform_role`, не требуя заранее
+> созданного локального profile. Service Desk полностью закрыт. Активная SD role сама означает
+> вход, draft и submit; `service_desk.access` и `service_desk.create_request` удалены из
+> редактируемых capabilities. Demo identities: `employee@utmn.ru`, `project.manager@utmn.ru`,
+> `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, `admin@utmn.ru`; код `000000`. Единственный writer
+> identity mapping — platform bootstrap. Запуск: `docker compose up --build -d --wait` с двумя
+> PostgreSQL, migrations, seeds, bootstrap, APIs, SLA worker и production Nginx. `/metrics`,
+> Prometheus/Grafana и fake email исключены; реальная email delivery остаётся `blocked_external`.
+> Упоминания старых `admin`, `manager`, отдельных access/create_request permissions, публичного
+> каталога и отложенного `platform_admin` ниже являются историческими и не применяются.
 
 > **Статус документа:** основной источник требований для реализации.
 >

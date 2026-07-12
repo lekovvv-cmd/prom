@@ -1,5 +1,12 @@
 # Service Desk external dependencies
 
+## Corporate SSO — BLOCKED_EXTERNAL
+
+Локальный demo login использует код `000000`. Подключение production SSO требует metadata,
+client credentials, redirect/logout URLs, group/role mapping, key rotation и требований ЦИТ.
+Frontend headers или query parameters не используются как источник ролей: до интеграции доверие
+основано только на JWT, подписанном Projects backend.
+
 ## Email delivery — BLOCKED_EXTERNAL
 
 Service Desk сохраняет каждое намерение email-доставки в notification outbox со статусом
@@ -18,3 +25,6 @@ Service Desk сохраняет каждое намерение email-доста
 
 Значения этих параметров в репозитории отсутствуют: они не должны угадываться, подменяться fake
 SMTP или оформляться как успешная доставка до фактического подключения и проверки канала.
+
+Prometheus `/metrics`, Grafana и fake email delivery намеренно не являются внешними blockers:
+они исключены из текущего scope.
