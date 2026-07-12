@@ -70,6 +70,38 @@ jobs:
       - name: Lint Service Desk backend
         run: ruff check .
 
+  service-desk-postgres:
+    name: Service Desk PostgreSQL concurrency
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: service_desk_test
+          POSTGRES_USER: service_desk
+          POSTGRES_PASSWORD: service_desk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U service_desk -d service_desk_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: service-desk-backend
+    env:
+      SERVICE_DESK_TEST_DATABASE_URL: postgresql+psycopg://service_desk:service_desk@localhost:5432/service_desk_test
+      SERVICE_DESK_JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install -e ".[dev]"
+      - name: Run PostgreSQL concurrency contour
+        run: pytest -q tests/test_postgres_concurrency.py tests/test_notification_outbox.py tests/test_sla_worker.py tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
+
   frontend:
     name: Frontend tests and build
     runs-on: ubuntu-latest

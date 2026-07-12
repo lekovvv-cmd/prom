@@ -26,7 +26,11 @@ def create_sla_user(
         )
         db.add(user)
         db.flush()
-        capabilities = ["service_desk.access"] if has_service_desk_access else []
+        capabilities = (
+            ["service_desk.access", "service_desk.create_request"]
+            if has_service_desk_access
+            else []
+        )
         if can_manage_sla:
             capabilities.append("service_desk.manage_sla")
         for capability in capabilities:

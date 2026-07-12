@@ -36,7 +36,11 @@ def create_approval_user(
         )
         db.add(user)
         db.flush()
-        assigned_capabilities = {"service_desk.access", *capabilities}
+        assigned_capabilities = {
+            "service_desk.access",
+            "service_desk.create_request",
+            *capabilities,
+        }
         if can_approve:
             assigned_capabilities.add("service_desk.approve")
         for capability in assigned_capabilities:

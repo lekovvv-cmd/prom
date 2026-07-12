@@ -1,4 +1,5 @@
 import uuid
+import os
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -46,10 +47,9 @@ class ServiceDeskTestClient(TestClient):
 
 @pytest.fixture()
 def db_session_factory():
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+    postgres_url = os.getenv("SERVICE_DESK_TEST_DATABASE_URL")
+    engine = create_engine(postgres_url) if postgres_url else create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     Base.metadata.create_all(bind=engine)
