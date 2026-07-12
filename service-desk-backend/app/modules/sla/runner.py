@@ -44,7 +44,10 @@ class SlaWorkerRunner:
             db.close()
 
     def run_forever(self) -> None:
+        consecutive_failures = 0
         while not self._stop_requested():
-            self.run_iteration()
+            result = self.run_iteration()
+            consecutive_failures = consecutive_failures + 1 if result is None else 0
             if not self._stop_requested():
-                self._wait(self._poll_interval_seconds)
+                multiplier = 2 ** min(consecutive_failures, 5)
+                self._wait(self._poll_interval_seconds * multiplier)

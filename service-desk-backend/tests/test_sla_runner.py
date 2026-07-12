@@ -76,3 +76,33 @@ def test_runner_waits_for_configured_interval_and_stops_without_sleeping_again(m
 
     assert runs == 2
     assert waits == [17]
+
+
+def test_runner_backs_off_after_failures_and_resets_after_success(monkeypatch) -> None:
+    waits: list[float] = []
+    outcomes = [RuntimeError("db"), RuntimeError("db"), {"processed": 1}]
+    stopped = False
+
+    class FakeWorker:
+        def __init__(self, _db: FakeSession) -> None:
+            pass
+
+        def run_once(self) -> dict[str, int]:
+            nonlocal stopped
+            outcome = outcomes.pop(0)
+            if isinstance(outcome, Exception):
+                raise outcome
+            stopped = True
+            return outcome
+
+    monkeypatch.setattr("app.modules.sla.runner.SlaWorker", FakeWorker)
+    runner = SlaWorkerRunner(
+        FakeSession,
+        poll_interval_seconds=5,
+        wait=waits.append,
+        stop_requested=lambda: stopped,
+    )
+
+    runner.run_forever()
+
+    assert waits == [10, 20]
