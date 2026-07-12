@@ -182,6 +182,49 @@ class TicketService:
                 "Недостаточно прав для создания заявки Service Desk",
             )
 
+    def change_priority(
+        self,
+        ticket_id: uuid.UUID,
+        payload: schemas.TicketPriorityUpdate,
+        actor: ServiceDeskUser,
+    ) -> schemas.TicketRead:
+        capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
+        if "service_desk.change_priority" not in capabilities:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Недостаточно прав для изменения приоритета заявки",
+            )
+        ticket = self.repository.get_ticket_for_update(ticket_id)
+        if not ticket:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+        if ticket.status in {
+            ServiceDeskTicketStatus.DRAFT,
+            ServiceDeskTicketStatus.REJECTED,
+            ServiceDeskTicketStatus.RESOLVED,
+            ServiceDeskTicketStatus.CLOSED,
+            ServiceDeskTicketStatus.CANCELLED,
+        }:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Приоритет заявки в текущем статусе изменить нельзя",
+            )
+
+        previous_priority = ticket.priority
+        ticket.priority = payload.priority
+        self._write_history(
+            ticket,
+            "priority_changed",
+            actor.id,
+            "Приоритет заявки изменён",
+            {
+                "previous_priority": previous_priority.value,
+                "priority": payload.priority.value,
+                "reason": payload.reason.strip(),
+            },
+        )
+        self.db.commit()
+        return self._read_for_actor(self._require_ticket(ticket.id), actor)
+
     def perform_action(
         self,
         ticket_id: uuid.UUID,

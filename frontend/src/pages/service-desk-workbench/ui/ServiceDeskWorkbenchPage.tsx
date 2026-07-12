@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getWorkbenchCategories, getWorkbenchCounters, getWorkbenchServices, getWorkbenchTickets, getWorkbenchUsers, performWorkbenchAction } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
 import type { CatalogOption, WorkbenchCounters, WorkbenchQuickView, WorkbenchTicket, WorkbenchUserOption } from "../../../entities/service-desk-workbench/model/types";
-import type { ServiceDeskAllowedAction } from "../../../entities/service-desk-ticket/model/types";
+import type { ServiceDeskAllowedAction, ServiceDeskPriority } from "../../../entities/service-desk-ticket/model/types";
 import { ServiceDeskWorkbenchTable } from "../../../widgets/service-desk-workbench-table/ui/ServiceDeskWorkbenchTable";
 import { subscribeToServiceDeskRefresh } from "../../../shared/lib/serviceDeskRefresh";
 import { Button } from "../../../shared/ui/Button";
@@ -69,6 +69,7 @@ export function ServiceDeskWorkbenchPage() {
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<{ ticket: WorkbenchTicket; action: ServiceDeskAllowedAction } | null>(null);
   const [payload, setPayload] = useState("");
+  const [priority, setPriority] = useState<ServiceDeskPriority>("medium");
   const [pending, setPending] = useState(false);
   const requestSeq = useRef(0);
   const hasDataRef = useRef(false);
@@ -127,14 +128,15 @@ export function ServiceDeskWorkbenchPage() {
   async function submitAction() {
     if (!action) return;
     const field = payloadFields[action.action];
-    if (field && !payload.trim()) {
-      setError(`Заполните поле «${field[1]}»`);
+    if ((field || action.action === "change_priority") && !payload.trim()) {
+      setError(field ? `Заполните поле «${field[1]}»` : "Укажите причину изменения приоритета");
       return;
     }
     setPending(true);
     try {
       const body: Record<string, string> = {};
       if (field) body[field[0]] = payload.trim();
+      if (action.action === "change_priority") { body.priority = priority; body.reason = payload.trim(); }
       if (action.action === "assign" || action.action === "reassign") body.assignee_user_id = payload;
       await performWorkbenchAction(action.ticket.ticket_id, action.action, body, action.ticket.active_approval_id);
       setAction(null);
@@ -186,7 +188,7 @@ export function ServiceDeskWorkbenchPage() {
           <Spinner label="Загружаем заявки" />
         ) : data?.items.length ? (
           <>
-            <ServiceDeskWorkbenchTable items={data.items} onAction={(ticket, selected) => { setAction({ ticket, action: selected }); setPayload(""); }} />
+            <ServiceDeskWorkbenchTable items={data.items} onAction={(ticket, selected) => { setAction({ ticket, action: selected }); setPayload(""); setPriority(ticket.priority); }} />
             <div className="workbench-pagination">
               <Button variant="secondary" disabled={filters.page === "1"} onClick={() => setPage(Number(filters.page) - 1)}>Назад</Button>
               <span>Страница {filters.page} из {data.pages || 1} · {data.total} заявок</span>
@@ -204,7 +206,9 @@ export function ServiceDeskWorkbenchPage() {
       {action && (
         <Modal title="Действие с заявкой" onClose={() => setAction(null)}>
           <div className="modal-body">
-            {action.action === "assign" || action.action === "reassign" ? (
+            {action.action === "change_priority" ? (
+              <><Select label="Новый приоритет" value={priority} onChange={(event) => setPriority(event.target.value as ServiceDeskPriority)}><option value="low">Низкий</option><option value="medium">Средний</option><option value="high">Высокий</option><option value="critical">Критический</option></Select><label className="field"><span>Причина изменения</span><textarea value={payload} onChange={(event) => setPayload(event.target.value)} /></label></>
+            ) : action.action === "assign" || action.action === "reassign" ? (
               <Select label="Исполнитель" value={payload} onChange={(event) => setPayload(event.target.value)}>
                 <option value="">Выберите</option>{assignees.map((u) => <option key={u.id} value={u.id}>{u.display_name}</option>)}
               </Select>

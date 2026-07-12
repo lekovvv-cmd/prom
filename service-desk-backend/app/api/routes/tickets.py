@@ -48,6 +48,16 @@ def submit_ticket_draft(
     return TicketService(db).submit_draft(ticket_id, current_user)
 
 
+@router.patch("/tickets/{ticket_id}/priority", response_model=schemas.TicketRead)
+def change_ticket_priority(
+    ticket_id: uuid.UUID,
+    payload: schemas.TicketPriorityUpdate,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    return TicketService(db).change_priority(ticket_id, payload, current_user)
+
+
 @router.get("/tickets/{ticket_id}/form", response_model=template_schemas.PublishedTemplateRead)
 def get_ticket_form(
     ticket_id: uuid.UUID,

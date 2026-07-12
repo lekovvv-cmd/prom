@@ -67,6 +67,11 @@ class TicketReasonAction(StrictTicketRequest):
     reason: str = Field(min_length=2, max_length=2000)
 
 
+class TicketPriorityUpdate(StrictTicketRequest):
+    priority: ServiceDeskPriority
+    reason: str = Field(min_length=2, max_length=2000)
+
+
 class TicketResolveAction(StrictTicketRequest):
     resolution_summary: str = Field(min_length=2, max_length=5000)
     comment: str | None = Field(default=None, max_length=2000)
@@ -147,7 +152,7 @@ class TicketRead(BaseModel):
     comments: list[TicketCommentSummary] = Field(default_factory=list)
     allowed_actions: list[Literal[
         "approve", "reject", "assign", "reassign", "start", "request_clarification",
-        "wait_external", "resume", "resolve", "close", "cancel",
+        "wait_external", "resume", "resolve", "close", "cancel", "change_priority",
     ]] = Field(
         default_factory=list
     )

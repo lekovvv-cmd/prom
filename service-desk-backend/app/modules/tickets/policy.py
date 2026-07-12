@@ -43,6 +43,18 @@ class TicketPolicyService:
     def allowed_actions(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> list[str]:
         capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
         actions: list[str] = []
+        if (
+            "service_desk.change_priority" in capabilities
+            and ticket.status
+            not in {
+                ServiceDeskTicketStatus.DRAFT,
+                ServiceDeskTicketStatus.REJECTED,
+                ServiceDeskTicketStatus.RESOLVED,
+                ServiceDeskTicketStatus.CLOSED,
+                ServiceDeskTicketStatus.CANCELLED,
+            }
+        ):
+            actions.append("change_priority")
         if "service_desk.assign" in capabilities:
             if ticket.status == ServiceDeskTicketStatus.APPROVED:
                 actions.append("assign")

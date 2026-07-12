@@ -63,6 +63,58 @@ def test_ticket_creation_requires_create_request_capability(
     assert response.json()["detail"] == "Недостаточно прав для создания заявки Service Desk"
 
 
+def test_ticket_priority_change_requires_capability_and_writes_history(
+    client: TestClient,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    requester_id = create_requester(client, db_session_factory)
+    service_id, _ = create_service_with_template(client)
+    requester_headers = auth_headers_for_user(requester_id)
+    draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "title": "Смена приоритета",
+            "description": "Приоритет заявки требуется изменить.",
+            "priority": "medium",
+            "field_values": {"room": "305"},
+        },
+        headers=requester_headers,
+    )
+    ticket_id = draft.json()["id"]
+    submitted = client.post(f"/tickets/{ticket_id}/submit", headers=requester_headers)
+    assert submitted.status_code == 200, submitted.text
+
+    forbidden = client.patch(
+        f"/tickets/{ticket_id}/priority",
+        json={"priority": "high", "reason": "Изменился срок"},
+        headers=requester_headers,
+    )
+    assert forbidden.status_code == 403
+
+    changed = client.patch(
+        f"/tickets/{ticket_id}/priority",
+        json={"priority": "high", "reason": "Изменился срок"},
+        headers=client.admin_headers,
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["priority"] == "high"
+    assert changed.json()["history"][-1]["event_type"] == "priority_changed"
+    assert changed.json()["history"][-1]["payload"] == {
+        "previous_priority": "medium",
+        "priority": "high",
+        "reason": "Изменился срок",
+    }
+
+    missing_reason = client.patch(
+        f"/tickets/{ticket_id}/priority",
+        json={"priority": "low"},
+        headers=client.admin_headers,
+    )
+    assert missing_reason.status_code == 422
+
+
 def create_service_with_template(client: TestClient) -> tuple[str, str]:
     category = client.post("/admin/categories", json={"title": "Учебный процесс"})
     assert category.status_code == 201, category.text

@@ -33,7 +33,8 @@ export const serviceDeskActionLabels: Record<ServiceDeskAllowedAction, string> =
   resume: "Возобновить",
   resolve: "Отметить выполненной",
   close: "Закрыть",
-  cancel: "Отменить"
+  cancel: "Отменить",
+  change_priority: "Изменить приоритет"
 };
 
 export const serviceDeskSlaLabels = {

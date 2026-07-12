@@ -27,6 +27,13 @@ export function submitServiceDeskDraft(ticketId: string) {
   return serviceDeskApiClient.request<ServiceDeskTicket>(`/tickets/${ticketId}/submit`, { method: "POST", body: JSON.stringify({}) });
 }
 
+export function changeServiceDeskTicketPriority(ticketId: string, priority: ServiceDeskPriority, reason: string) {
+  return serviceDeskApiClient.request<ServiceDeskTicket>(`/tickets/${ticketId}/priority`, {
+    method: "PATCH",
+    body: JSON.stringify({ priority, reason })
+  });
+}
+
 export function listServiceDeskAttachments(ticketId: string) {
   return serviceDeskApiClient.request<ServiceDeskAttachment[]>(`/tickets/${ticketId}/attachments`);
 }

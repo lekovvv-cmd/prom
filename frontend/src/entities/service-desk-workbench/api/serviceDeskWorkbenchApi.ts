@@ -17,6 +17,9 @@ export function getWorkbenchServices(categoryId = "") {
   return serviceDeskApiClient.request<CatalogOption[]>(`/services${categoryId ? `?category_id=${categoryId}` : ""}`);
 }
 export function performWorkbenchAction(ticketId: string, action: string, payload: Record<string, string> = {}, approvalId?: string | null) {
+  if (action === "change_priority") {
+    return serviceDeskApiClient.request(`/tickets/${ticketId}/priority`, { method: "PATCH", body: JSON.stringify(payload) });
+  }
   const endpoint = action === "approve" || action === "reject"
     ? `/tickets/${ticketId}/approvals/${approvalId}/${action}`
     : `/tickets/${ticketId}/${action.replace("request_clarification", "request-clarification").replace("wait_external", "wait-external")}`;

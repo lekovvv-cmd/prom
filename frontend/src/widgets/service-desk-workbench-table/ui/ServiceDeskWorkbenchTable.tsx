@@ -10,7 +10,7 @@ import { Table } from "../../../shared/ui/Table";
 const actionLabels: Record<ServiceDeskAllowedAction, string> = {
   approve: "Согласовать", reject: "Отклонить", assign: "Назначить", reassign: "Переназначить",
   start: "Взять в работу", request_clarification: "Запросить уточнение", wait_external: "Ожидать внешнее действие",
-  resume: "Продолжить", resolve: "Выполнить", close: "Закрыть", cancel: "Отменить"
+  resume: "Продолжить", resolve: "Выполнить", close: "Закрыть", cancel: "Отменить", change_priority: "Изменить приоритет"
 };
 
 export function ServiceDeskWorkbenchTable({ items, onAction }: { items: WorkbenchTicket[]; onAction: (ticket: WorkbenchTicket, action: ServiceDeskAllowedAction) => void }) {
