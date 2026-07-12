@@ -24,8 +24,12 @@ try {
 
     switch ($Command) {
         "up" {
-            & docker compose up --build -d
-            if ($LASTEXITCODE -ne 0) { throw "Docker Compose startup failed." }
+            & docker compose up --build -d --wait
+            if ($LASTEXITCODE -ne 0) {
+                & docker compose ps
+                & docker compose logs --tail 200
+                throw "Docker Compose startup failed."
+            }
             & docker compose ps
             Write-Host ""
             Write-Host "PROM:                 http://localhost:5173/" -ForegroundColor Green
@@ -42,7 +46,7 @@ try {
             Write-Warning "This removes all local PROM databases and Service Desk attachments."
             & docker compose down --volumes
             if ($LASTEXITCODE -ne 0) { throw "Docker Compose reset failed." }
-            & docker compose up --build -d
+            & docker compose up --build -d --wait
         }
         "test" {
             & docker compose --profile test run --rm projects-tests

@@ -50,7 +50,16 @@ services:
     depends_on:
       projects-db:
         condition: service_healthy
-    command: ["sh", "-c", "python -m alembic upgrade head && python scripts/seed.py"]
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    restart: "no"
+
+  projects-seed:
+    build: ./backend
+    environment: *projects-environment
+    depends_on:
+      projects-migrate:
+        condition: service_completed_successfully
+    command: ["python", "scripts/seed.py"]
     restart: "no"
 
   service-desk-migrate:
@@ -62,17 +71,26 @@ services:
     command: ["python", "-m", "alembic", "upgrade", "head"]
     restart: "no"
 
-  service-desk-bootstrap:
+  platform-bootstrap:
     build: ./service-desk-backend
     environment:
       <<: *service-desk-environment
       PROJECTS_DATABASE_URL: ${PROJECTS_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
     depends_on:
-      projects-migrate:
+      projects-seed:
         condition: service_completed_successfully
       service-desk-migrate:
         condition: service_completed_successfully
-    command: ["sh", "-c", "python scripts/bootstrap_identity.py && python scripts/seed.py"]
+    command: ["python", "scripts/bootstrap_identity.py"]
+    restart: "no"
+
+  service-desk-seed:
+    build: ./service-desk-backend
+    environment: *service-desk-environment
+    depends_on:
+      platform-bootstrap:
+        condition: service_completed_successfully
+    command: ["python", "scripts/seed.py"]
     restart: "no"
 
   projects-backend:
@@ -81,7 +99,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      projects-migrate:
+      projects-seed:
         condition: service_completed_successfully
     restart: unless-stopped
 
@@ -93,7 +111,7 @@ services:
     volumes:
       - service_desk_storage:/app/storage/service-desk
     depends_on:
-      service-desk-bootstrap:
+      service-desk-seed:
         condition: service_completed_successfully
     restart: unless-stopped
 
@@ -125,6 +143,8 @@ services:
       projects-backend:
         condition: service_healthy
       service-desk-backend:
+        condition: service_healthy
+      service-desk-sla-worker:
         condition: service_healthy
     restart: unless-stopped
 

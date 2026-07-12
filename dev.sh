@@ -16,7 +16,11 @@ cd "$ROOT_DIR"
 
 case "$COMMAND" in
   up)
-    docker compose up --build -d
+    if ! docker compose up --build -d --wait; then
+      docker compose ps >&2
+      docker compose logs --tail 200 >&2
+      exit 1
+    fi
     docker compose ps
     printf '\nPROM:                 http://localhost:5173/\n'
     printf 'Projects:             http://localhost:5173/projects\n'
@@ -31,7 +35,7 @@ case "$COMMAND" in
   reset)
     printf 'WARNING: this removes all local PROM databases and Service Desk attachments.\n' >&2
     docker compose down --volumes
-    docker compose up --build -d
+    docker compose up --build -d --wait
     ;;
   test)
     docker compose --profile test run --rm projects-tests
