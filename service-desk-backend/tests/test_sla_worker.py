@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 
 from app.core.enums import ServiceDeskAccessType, ServiceDeskTicketStatus
 from app.modules.access.models import ServiceDeskUser
+from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
 from app.modules.notifications.models import ServiceDeskNotification
 from app.modules.sla.engine import add_business_minutes, add_business_seconds, business_seconds_between
 from app.modules.sla.models import (
@@ -14,6 +15,7 @@ from app.modules.sla.models import (
 )
 from app.modules.sla.worker import SlaWorker
 from app.modules.tickets.models import ServiceDeskTicket
+from app.modules.templates.models import ServiceDeskTemplateVersion
 
 
 def _snapshot(selected_at: datetime) -> dict:
@@ -32,6 +34,19 @@ def _snapshot(selected_at: datetime) -> dict:
     }
 
 
+def _template_ids(db) -> tuple[uuid.UUID, uuid.UUID]:
+    category = ServiceDeskCategory(title=f"SLA {uuid.uuid4()}")
+    db.add(category)
+    db.flush()
+    service = ServiceDeskService(category_id=category.id, title=f"SLA {uuid.uuid4()}")
+    db.add(service)
+    db.flush()
+    version = ServiceDeskTemplateVersion(service_id=service.id, version=1)
+    db.add(version)
+    db.flush()
+    return service.id, version.id
+
+
 def test_resolution_escalations_use_pause_adjusted_effective_progress_once(
     db_session_factory,
 ):
@@ -45,6 +60,7 @@ def test_resolution_escalations_use_pause_adjusted_effective_progress_once(
     adjusted_due_at = add_business_seconds(base_due_at, lost_business_seconds, snapshot)
 
     with db_session_factory() as db:
+        service_id, template_version_id = _template_ids(db)
         requester = ServiceDeskUser(
             identity_user_id=str(uuid.uuid4()),
             email="pause-aware-requester@utmn.ru",
@@ -55,8 +71,8 @@ def test_resolution_escalations_use_pause_adjusted_effective_progress_once(
         db.add(requester)
         db.flush()
         ticket = ServiceDeskTicket(
-            service_id=uuid.uuid4(),
-            template_version_id=uuid.uuid4(),
+            service_id=service_id,
+            template_version_id=template_version_id,
             requester_user_id=requester.id,
             title="Pause-aware SLA escalation",
             status=ServiceDeskTicketStatus.IN_PROGRESS,
@@ -166,6 +182,7 @@ def test_sla_worker_does_not_hide_first_response_behind_resolution_pause(
     snapshot = _snapshot(selected_at)
     policy_id = uuid.UUID(snapshot["policy_id"])
     with db_session_factory() as db:
+        service_id, template_version_id = _template_ids(db)
         requester = ServiceDeskUser(
             identity_user_id=str(uuid.uuid4()),
             email="first-response-pause@utmn.ru",
@@ -176,8 +193,8 @@ def test_sla_worker_does_not_hide_first_response_behind_resolution_pause(
         db.add(requester)
         db.flush()
         ticket = ServiceDeskTicket(
-            service_id=uuid.uuid4(),
-            template_version_id=uuid.uuid4(),
+            service_id=service_id,
+            template_version_id=template_version_id,
             requester_user_id=requester.id,
             title="First response ignores resolution pause",
             status=ServiceDeskTicketStatus.WAITING_REQUESTER,
