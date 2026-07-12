@@ -95,3 +95,16 @@
   FK references и создаёт unique email.
 - Проверка: tests покрывают UUID repair, replace semantics, повторный запуск без дубля и отзыв
   доступа employee/project manager/platform admin.
+
+## F-011 — submit validation завершалась без feedback
+
+- Симптом: «Отправить заявку» визуально ничего не делала при пустых обязательных полях.
+- Шаги воспроизведения: открыть форму услуги, очистить тему/описание и нажать submit.
+- Корневая причина: страница не использовала HTML form; validation делала молчаливый `return`,
+  а ошибки title/description не рендерились.
+- Исправление: добавлены `<form onSubmit>`, submit button, общий и полевые errors,
+  `aria-describedby`, focus/scroll первого invalid, pending state и синхронная double-submit lock.
+  403/409/422/network errors преобразуются в понятные русские сообщения; draft остаётся отдельной
+  кнопкой без submit-required validation.
+- Проверка: frontend `82 passed`, TypeScript/Vite production build проходит. Production
+  Playwright submit/draft/file/double-click ещё требует доступного Docker engine.

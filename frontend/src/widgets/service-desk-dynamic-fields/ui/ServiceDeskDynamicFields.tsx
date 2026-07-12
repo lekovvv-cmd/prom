@@ -12,7 +12,8 @@ export function ServiceDeskDynamicFields({ fields, values, onChange, mode = "edi
     const label = `${field.label}${required ? " *" : ""}`;
     const options = getFieldOptions(field);
     const error = errors[field.key];
-    const common = { id: field.key, name: field.key, disabled, "aria-invalid": Boolean(error) };
+    const errorId = `${field.key}-error`;
+    const common = { id: field.key, name: field.key, disabled, "aria-invalid": Boolean(error), "aria-describedby": error ? errorId : undefined };
     if (field.field_type === "file" && renderFileField) return <div key={field.id}>{renderFileField(field, required, error)}</div>;
     return <label className={`field ${["textarea", "rich_text"].includes(field.field_type) ? "field-wide" : ""}`} key={field.id}><span>{label}</span>
       {field.field_type === "select" || field.field_type === "user" ? <select {...common} value={String(values[field.key] ?? "")} onChange={(event) => onChange(field.key, event.target.value)}><option value="">Выберите значение</option>{(field.field_type === "user" ? users.map((user) => ({ label: user.display_name, value: user.id })) : options).map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label ?? option.value}</option>)}</select>
@@ -23,7 +24,7 @@ export function ServiceDeskDynamicFields({ fields, values, onChange, mode = "edi
                 : <input {...common} type={inputType(field.field_type)} placeholder={field.placeholder ?? undefined} value={String(values[field.key] ?? "")} onChange={(event) => onChange(field.key, normalizeFieldValue(field.field_type, event.target.value))} />}
       {field.help_text ? <small className="field-help">{field.help_text}</small> : null}
       {validationHint(field) ? <small className="field-help">{validationHint(field)}</small> : null}
-      {error ? <small className="field-error">{error}</small> : null}
+      {error ? <small id={errorId} className="field-error">{error}</small> : null}
     </label>;
   })}</>;
 }

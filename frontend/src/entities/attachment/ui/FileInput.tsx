@@ -17,11 +17,17 @@ function formatFileSize(size: number) {
 
 export function FileInput({
   files,
+  id,
   label,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
   onChange
 }: {
   files: File[];
+  id?: string;
   label: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
   onChange: (files: File[]) => void;
 }) {
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -52,7 +58,7 @@ export function FileInput({
         <Paperclip size={18} />
         <span>{label}</span>
         <small>Можно выбрать несколько файлов, до 10 МБ каждый</small>
-        <input className="file-input-control" type="file" multiple onChange={handleChange} />
+        <input id={id} className="file-input-control" type="file" multiple aria-describedby={ariaDescribedBy} aria-invalid={ariaInvalid} onChange={handleChange} />
       </label>
       {files.length > 0 ? (
         <ul className="file-selection-list" aria-label="Выбранные файлы">

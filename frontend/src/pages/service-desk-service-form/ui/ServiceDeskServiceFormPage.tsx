@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FileText, Save, Send } from "lucide-react";
 
@@ -8,7 +8,7 @@ import { getFieldOptions, isEmpty, matchesRules, type FormValues } from "../../.
 import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import { deleteServiceDeskAttachment, downloadServiceDeskAttachment, getServiceDeskTicket, getServiceDeskTicketForm, listServiceDeskFieldAttachments, uploadServiceDeskFieldAttachment, createServiceDeskDraft, submitServiceDeskDraft, updateServiceDeskDraft } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
 import type { ServiceDeskAttachment, ServiceDeskPriority, ServiceDeskTicket } from "../../../entities/service-desk-ticket/model/types";
-import { ApiError, normalizeApiErrorMessage } from "../../../shared/api/client";
+import { ApiError } from "../../../shared/api/client";
 import { FileInput } from "../../../entities/attachment/ui/FileInput";
 import { useAuth } from "../../../app/providers/AppProviders";
 import { Button } from "../../../shared/ui/Button";
@@ -41,6 +41,8 @@ export function ServiceDeskServiceFormPage() {
   const [pending, setPending] = useState<"save" | "submit" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const formElementRef = useRef<HTMLFormElement | null>(null);
+  const mutationLockRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -102,13 +104,25 @@ export function ServiceDeskServiceFormPage() {
       if (forSubmit && field.field_type === "number" && value !== undefined && value !== "" && Number.isNaN(Number(value))) errors[field.key] = "Укажите число";
     });
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    const valid = Object.keys(errors).length === 0;
+    if (!valid) {
+      setError("Заполните обязательные поля");
+      window.requestAnimationFrame(() => {
+        const firstInvalid = formElementRef.current?.querySelector<HTMLElement>(
+          '[aria-invalid="true"]'
+        );
+        firstInvalid?.scrollIntoView({ behavior: "smooth", block: "center" });
+        firstInvalid?.focus({ preventScroll: true });
+      });
+    }
+    return valid;
   }
 
   async function persistDraft(submitAfter: boolean) {
-    if (!form || !service) return;
+    if (!form || !service || mutationLockRef.current) return;
     if (submitAfter && !validate(true)) return;
     if (!token) { navigate("/login"); return; }
+    mutationLockRef.current = true;
     setPending(submitAfter ? "submit" : "save");
     setError(null);
     try {
@@ -144,27 +158,46 @@ export function ServiceDeskServiceFormPage() {
           setFieldErrors(next);
         }
       }
-      setError(reason instanceof Error ? reason.message : normalizeApiErrorMessage(null));
+      if (reason instanceof ApiError && reason.status === 403) {
+        setError("У вашей учётной записи нет доступа к созданию заявок Service Desk.");
+      } else if (reason instanceof ApiError && reason.status === 409) {
+        setError("Черновик уже изменён или отправлен. Обновите страницу и повторите действие.");
+      } else if (reason instanceof ApiError && reason.status === 422) {
+        setError("Заполните обязательные поля");
+      } else {
+        setError(
+          submitAfter
+            ? "Не удалось отправить заявку. Проверьте соединение и повторите попытку."
+            : "Не удалось сохранить черновик. Проверьте соединение и повторите попытку."
+        );
+      }
     } finally {
+      mutationLockRef.current = false;
       setPending(null);
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void persistDraft(true);
+  }
+
   return <><Header /><PageLayout title={service?.title ?? "Услуга Service Desk"} subtitle={service ? `${service.category?.title ?? "Каталог"} · заполните форму заявки` : undefined}>
-    {loading ? <Spinner label="Загружаем форму услуги" /> : error && !form ? <Card><p className="form-error" role="alert">{error}</p><Link className="button button-secondary" to="/service-desk">Вернуться в каталог</Link></Card> : form && service ? <div className="service-desk-form-layout"><Card className="service-desk-form-card"><div className="service-desk-form-intro"><span className="service-desk-eyebrow"><FileText size={14} aria-hidden="true" /> Форма заявки · версия {form.template_version.version}</span><p>{service.description ?? service.short_description}</p>{form.template_version.system_settings.help_text ? <p className="muted">{form.template_version.system_settings.help_text}</p> : null}</div>
+    {loading ? <Spinner label="Загружаем форму услуги" /> : error && !form ? <Card><p className="form-error" role="alert">{error}</p><Link className="button button-secondary" to="/service-desk">Вернуться в каталог</Link></Card> : form && service ? <div className="service-desk-form-layout"><Card className="service-desk-form-card"><form ref={formElementRef} onSubmit={handleSubmit} noValidate><div className="service-desk-form-intro"><span className="service-desk-eyebrow"><FileText size={14} aria-hidden="true" /> Форма заявки · версия {form.template_version.version}</span><p>{service.description ?? service.short_description}</p>{form.template_version.system_settings.help_text ? <p className="muted">{form.template_version.system_settings.help_text}</p> : null}</div>
       {!token ? <Card><p>Для сохранения заявки войдите в PROM.</p><Link className="button" to="/login">Войти</Link></Card> : null}
-      <div className="service-desk-form-grid"><Input label="Тема заявки" value={title} disabled={form.template_version.system_settings.is_title_editable === false} onChange={(event) => setTitle(event.target.value)} aria-invalid={Boolean(fieldErrors.title)} /><label className="field field-wide"><span>Описание {form.template_version.system_settings.is_description_required !== false ? <sup>*</sup> : null}</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={5} aria-invalid={Boolean(fieldErrors.description)} /></label><Select label="Приоритет" value={priority} onChange={(event) => setPriority(event.target.value as ServiceDeskPriority)}><option value="low">Низкий</option><option value="medium">Средний</option><option value="high">Высокий</option><option value="critical">Критический</option></Select>
+      <div className="service-desk-form-grid"><div><Input id="ticket-title" label="Тема заявки" value={title} disabled={form.template_version.system_settings.is_title_editable === false} onChange={(event) => { setTitle(event.target.value); setFieldErrors((current) => { const next = { ...current }; delete next.title; return next; }); }} aria-invalid={Boolean(fieldErrors.title)} aria-describedby={fieldErrors.title ? "ticket-title-error" : undefined} /><FieldError id="ticket-title-error" error={fieldErrors.title} /></div><label className="field field-wide" htmlFor="ticket-description"><span>Описание {form.template_version.system_settings.is_description_required !== false ? <sup>*</sup> : null}</span><textarea id="ticket-description" value={description} onChange={(event) => { setDescription(event.target.value); setFieldErrors((current) => { const next = { ...current }; delete next.description; return next; }); }} rows={5} aria-invalid={Boolean(fieldErrors.description)} aria-describedby={fieldErrors.description ? "ticket-description-error" : undefined} /><FieldError id="ticket-description-error" error={fieldErrors.description} /></label><Select label="Приоритет" value={priority} onChange={(event) => setPriority(event.target.value as ServiceDeskPriority)}><option value="low">Низкий</option><option value="medium">Средний</option><option value="high">Высокий</option><option value="critical">Критический</option></Select>
         <ServiceDeskDynamicFields fields={form.fields} values={values} users={users} errors={fieldErrors} onChange={updateValue} renderFileField={(field, required, fieldError) => <DynamicField ticketId={draft?.id ?? ticketId} field={field} value={values[field.key]} files={filesByField[field.key] ?? []} existingAttachments={existingByField[field.key] ?? []} users={users} required={required} error={fieldError} onChange={updateValue} onFilesChange={(files) => setFilesByField((current) => ({ ...current, [field.key]: files }))} onAttachmentRemoved={(attachmentId) => setExistingByField((current) => ({ ...current, [field.key]: (current[field.key] ?? []).filter((item) => item.id !== attachmentId) }))} />} />
-      </div>{error && form ? <p className={error.startsWith("Черновик") ? "success-text" : "form-error"} role="alert">{error}</p> : null}<div className="form-actions"><Button variant="secondary" disabled={!token || pending !== null} onClick={() => void persistDraft(false)}><Save size={16} aria-hidden="true" />{pending === "save" ? "Сохраняем..." : "Сохранить черновик"}</Button><Button disabled={!token || pending !== null} onClick={() => void persistDraft(true)}><Send size={16} aria-hidden="true" />{pending === "submit" ? "Отправляем..." : "Отправить заявку"}</Button></div>
+      </div>{error && form ? <p className={error.startsWith("Черновик") ? "success-text" : "form-error"} role="alert">{error}</p> : null}<div className="form-actions"><Button type="button" variant="secondary" disabled={!token || pending !== null} onClick={() => void persistDraft(false)}><Save size={16} aria-hidden="true" />{pending === "save" ? "Сохраняем..." : "Сохранить черновик"}</Button><Button type="submit" disabled={!token || pending !== null}><Send size={16} aria-hidden="true" />{pending === "submit" ? "Отправляем..." : "Отправить заявку"}</Button></div></form>
     </Card></div> : null}
   </PageLayout></>;
 }
 
 function DynamicField({ ticketId, field, value, files, existingAttachments, users, required, error, onChange, onFilesChange, onAttachmentRemoved }: { ticketId?: string; field: ServiceDeskTemplateField; value: unknown; files: File[]; existingAttachments: ServiceDeskAttachment[]; users: Users; required: boolean; error?: string; onChange: (key: string, value: unknown) => void; onFilesChange: (files: File[]) => void; onAttachmentRemoved: (attachmentId: string) => void }) {
   const label = `${field.label}${required ? " *" : ""}`;
-  const common = { name: field.key, id: field.key, "aria-invalid": Boolean(error) };
+  const errorId = `${field.key}-error`;
+  const common = { name: field.key, id: field.key, "aria-invalid": Boolean(error), "aria-describedby": error ? errorId : undefined };
   const options = getFieldOptions(field);
-  if (field.field_type === "file") return <label className="field"><span>{label}</span><FileInput label="Добавить файлы" files={files} onChange={onFilesChange} />{existingAttachments.length ? <ul className="file-selection-list" aria-label="Сохранённые файлы">{existingAttachments.map((attachment) => <li key={attachment.id}><span><strong>{attachment.file_name}</strong><small>{attachment.content_type ?? "Файл"} · {formatSize(attachment.size_bytes)}</small></span>{ticketId ? <span className="table-actions"><button type="button" className="button button-secondary" onClick={() => void downloadExistingAttachment(ticketId, attachment)}>↓ Скачать</button><button type="button" className="button button-secondary" onClick={() => void deleteServiceDeskAttachment(ticketId, attachment.id).then(() => onAttachmentRemoved(attachment.id))}>Удалить</button></span> : null}</li>)}</ul> : null}<FieldError error={error} /></label>;
+  if (field.field_type === "file") return <label className="field"><span>{label}</span><FileInput id={field.key} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} label="Добавить файлы" files={files} onChange={onFilesChange} />{existingAttachments.length ? <ul className="file-selection-list" aria-label="Сохранённые файлы">{existingAttachments.map((attachment) => <li key={attachment.id}><span><strong>{attachment.file_name}</strong><small>{attachment.content_type ?? "Файл"} · {formatSize(attachment.size_bytes)}</small></span>{ticketId ? <span className="table-actions"><button type="button" className="button button-secondary" onClick={() => void downloadExistingAttachment(ticketId, attachment)}>↓ Скачать</button><button type="button" className="button button-secondary" onClick={() => void deleteServiceDeskAttachment(ticketId, attachment.id).then(() => onAttachmentRemoved(attachment.id))}>Удалить</button></span> : null}</li>)}</ul> : null}<FieldError id={errorId} error={error} /></label>;
   if (field.field_type === "select" || field.field_type === "user") return <label className="field"><span>{label}</span><select {...common} value={String(value ?? "")} onChange={(event) => onChange(field.key, event.target.value)}><option value="">Выберите значение</option>{field.field_type === "user" ? users.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>) : options.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label ?? option.value}</option>)}</select><FieldHelp field={field} /><FieldError error={error} /></label>;
   if (field.field_type === "multiselect") return <label className="field"><span>{label}</span><select {...common} multiple value={Array.isArray(value) ? value.map(String) : []} onChange={(event) => onChange(field.key, Array.from(event.target.selectedOptions, (option) => option.value))}>{options.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label ?? option.value}</option>)}</select><FieldHelp field={field} /><FieldError error={error} /></label>;
   if (field.field_type === "checkbox") return <label className="field"><span className="checkbox-field"><input {...common} type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(field.key, event.target.checked)} />{label}</span><FieldError error={error} /></label>;
@@ -173,6 +206,6 @@ function DynamicField({ ticketId, field, value, files, existingAttachments, user
 }
 
 function FieldHelp({ field }: { field: ServiceDeskTemplateField }) { return field.help_text ? <small className="field-help">{field.help_text}</small> : null; }
-function FieldError({ error }: { error?: string }) { return error ? <small className="field-error">{error}</small> : null; }
+function FieldError({ error, id }: { error?: string; id?: string }) { return error ? <small id={id} className="field-error">{error}</small> : null; }
 function formatSize(size: number) { return size < 1024 ? `${size} Б` : size < 1024 * 1024 ? `${(size / 1024).toFixed(1)} КБ` : `${(size / 1024 / 1024).toFixed(1)} МБ`; }
 async function downloadExistingAttachment(ticketId: string, attachment: ServiceDeskAttachment) { const blob = await downloadServiceDeskAttachment(ticketId, attachment.id); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = attachment.file_name; link.click(); URL.revokeObjectURL(url); }
