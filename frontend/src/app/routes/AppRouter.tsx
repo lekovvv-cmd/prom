@@ -1,4 +1,4 @@
-import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useAuth } from "../providers/AppProviders";
 import { useServiceDeskAccess } from "../providers/ServiceDeskAccessProvider";
@@ -7,6 +7,7 @@ import { AdminProjectsPage } from "../../pages/admin-projects/ui/AdminProjectsPa
 import { AdminResponsesPage } from "../../pages/admin-responses/ui/AdminResponsesPage";
 import { AdminStatsPage } from "../../pages/admin-stats/ui/AdminStatsPage";
 import { LoginPage } from "../../pages/login/ui/LoginPage";
+import { ModuleSelectorPage } from "../../pages/module-selector/ui/ModuleSelectorPage";
 import { MyProjectDetailsPage } from "../../pages/my-project-details/ui/MyProjectDetailsPage";
 import { MyProjectsPage } from "../../pages/my-projects/ui/MyProjectsPage";
 import { MyResponsesPage } from "../../pages/my-responses/ui/MyResponsesPage";
@@ -33,13 +34,14 @@ import { ServiceDeskContextualCounters } from "../../widgets/service-desk-notifi
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, isLoading, token } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <Spinner label="Проверяем авторизацию" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   if (!isAdmin) {
@@ -51,13 +53,14 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function ManagerRoute({ children }: { children: React.ReactNode }) {
   const { canManageProjects, isLoading, token } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <Spinner label="Проверяем авторизацию" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   if (!canManageProjects) {
@@ -69,13 +72,14 @@ function ManagerRoute({ children }: { children: React.ReactNode }) {
 
 function UserRoute({ children }: { children: React.ReactNode }) {
   const { isLoading, token } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <Spinner label="Проверяем авторизацию" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   return children;
@@ -84,13 +88,14 @@ function UserRoute({ children }: { children: React.ReactNode }) {
 function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
   const { isLoading: isAuthLoading, token } = useAuth();
   const { error, isLoading, user } = useServiceDeskAccess();
+  const location = useLocation();
 
   if (isAuthLoading || isLoading) {
     return <Spinner label="Проверяем доступ к Service Desk" />;
   }
 
   if (!token) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location.pathname + location.search)} replace />;
   }
 
   if (!user) {
@@ -155,13 +160,13 @@ function ServiceDeskAdminIndexRoute() {
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/projects" replace />} />
+      <Route path="/" element={<ModuleSelectorPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
-      <Route path="/service-desk" element={<ServiceDeskCatalogPage />} />
-      <Route path="/service-desk/catalog" element={<ServiceDeskCatalogPage />} />
-      <Route path="/service-desk/services/:serviceId" element={<ServiceDeskServiceFormPage />} />
+      <Route path="/service-desk" element={<ServiceDeskRoute><ServiceDeskCatalogPage /></ServiceDeskRoute>} />
+      <Route path="/service-desk/catalog" element={<ServiceDeskRoute><ServiceDeskCatalogPage /></ServiceDeskRoute>} />
+      <Route path="/service-desk/services/:serviceId" element={<ServiceDeskRoute><ServiceDeskServiceFormPage /></ServiceDeskRoute>} />
       <Route path="/service-desk/tickets/:ticketId/edit" element={<ServiceDeskRoute><ServiceDeskServiceFormPage /></ServiceDeskRoute>} />
       <Route
         path="/admin/service-desk"
@@ -274,4 +279,9 @@ export function AppRouter() {
       <Route path="*" element={<Navigate to="/projects" replace />} />
     </Routes>
   );
+}
+
+function loginPath(next: string) {
+  const normalized = next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : "/projects";
+  return `/login?next=${encodeURIComponent(normalized)}`;
 }

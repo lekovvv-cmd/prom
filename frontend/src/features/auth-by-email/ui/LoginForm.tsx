@@ -1,6 +1,6 @@
 import { LogIn } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../../app/providers/AppProviders";
 import { Button } from "../../../shared/ui/Button";
@@ -16,6 +16,7 @@ const demoUsers = [
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [email, setEmail] = useState("admin@utmn.ru");
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,9 @@ export function LoginForm() {
       await requestCode(normalizedEmail);
       const response = await verifyCode(normalizedEmail, "000000");
       login(response.access_token, response.user);
-      navigate("/projects");
+      const next = new URLSearchParams(location.search).get("next");
+      const target = next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : "/projects";
+      navigate(target, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось войти");
     } finally {
