@@ -12,7 +12,7 @@ PROM также включает Service Desk: публичный каталог
 
 ## Быстрый запуск
 
-Нужны Docker, Node.js/npm и Python 3.14.
+Для обычного запуска нужны только Docker Desktop и Docker Compose. Python и Node.js на хосте не требуются.
 
 Windows:
 
@@ -27,43 +27,53 @@ chmod +x ./dev.sh
 ./dev.sh
 ```
 
-Скрипты сами создают `.env`, ставят зависимости, поднимают PostgreSQL, применяют миграции, запускают seed data, backend и frontend. На Windows backend-venv создаётся в `%LOCALAPPDATA%\shpiu_project_showcase\backend-venv-py314`, чтобы Python не ломался из-за кириллицы в пути проекта.
-
-Если проект уже запускался раньше и backend падает на отсутствующей зависимости, запустите скрипт без `--skip-install` / `-SkipInstall`: он проверит текущий `.venv` и доустановит недостающие пакеты.
+Скрипты являются тонкими обёртками над Docker Compose. Compose поднимает обе базы, применяет миграции, выполняет идемпотентные seed и identity bootstrap, затем запускает оба API, SLA worker и frontend.
 
 После запуска:
 
-- приложение: `http://localhost:5173`
-- Swagger: `http://localhost:8000/docs`
+- selector PROM: `http://localhost:5173/`
+- Projects: `http://localhost:5173/projects`
+- Service Desk: `http://localhost:5173/service-desk`
+- Projects Swagger: `http://localhost:8000/docs`
+- Service Desk Swagger: `http://localhost:8001/docs`
 
 Демо-вход, код всегда `000000`:
 
 - админ: `admin@utmn.ru`
 - руководитель проекта: `manager@utmn.ru`
 - сотрудник: `employee@utmn.ru`
+- аналитик: `analyst@utmn.ru`
 
-Остановить backend/frontend: `Ctrl+C` в терминале со скриптом. Остановить PostgreSQL:
+Остановить всю платформу:
 
 ```bash
-docker compose -p shpiu_project_showcase down
+./dev.sh down
 ```
 
-## Опции запуска
+## Управление локальным окружением
 
 Windows:
 
 ```powershell
-.\dev.cmd -SkipInstall
-.\dev.cmd -NoDocker
-.\dev.cmd -BackendPort 8001 -FrontendPort 5174
+.\dev.cmd up
+.\dev.cmd logs service-desk-backend
+.\dev.cmd restart service-desk-sla-worker
+.\dev.cmd status
+.\dev.cmd down
+.\dev.cmd reset
+.\dev.cmd test
 ```
 
 Linux:
 
 ```bash
-./dev.sh --skip-install
-./dev.sh --no-docker
-./dev.sh --backend-port 8001 --frontend-port 5174
+./dev.sh up
+./dev.sh logs service-desk-backend
+./dev.sh restart service-desk-sla-worker
+./dev.sh status
+./dev.sh down
+./dev.sh reset
+./dev.sh test
 ```
 
 ## Проверки

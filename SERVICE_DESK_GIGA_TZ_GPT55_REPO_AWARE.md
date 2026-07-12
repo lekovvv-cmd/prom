@@ -1,5 +1,7 @@
 # Техническое задание: Service Desk для платформы PROM / ШПИУ
 
+> Актуализация corrective stage: обязательный технический `/metrics` и отдельный observability stack исключены. Stage 11 трактуется как release hardening. `platform_admin` отложен до появления общеплатформенного IAM; реализованный административный bypass ограничен ролью `service_desk_admin`. Локальная платформа запускается через `docker compose up --build` с отдельными Projects DB и Service Desk DB, migration/bootstrap jobs, API, SLA worker и frontend.
+
 > **Статус документа:** основной источник требований для реализации.
 >
 > **Целевая аудитория:** coding-agent GPT-5.5 и разработчики проекта.
