@@ -124,7 +124,7 @@ export function ServiceDeskTicketDetailsPage() {
                   </dl>
                 </Card>
               )}
-              {ticket ? <ServiceDeskTicketFieldAttachments ticketId={ticket.id} fields={fieldEntries.map((field) => ({ key: field.key, label: field.label, type: field.type }))} /> : null}
+              {ticket ? <ServiceDeskTicketFieldAttachments ticketId={ticket.id} fields={fieldEntries.map((field) => ({ key: field.key, label: field.label, type: field.type }))} canDelete={user.access_type === "service_desk_admin" || (ticket.status === "draft" && ticket.requester_user_id === user.id)} /> : null}
 
               <Card>
                 <h3>История</h3>
@@ -170,7 +170,7 @@ export function ServiceDeskTicketDetailsPage() {
                 </dl>
               </Card>
               <SlaSummary ticket={ticket} />
-              <ServiceDeskTicketAttachments ticketId={ticket.id} canUpload={!['closed', 'cancelled'].includes(ticket.status)} />
+              <ServiceDeskTicketAttachments ticketId={ticket.id} canUpload={!['closed', 'cancelled'].includes(ticket.status)} canDelete={user.access_type === "service_desk_admin" || (ticket.status === "draft" && ticket.requester_user_id === user.id)} />
             </aside>
           </div>
         )}

@@ -38,6 +38,12 @@ export function listServiceDeskAttachments(ticketId: string) {
   return serviceDeskApiClient.request<ServiceDeskAttachment[]>(`/tickets/${ticketId}/attachments`);
 }
 
+export function deleteServiceDeskAttachment(ticketId: string, attachmentId: string) {
+  return serviceDeskApiClient.request<void>(`/tickets/${ticketId}/attachments/${attachmentId}`, {
+    method: "DELETE"
+  });
+}
+
 export function uploadServiceDeskFieldAttachment(ticketId: string, fieldKey: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);

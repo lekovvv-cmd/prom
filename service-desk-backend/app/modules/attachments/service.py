@@ -231,6 +231,61 @@ class AttachmentService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Содержимое вложения не найдено")
         return attachment, path
 
+    def delete_attachment(
+        self,
+        ticket_id: uuid.UUID,
+        attachment_id: uuid.UUID,
+        actor: ServiceDeskUser,
+    ) -> None:
+        ticket = self.ticket_repository.get_ticket_for_update(ticket_id)
+        if not ticket:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+        attachment = self.repository.get_for_update(attachment_id)
+        if not attachment or attachment.ticket_id != ticket.id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Вложение не найдено")
+
+        is_admin = actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+        is_draft_owner = (
+            ticket.status == ServiceDeskTicketStatus.DRAFT
+            and ticket.requester_user_id == actor.id
+        )
+        if not (is_admin or is_draft_owner):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Удалить вложение может заявитель из своего черновика или администратор Service Desk",
+            )
+
+        path = self._storage_path(attachment.storage_key)
+        tombstone = path.with_name(f".{path.name}.deleting-{uuid.uuid4().hex}")
+        moved = False
+        try:
+            if path.is_file():
+                path.replace(tombstone)
+                moved = True
+            self.repository.delete(attachment)
+            self.ticket_repository.add_history(
+                ServiceDeskTicketHistory(
+                    ticket_id=ticket.id,
+                    event_type="attachment_removed",
+                    actor_user_id=actor.id,
+                    message="Вложение удалено",
+                    payload={
+                        "attachment_id": str(attachment.id),
+                        "owner_type": attachment.owner_type.value,
+                        "field_key": attachment.field_key,
+                        "file_name": attachment.file_name,
+                    },
+                )
+            )
+            self.db.commit()
+        except BaseException:
+            self._rollback_best_effort()
+            if moved and tombstone.is_file():
+                tombstone.replace(path)
+            raise
+        if moved:
+            self._remove_file_best_effort(tombstone)
+
     async def _store(
         self,
         *,

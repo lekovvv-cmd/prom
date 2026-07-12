@@ -289,6 +289,19 @@ def download_ticket_attachment(
     )
 
 
+@router.delete(
+    "/tickets/{ticket_id}/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_ticket_attachment(
+    ticket_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    current_user: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    AttachmentService(db).delete_attachment(ticket_id, attachment_id, current_user)
+
+
 @router.get(
     "/tickets/{ticket_id}/fields/{field_key}/attachments",
     response_model=list[attachment_schemas.ServiceDeskAttachmentRead],

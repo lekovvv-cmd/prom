@@ -20,6 +20,12 @@ class AttachmentRepository:
     def get(self, attachment_id: uuid.UUID) -> ServiceDeskAttachment | None:
         return self.db.get(ServiceDeskAttachment, attachment_id)
 
+    def get_for_update(self, attachment_id: uuid.UUID) -> ServiceDeskAttachment | None:
+        return self.db.get(ServiceDeskAttachment, attachment_id, with_for_update=True)
+
+    def delete(self, attachment: ServiceDeskAttachment) -> None:
+        self.db.delete(attachment)
+
     def list_for_owner(
         self,
         owner_type: ServiceDeskAttachmentOwnerType,

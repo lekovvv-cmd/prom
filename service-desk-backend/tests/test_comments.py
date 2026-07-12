@@ -21,7 +21,11 @@ def create_comment_user(
         )
         db.add(user)
         db.flush()
-        for capability in {"service_desk.access", *capabilities}:
+        for capability in {
+            "service_desk.access",
+            "service_desk.create_request",
+            *capabilities,
+        }:
             db.add(
                 ServiceDeskUserCapability(
                     service_desk_user_id=user.id,

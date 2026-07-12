@@ -14,6 +14,7 @@ from app.modules.attachments.service import UPLOAD_CHUNK_SIZE, AttachmentService
 from app.modules.tickets.models import ServiceDeskTicket
 
 from test_comments import create_waiting_requester_ticket
+from test_tickets import create_requester, create_service_with_template
 
 
 def _ooxml_file(main_part: str) -> bytes:
@@ -40,6 +41,44 @@ class OversizedUpload:
         self.remaining -= returned
         self.bytes_returned += returned
         return b"a" * returned
+
+
+def test_requester_removes_attachment_from_own_draft(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    requester_id = create_requester(client, db_session_factory)
+    service_id, _ = create_service_with_template(client)
+    headers = auth_headers_for_user(requester_id)
+    draft = client.post(
+        "/tickets/drafts",
+        json={"service_id": service_id, "title": "Черновик с файлом"},
+        headers=headers,
+    )
+    uploaded = client.post(
+        f"/tickets/{draft.json()['id']}/attachments",
+        files={"file": ("draft.txt", b"draft", "text/plain")},
+        headers=headers,
+    )
+    assert uploaded.status_code == 201, uploaded.text
+
+    removed = client.delete(
+        f"/tickets/{draft.json()['id']}/attachments/{uploaded.json()['id']}",
+        headers=headers,
+    )
+    assert removed.status_code == 204
+    assert not list(Path(tmp_path).rglob("*.txt"))
+    repeated = client.delete(
+        f"/tickets/{draft.json()['id']}/attachments/{uploaded.json()['id']}",
+        headers=headers,
+    )
+    assert repeated.status_code == 404
+    ticket = client.get(f"/tickets/{draft.json()['id']}", headers=headers)
+    assert ticket.json()["history"][-1]["event_type"] == "attachment_removed"
 
 
 def test_ticket_and_internal_comment_attachments_use_private_storage_and_access(
