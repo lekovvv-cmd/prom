@@ -28,6 +28,7 @@ class ApprovalWorkflowRepository:
                 .joinedload(ServiceDeskApprovalStageApprover.user)
             )
             .where(ServiceDeskApprovalWorkflow.template_version_id == template_version_id)
+            .execution_options(populate_existing=True)
         )
         return self.db.scalars(stmt).unique().one_or_none()
 

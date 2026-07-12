@@ -42,6 +42,16 @@ def employee_response_payload(full_name="Pytest Employee"):
     }
 
 
+def test_health_checks_database_and_upload_storage(client):
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready",
+        "checks": {"database": "ok", "storage": "ok"},
+    }
+
+
 def test_rejects_non_utmn_email(client):
     response = client.post("/api/auth/request-code", json={"email": "user@example.com"})
 

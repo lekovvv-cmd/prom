@@ -191,14 +191,14 @@ export function normalizeApiErrorMessage(payload: unknown) {
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
   const contentType = response.headers.get("content-type") ?? "";
   const payload = contentType.includes("application/json") ? await response.json() : null;
   if (!response.ok) {
     const message = normalizeApiErrorMessage(payload);
     throw new ApiError(message, response.status, payload);
-  }
-  if (response.status === 204) {
-    return undefined as T;
   }
   return payload as T;
 }

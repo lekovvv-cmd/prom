@@ -30,8 +30,11 @@ describe("createApiClient", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-123");
   });
 
-  it("returns undefined for successful no-content responses", async () => {
-    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+  it("returns undefined for successful no-content responses even with a JSON content type", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, {
+      status: 204,
+      headers: { "Content-Type": "application/json" }
+    }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createApiClient("http://service-desk.local", {

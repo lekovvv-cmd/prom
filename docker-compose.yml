@@ -4,6 +4,7 @@ x-projects-environment: &projects-environment
   DATABASE_URL: ${PROJECTS_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
   JWT_SECRET: ${JWT_SECRET:-change-me-in-production-at-least-32-bytes}
   FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+  UPLOADS_DIR: ${PROJECTS_UPLOADS_DIR:-/app/storage/projects}
 
 x-service-desk-environment: &service-desk-environment
   SERVICE_DESK_DATABASE_URL: ${SERVICE_DESK_DATABASE_URL:-postgresql+psycopg://service_desk:service_desk@service-desk-db:5432/service_desk}
@@ -27,6 +28,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   service-desk-db:
     image: postgres:17
@@ -43,6 +45,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   projects-migrate:
     build: ./backend
@@ -98,6 +101,8 @@ services:
     environment: *projects-environment
     ports:
       - "8000:8000"
+    volumes:
+      - projects_storage:/app/storage/projects
     depends_on:
       projects-seed:
         condition: service_completed_successfully
@@ -167,5 +172,6 @@ services:
 
 volumes:
   projects_db_data:
+  projects_storage:
   service_desk_db_data:
   service_desk_storage:

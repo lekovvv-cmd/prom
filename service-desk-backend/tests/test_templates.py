@@ -133,6 +133,39 @@ def test_template_fields_and_dictionaries_are_versioned(client: TestClient):
     assert blocked.status_code == 409
 
 
+def test_dictionary_item_values_are_unique_within_dictionary(client: TestClient):
+    dictionary = client.post(
+        "/admin/dictionaries",
+        json={"code": "unique_values", "title": "Уникальные значения"},
+    )
+    assert dictionary.status_code == 201, dictionary.text
+    dictionary_id = dictionary.json()["id"]
+    first = client.post(
+        f"/admin/dictionaries/{dictionary_id}/items",
+        json={"label": "Первое", "value": " option_one "},
+    )
+    assert first.status_code == 201, first.text
+    assert first.json()["value"] == "option_one"
+
+    duplicate = client.post(
+        f"/admin/dictionaries/{dictionary_id}/items",
+        json={"label": "Дубликат", "value": "OPTION_ONE"},
+    )
+    assert duplicate.status_code == 409
+    assert "уже есть" in duplicate.json()["detail"]
+
+    second = client.post(
+        f"/admin/dictionaries/{dictionary_id}/items",
+        json={"label": "Второе", "value": "option_two"},
+    )
+    assert second.status_code == 201, second.text
+    conflict = client.patch(
+        f"/admin/dictionary-items/{second.json()['id']}",
+        json={"value": " option_one "},
+    )
+    assert conflict.status_code == 409
+
+
 def test_template_validation_rules_and_conditions(client: TestClient):
     service_id = create_catalog_service(client)
     version = client.post(f"/admin/services/{service_id}/versions")

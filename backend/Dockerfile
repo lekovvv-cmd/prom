@@ -14,6 +14,7 @@ COPY alembic.ini ./
 COPY scripts ./scripts
 COPY tests ./tests
 RUN python -m pip install --upgrade pip && python -m pip install ".[dev]"
+RUN mkdir -p /app/storage/projects && chown -R app:app /app/storage
 
 USER app
 EXPOSE 8000

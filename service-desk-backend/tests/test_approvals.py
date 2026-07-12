@@ -168,6 +168,32 @@ def test_admin_configures_multistage_approval_workflow(client, db_session_factor
     assert immutable.status_code == 409
 
 
+def test_stage_mutation_response_is_fresh_when_sessions_do_not_expire_on_commit(
+    client,
+    db_session_factory,
+):
+    db_session_factory.configure(expire_on_commit=False)
+    try:
+        version_id = create_template_version(client)
+        configured = client.put(
+            f"/admin/template-versions/{version_id}/approval-workflow",
+            json={"approval_mode": "workflow", "name": "Production-like workflow"},
+        )
+        workflow_id = configured.json()["workflow"]["id"]
+
+        created = client.post(
+            f"/admin/approval-workflows/{workflow_id}/stages",
+            json={"title": "Fresh response stage", "decision_rule": "any"},
+        )
+
+        assert created.status_code == 201, created.text
+        assert [stage["title"] for stage in created.json()["workflow"]["stages"]] == [
+            "Fresh response stage"
+        ]
+    finally:
+        db_session_factory.configure(expire_on_commit=True)
+
+
 def test_workflow_template_cannot_publish_without_stages_and_approvers(client):
     version_id = create_template_version(client)
     configured = client.put(

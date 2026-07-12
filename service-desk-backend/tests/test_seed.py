@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 from sqlalchemy import select
 
 from scripts.seed import main as seed_main, seed_templates
@@ -6,6 +9,24 @@ from app.modules.access.models import ServiceDeskUser
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
 from app.modules.templates.models import ServiceDeskTemplateVersion
 from app.core.enums import TemplateVersionStatus
+
+
+def test_seed_script_registers_referenced_user_table_in_isolated_process():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from scripts.seed import ServiceDeskService; "
+                "assert 'service_desk_users' in ServiceDeskService.metadata.tables"
+            ),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_service_desk_seed_is_idempotent(client, db_session_factory):

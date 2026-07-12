@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
@@ -214,16 +215,30 @@ class TemplateService:
         payload: schemas.DictionaryItemCreate,
     ) -> ServiceDeskDictionaryItem:
         self._require_dictionary(dictionary_id)
+        label = payload.label.strip()
+        value = payload.value.strip()
+        if self.repository.dictionary_item_value_exists(dictionary_id, value):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Значение с таким кодом уже есть в справочнике",
+            )
         item = ServiceDeskDictionaryItem(
             dictionary_id=dictionary_id,
-            label=payload.label,
-            value=payload.value,
+            label=label,
+            value=value,
             position=payload.position,
             is_active=payload.is_active,
             metadata_json=payload.metadata,
         )
-        self.repository.add_dictionary_item(item)
-        self.db.commit()
+        try:
+            self.repository.add_dictionary_item(item)
+            self.db.commit()
+        except IntegrityError as error:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Значение с таким кодом уже есть в справочнике",
+            ) from error
         self.db.refresh(item)
         return item
 
@@ -234,11 +249,31 @@ class TemplateService:
     ) -> ServiceDeskDictionaryItem:
         item = self._require_dictionary_item(item_id)
         data = payload.model_dump(exclude_unset=True)
+        if "label" in data:
+            data["label"] = data["label"].strip()
+        if "value" in data:
+            data["value"] = data["value"].strip()
+            if self.repository.dictionary_item_value_exists(
+                item.dictionary_id,
+                data["value"],
+                exclude_id=item.id,
+            ):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Значение с таким кодом уже есть в справочнике",
+                )
         if "metadata" in data:
             item.metadata_json = data.pop("metadata")
         for key, value in data.items():
             setattr(item, key, value)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as error:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Значение с таким кодом уже есть в справочнике",
+            ) from error
         self.db.refresh(item)
         return item
 

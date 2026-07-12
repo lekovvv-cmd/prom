@@ -84,3 +84,28 @@ def test_missing_catalog_entities_return_404(client: TestClient):
 
     assert service.status_code == 404
     assert service.json()["detail"] == "Категория не найдена"
+
+
+def test_catalog_rejects_case_insensitive_duplicate_titles_in_same_scope(client: TestClient):
+    category = client.post("/admin/categories", json={"title": "Browser QA"})
+    assert category.status_code == 201, category.text
+    category_id = category.json()["id"]
+
+    duplicate_category = client.post(
+        "/admin/categories",
+        json={"title": "  BROWSER QA  "},
+    )
+    assert duplicate_category.status_code == 409
+    assert "уже существует" in duplicate_category.json()["detail"]
+
+    service = client.post(
+        "/admin/services",
+        json={"category_id": category_id, "title": "Account access"},
+    )
+    assert service.status_code == 201, service.text
+    duplicate_service = client.post(
+        "/admin/services",
+        json={"category_id": category_id, "title": " ACCOUNT ACCESS "},
+    )
+    assert duplicate_service.status_code == 409
+    assert "уже существует" in duplicate_service.json()["detail"]

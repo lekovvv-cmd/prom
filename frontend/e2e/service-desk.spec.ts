@@ -125,12 +125,19 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
 
   await page.getByRole("button", { name: "Уведомления Service Desk" }).click();
   const notificationCenter = page.getByRole("region", { name: "Центр уведомлений" });
-  await expect(notificationCenter.getByText("Требуется согласование")).toBeVisible();
-  await expect(notificationCenter.getByRole("link", { name: "Открыть заявку" }).first()).toHaveAttribute(
-    "href", `/service-desk/tickets/${ticket.id}`
+  const approvalNotification = notificationCenter
+    .getByRole("article")
+    .filter({ hasText: "Требуется согласование" })
+    .filter({ has: page.locator(`a[href="/service-desk/tickets/${ticket.id}"]`) });
+  await expect(approvalNotification.getByText("Требуется согласование")).toBeVisible();
+  await expect(approvalNotification.getByRole("link", { name: "Открыть заявку" })).toHaveAttribute(
+    "href",
+    `/service-desk/tickets/${ticket.id}`
   );
   await notificationCenter.getByRole("button", { name: "Прочитать все" }).click();
   await expect(notificationCenter.getByText("Всё прочитано")).toBeVisible();
+  await page.getByRole("button", { name: "Уведомления Service Desk" }).click();
+  await expect(notificationCenter).toBeHidden();
 
   await page.getByRole("button", { name: "Согласовать" }).click();
   const dialog = page.getByRole("dialog", { name: "Согласовать заявку" });
@@ -386,6 +393,7 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
 
 test("Service Desk seeded water form saves, resumes and submits with dictionary labels", async ({ page }) => {
   await loginAsManager(page);
+  const ticketTitle = `E2E заказ воды ${Date.now()}`;
   await page.goto("/service-desk");
   await page.getByPlaceholder("Например, доступ к системе").fill("Заказ воды");
   const serviceCard = page.locator(".service-desk-service-card").filter({ hasText: "Заказ воды" });
@@ -395,12 +403,12 @@ test("Service Desk seeded water form saves, resumes and submits with dictionary 
   await page.getByLabel("Тип воды").selectOption("still");
   await page.getByLabel("Количество бутылок").fill("12");
   await page.getByLabel("Дата доставки").fill("2027-01-15");
-  await page.getByLabel("Тема заявки").fill("E2E заказ воды");
+  await page.getByLabel("Тема заявки").fill(ticketTitle);
   await page.getByLabel("Описание").fill("Проверка сохранения формы из каталога.");
   await page.getByRole("button", { name: "Сохранить черновик" }).click();
   await expect(page.getByText("Черновик сохранён")).toBeVisible();
   await page.getByRole("link", { name: "Мои заявки" }).click();
-  const draftRow = page.getByRole("row").filter({ hasText: "E2E заказ воды" });
+  const draftRow = page.getByRole("row").filter({ hasText: ticketTitle });
   await expect(draftRow).toBeVisible();
   await draftRow.getByRole("link").first().click();
   await expect(page).toHaveURL(/\/service-desk\/tickets\/[^/]+\/edit$/);

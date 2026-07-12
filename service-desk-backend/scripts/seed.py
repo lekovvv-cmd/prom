@@ -17,6 +17,7 @@ from app.core.enums import (  # noqa: E402
     TemplateFieldType,
     TemplateVersionStatus,
 )
+from app.modules.access import models as access_models  # noqa: E402, F401
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService  # noqa: E402
 from app.modules.templates.models import (  # noqa: E402
     ServiceDeskDictionary,

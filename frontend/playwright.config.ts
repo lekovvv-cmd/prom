@@ -10,11 +10,15 @@ export default defineConfig({
     timeout: 10_000
   },
   fullyParallel: false,
+  preserveOutput: "always",
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }], ["list"]] : "list",
+  reporter: process.env.CI
+    ? [["github"], ["html", { open: "never" }], ["list"]]
+    : [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: frontendUrl,
-    trace: "on-first-retry"
+    screenshot: "only-on-failure",
+    trace: "retain-on-failure"
   },
   projects: [
     {

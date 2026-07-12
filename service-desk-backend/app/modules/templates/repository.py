@@ -114,6 +114,21 @@ class TemplateRepository:
     def get_dictionary_item(self, item_id: uuid.UUID) -> ServiceDeskDictionaryItem | None:
         return self.db.get(ServiceDeskDictionaryItem, item_id)
 
+    def dictionary_item_value_exists(
+        self,
+        dictionary_id: uuid.UUID,
+        value: str,
+        *,
+        exclude_id: uuid.UUID | None = None,
+    ) -> bool:
+        stmt = select(ServiceDeskDictionaryItem.id).where(
+            ServiceDeskDictionaryItem.dictionary_id == dictionary_id,
+            func.lower(func.trim(ServiceDeskDictionaryItem.value)) == value.strip().lower(),
+        )
+        if exclude_id is not None:
+            stmt = stmt.where(ServiceDeskDictionaryItem.id != exclude_id)
+        return self.db.scalar(stmt) is not None
+
     def add_dictionary_item(self, item: ServiceDeskDictionaryItem) -> ServiceDeskDictionaryItem:
         self.db.add(item)
         self.db.flush()

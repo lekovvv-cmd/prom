@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
@@ -27,9 +28,17 @@ class CatalogService:
     def create_category(self, payload: schemas.CategoryCreate) -> ServiceDeskCategory:
         if payload.parent_id and not self.repository.get_category(payload.parent_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Родительская категория не найдена")
-        category = ServiceDeskCategory(**payload.model_dump())
-        self.repository.add_category(category)
-        self.db.commit()
+        self._ensure_unique_category_title(payload.title, payload.parent_id)
+        category = ServiceDeskCategory(**{**payload.model_dump(), "title": payload.title.strip()})
+        try:
+            self.repository.add_category(category)
+            self.db.commit()
+        except IntegrityError as error:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Категория с таким названием уже существует",
+            ) from error
         self.db.refresh(category)
         return category
 
@@ -38,9 +47,25 @@ class CatalogService:
         data = payload.model_dump(exclude_unset=True)
         if "parent_id" in data and data["parent_id"] and not self.repository.get_category(data["parent_id"]):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Родительская категория не найдена")
+        next_title = str(data.get("title", category.title)).strip()
+        next_parent_id = data.get("parent_id", category.parent_id)
+        self._ensure_unique_category_title(
+            next_title,
+            next_parent_id,
+            exclude_id=category.id,
+        )
+        if "title" in data:
+            data["title"] = next_title
         for field, value in data.items():
             setattr(category, field, value)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as error:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Категория с таким названием уже существует",
+            ) from error
         self.db.refresh(category)
         return category
 
@@ -94,11 +119,19 @@ class CatalogService:
 
     def create_service(self, payload: schemas.ServiceCreate) -> ServiceDeskService:
         self._require_category(payload.category_id)
+        self._ensure_unique_service_title(payload.title, payload.category_id)
         if payload.default_assignee_user_id:
             AssigneePolicy(self.db).require_eligible_assignee(payload.default_assignee_user_id)
-        service = ServiceDeskService(**payload.model_dump())
-        self.repository.add_service(service)
-        self.db.commit()
+        service = ServiceDeskService(**{**payload.model_dump(), "title": payload.title.strip()})
+        try:
+            self.repository.add_service(service)
+            self.db.commit()
+        except IntegrityError as error:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Услуга с таким названием уже существует в выбранной категории",
+            ) from error
         self.db.refresh(service)
         return service
 
@@ -107,11 +140,27 @@ class CatalogService:
         data = payload.model_dump(exclude_unset=True)
         if "category_id" in data and data["category_id"]:
             self._require_category(data["category_id"])
+        next_title = str(data.get("title", service.title)).strip()
+        next_category_id = data.get("category_id", service.category_id)
+        self._ensure_unique_service_title(
+            next_title,
+            next_category_id,
+            exclude_id=service.id,
+        )
+        if "title" in data:
+            data["title"] = next_title
         if data.get("default_assignee_user_id"):
             AssigneePolicy(self.db).require_eligible_assignee(data["default_assignee_user_id"])
         for field, value in data.items():
             setattr(service, field, value)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as error:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Услуга с таким названием уже существует в выбранной категории",
+            ) from error
         self.db.refresh(service)
         return service
 
@@ -142,3 +191,29 @@ class CatalogService:
         if not service:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
         return service
+
+    def _ensure_unique_category_title(
+        self,
+        title: str,
+        parent_id: uuid.UUID | None,
+        *,
+        exclude_id: uuid.UUID | None = None,
+    ) -> None:
+        if self.repository.category_title_exists(title, parent_id, exclude_id=exclude_id):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Категория с таким названием уже существует",
+            )
+
+    def _ensure_unique_service_title(
+        self,
+        title: str,
+        category_id: uuid.UUID,
+        *,
+        exclude_id: uuid.UUID | None = None,
+    ) -> None:
+        if self.repository.service_title_exists(title, category_id, exclude_id=exclude_id):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Услуга с таким названием уже существует в выбранной категории",
+            )

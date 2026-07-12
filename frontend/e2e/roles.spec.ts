@@ -21,13 +21,16 @@ for (const role of ["Сотрудник", "Руководитель проект
 test("Service Desk manager: каталог и заявки доступны без admin sections", async ({ page }) => {
   await login(page, "Менеджер Service Desk", "/service-desk");
   await expect(page.getByRole("heading", { name: "Каталог Service Desk" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Мои заявки" })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Мои заявки" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Администрирование" })).toHaveCount(0);
 });
 
 test("Service Desk admin: полный admin navigation доступен", async ({ page }) => {
   await login(page, "Администратор Service Desk", "/admin/service-desk");
-  await expect(page.getByRole("heading", { name: "Обзор Service Desk" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Service Desk - обзор" })).toBeVisible();
+  const adminNavigation = page.getByRole("navigation", {
+    name: "Администрирование Service Desk"
+  });
   for (const item of [
     "Обзор",
     "Заявки",
@@ -40,7 +43,7 @@ test("Service Desk admin: полный admin navigation доступен", async
     "Рабочие календари",
     "Менеджеры и права"
   ]) {
-    await expect(page.getByRole("link", { name: item, exact: true })).toBeVisible();
+    await expect(adminNavigation.getByRole("link", { name: item, exact: true })).toBeVisible();
   }
 });
 
