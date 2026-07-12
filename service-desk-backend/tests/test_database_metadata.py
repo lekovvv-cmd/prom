@@ -50,6 +50,9 @@ def test_service_desk_access_tables_are_registered():
 
 
 def test_service_desk_access_model_keeps_roles_separate_from_projects():
-    assert [item.value for item in ServiceDeskAccessType] == ["manager", "service_desk_admin"]
+    assert [item.value for item in ServiceDeskAccessType] == [
+        "service_desk_manager",
+        "service_desk_admin",
+    ]
     assert "project_manager" not in {item.value for item in ServiceDeskAccessType}
     assert "service_desk.manage_access" in SERVICE_DESK_CAPABILITIES

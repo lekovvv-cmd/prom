@@ -15,7 +15,7 @@ def create_routing_user(
             identity_user_id=str(uuid.uuid4()),
             email=email,
             display_name=email.split("@", 1)[0],
-            access_type=ServiceDeskAccessType.MANAGER,
+            access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
             is_active=True,
         )
         db.add(user)

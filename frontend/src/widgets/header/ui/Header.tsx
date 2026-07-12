@@ -9,7 +9,7 @@ import { Button } from "../../../shared/ui/Button";
 import { ServiceDeskNotificationCenter } from "../../service-desk-notifications/ui/ServiceDeskNotificationCenter";
 
 const roleLabels = {
-  admin: "Админ",
+  platform_admin: "Админ",
   project_manager: "Руководитель",
   employee: "Сотрудник"
 };
@@ -44,7 +44,7 @@ export function Header() {
           <>
             <NavLink to="/projects"><FolderKanban size={15} aria-hidden="true" />Витрина</NavLink>
             {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
-            {token && user?.role !== "admin" && (
+            {token && user?.role !== "platform_admin" && (
               <>
                 <NavLink to="/my/projects"><FolderKanban size={15} aria-hidden="true" />Мои проекты</NavLink>
                 <NavLink to="/my/responses"><MessageSquare size={15} aria-hidden="true" />Мои отклики</NavLink>

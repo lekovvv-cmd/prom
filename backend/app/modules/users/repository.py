@@ -21,7 +21,7 @@ class UserRepository:
         return list(self.db.scalars(select(User).order_by(User.full_name.asc(), User.email.asc())))
 
     def list_directory(self, search: str | None = None) -> list[User]:
-        query = select(User).where(User.role != UserRole.ADMIN)
+        query = select(User).where(User.role != UserRole.PLATFORM_ADMIN)
         if search:
             pattern = f"%{search.strip()}%"
             query = query.where(

@@ -14,7 +14,7 @@ def create_sla_user(
     *,
     can_manage_sla: bool,
     has_service_desk_access: bool = True,
-    access_type: ServiceDeskAccessType = ServiceDeskAccessType.MANAGER,
+    access_type: ServiceDeskAccessType = ServiceDeskAccessType.SERVICE_DESK_MANAGER,
 ) -> str:
     with db_session_factory() as db:
         user = ServiceDeskUser(

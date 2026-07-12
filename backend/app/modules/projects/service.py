@@ -106,7 +106,7 @@ class ProjectService:
         )
 
     def list_recommendations(self, current_user: User, limit: int | None = None) -> list[ProjectRecommendationRead]:
-        if current_user.role == UserRole.ADMIN:
+        if current_user.role == UserRole.PLATFORM_ADMIN:
             return []
 
         rows, _, _, _ = self.repo.list_projects(
@@ -228,7 +228,7 @@ class ProjectService:
         candidates = [
             self._to_candidate(user, blocks, response_user_ids, member_user_ids)
             for user in users
-            if user.id != current_user.id or current_user.role == UserRole.ADMIN
+            if user.id != current_user.id or current_user.role == UserRole.PLATFORM_ADMIN
         ]
         if competency:
             candidates = [
@@ -263,7 +263,7 @@ class ProjectService:
         self._ensure_can_manage_project(project_id, current_user)
         project, _ = self._get_existing_with_count(project_id)
         user = UserRepository(self.db).get_by_id(user_id)
-        if user is None or user.role == UserRole.ADMIN:
+        if user is None or user.role == UserRole.PLATFORM_ADMIN:
             raise DomainError("Сотрудник не найден", status_code=404)
         self.repo.add_working_group_member(project, user.id)
         self.db.commit()
@@ -550,12 +550,12 @@ class ProjectService:
 
     @staticmethod
     def _manager_scope_user_id(current_user: User | None) -> UUID | None:
-        if current_user is None or current_user.role == UserRole.ADMIN:
+        if current_user is None or current_user.role == UserRole.PLATFORM_ADMIN:
             return None
         return current_user.id
 
     def _ensure_can_manage_project(self, project_id: UUID, current_user: User | None) -> None:
-        if current_user is None or current_user.role == UserRole.ADMIN:
+        if current_user is None or current_user.role == UserRole.PLATFORM_ADMIN:
             return
         if not self.repo.user_can_manage_project(project_id, current_user.id):
             raise DomainError("Недостаточно прав для управления этим проектом", status_code=403)

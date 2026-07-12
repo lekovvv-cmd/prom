@@ -1,5 +1,5 @@
 export type ServiceDeskAdminLandingUser = {
-  access_type: "manager" | "service_desk_admin";
+  access_type: "service_desk_manager" | "service_desk_admin";
   capabilities: string[];
 };
 

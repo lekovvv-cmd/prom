@@ -169,7 +169,7 @@ class ServiceDeskAccessService:
         self.db.add(user)
         try:
             self.db.flush()
-            if user.access_type == ServiceDeskAccessType.MANAGER:
+            if user.access_type == ServiceDeskAccessType.SERVICE_DESK_MANAGER:
                 user.capabilities = [
                     ServiceDeskUserCapability(capability=value, created_by=actor.id)
                     for value in caps
@@ -207,7 +207,7 @@ class ServiceDeskAccessService:
             )
         if (
             old_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
-            and user.access_type == ServiceDeskAccessType.MANAGER
+            and user.access_type == ServiceDeskAccessType.SERVICE_DESK_MANAGER
         ):
             self._replace_rows(user, [], actor)
         event = "access_type_changed" if old_type != user.access_type else "access_profile_updated"

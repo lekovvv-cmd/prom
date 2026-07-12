@@ -70,7 +70,7 @@ class UserService:
     @staticmethod
     def _role_for_email(email: str) -> UserRole:
         if email == "admin@utmn.ru":
-            return UserRole.ADMIN
+            return UserRole.PLATFORM_ADMIN
         if email == "manager@utmn.ru":
             return UserRole.PROJECT_MANAGER
         return UserRole.EMPLOYEE

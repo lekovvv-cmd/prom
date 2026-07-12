@@ -88,7 +88,7 @@ def test_resolution_escalations_use_pause_adjusted_effective_progress_once(
             identity_user_id=str(uuid.uuid4()),
             email="pause-aware-requester@utmn.ru",
             display_name="Pause-aware requester",
-            access_type=ServiceDeskAccessType.MANAGER,
+            access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
             is_active=True,
         )
         db.add(requester)
@@ -211,7 +211,7 @@ def test_sla_worker_does_not_hide_first_response_behind_resolution_pause(
             identity_user_id=str(uuid.uuid4()),
             email="first-response-pause@utmn.ru",
             display_name="First response pause requester",
-            access_type=ServiceDeskAccessType.MANAGER,
+            access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
             is_active=True,
         )
         db.add(requester)

@@ -60,8 +60,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     () => ({
       token,
       user,
-      isAdmin: user?.role === "admin",
-      canManageProjects: user?.role === "admin" || user?.role === "project_manager",
+      isAdmin: user?.role === "platform_admin",
+      canManageProjects: user?.role === "platform_admin" || user?.role === "project_manager",
       isLoading,
       login,
       logout,

@@ -898,7 +898,7 @@ def test_full_mvp_flow(client):
     headers = admin_headers(client)
     me = client.get("/api/me", headers=headers)
     assert me.status_code == 200
-    assert me.json()["role"] == "admin"
+    assert me.json()["role"] == "platform_admin"
 
     users = client.get("/api/admin/users", headers=headers)
     assert users.status_code == 200

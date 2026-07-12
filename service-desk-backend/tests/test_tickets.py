@@ -18,7 +18,7 @@ def create_requester(
             identity_user_id=str(uuid.uuid4()),
             email="requester@utmn.ru",
             display_name="Заявитель Service Desk",
-            access_type=ServiceDeskAccessType.MANAGER,
+            access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
             is_active=True,
         )
         db.add(user)

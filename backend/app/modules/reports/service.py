@@ -46,7 +46,7 @@ class ReportService:
             return CurrentReportState(active_period=None, report=None)
 
         report = None
-        if current_user.role != UserRole.ADMIN:
+        if current_user.role != UserRole.PLATFORM_ADMIN:
             report = self.repo.get_user_report(period.id, current_user.id)
         return CurrentReportState(
             active_period=ReportPeriodRead.model_validate(period),
@@ -54,7 +54,7 @@ class ReportService:
         )
 
     def submit_current_report(self, current_user: User, payload: HalfYearReportPayload) -> HalfYearReportRead:
-        if current_user.role == UserRole.ADMIN:
+        if current_user.role == UserRole.PLATFORM_ADMIN:
             raise DomainError("Администратор не подаёт полугодовой отчёт через профиль", status_code=403)
 
         period = self.repo.get_active_period()

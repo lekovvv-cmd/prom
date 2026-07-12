@@ -19,7 +19,7 @@ export function ProjectsListPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const canLoadRecommendations = Boolean(token && user?.role !== "admin");
+  const canLoadRecommendations = Boolean(token && user?.role !== "platform_admin");
 
   useEffect(() => {
     let ignore = false;

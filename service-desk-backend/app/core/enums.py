@@ -2,7 +2,7 @@ from enum import StrEnum
 
 
 class ServiceDeskAccessType(StrEnum):
-    MANAGER = "manager"
+    SERVICE_DESK_MANAGER = "service_desk_manager"
     SERVICE_DESK_ADMIN = "service_desk_admin"
 
 

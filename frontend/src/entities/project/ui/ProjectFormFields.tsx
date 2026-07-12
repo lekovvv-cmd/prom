@@ -90,7 +90,7 @@ export function validateProjectForm(form: ProjectMutationPayload) {
 }
 
 const ROLE_LABELS: Record<User["role"], string> = {
-  admin: "Админ",
+  platform_admin: "Администратор платформы",
   project_manager: "Руководитель",
   employee: "Сотрудник"
 };

@@ -5,7 +5,7 @@ export type ServiceDeskUser = {
   display_name: string;
   department: string | null;
   position: string | null;
-  access_type: "manager" | "service_desk_admin";
+  access_type: "service_desk_manager" | "service_desk_admin";
   is_active: boolean;
   capabilities: string[];
   created_at: string;

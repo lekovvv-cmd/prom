@@ -38,13 +38,13 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def require_admin_or_manager(current_user: CurrentUser) -> User:
-    if current_user.role not in {UserRole.ADMIN, UserRole.PROJECT_MANAGER}:
+    if current_user.role not in {UserRole.PLATFORM_ADMIN, UserRole.PROJECT_MANAGER}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     return current_user
 
 
 def require_admin(current_user: CurrentUser) -> User:
-    if current_user.role != UserRole.ADMIN:
+    if current_user.role != UserRole.PLATFORM_ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     return current_user
 

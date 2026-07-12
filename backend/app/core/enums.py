@@ -4,7 +4,7 @@ from enum import StrEnum
 class UserRole(StrEnum):
     EMPLOYEE = "employee"
     PROJECT_MANAGER = "project_manager"
-    ADMIN = "admin"
+    PLATFORM_ADMIN = "platform_admin"
 
 
 class ProjectStatus(StrEnum):

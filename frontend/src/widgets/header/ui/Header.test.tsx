@@ -8,7 +8,7 @@ vi.mock("../../../app/providers/AppProviders", () => ({
     isAdmin: true,
     logout: vi.fn(),
     token: "token",
-    user: { email: "admin@utmn.ru", role: "admin" }
+    user: { email: "admin@utmn.ru", role: "platform_admin" }
   })
 }));
 

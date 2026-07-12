@@ -21,7 +21,7 @@ def create_service_desk_user(
     *,
     identity_user_id: str | None = None,
     is_active: bool = True,
-    access_type: ServiceDeskAccessType = ServiceDeskAccessType.MANAGER,
+    access_type: ServiceDeskAccessType = ServiceDeskAccessType.SERVICE_DESK_MANAGER,
     capabilities: tuple[str, ...] = ("service_desk.access",),
 ) -> ServiceDeskUser:
     with db_session_factory() as db:
@@ -69,7 +69,7 @@ def test_me_returns_local_projection_and_capabilities(client, db_session_factory
         "display_name": "Тестовый пользователь",
         "department": "ШПИУ",
         "position": "Менеджер",
-        "access_type": "manager",
+        "access_type": "service_desk_manager",
         "is_active": True,
         "capabilities": ["service_desk.access", "service_desk.approve"],
         "created_at": user.created_at.isoformat().replace("+00:00", "Z"),

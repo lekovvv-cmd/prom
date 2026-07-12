@@ -114,7 +114,7 @@ def create_user(
     db_session_factory,
     email: str,
     *,
-    access_type: ServiceDeskAccessType = ServiceDeskAccessType.MANAGER,
+    access_type: ServiceDeskAccessType = ServiceDeskAccessType.SERVICE_DESK_MANAGER,
     capabilities: tuple[str, ...] = (),
 ) -> str:
     with db_session_factory() as db:

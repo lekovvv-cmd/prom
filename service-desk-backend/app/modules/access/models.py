@@ -26,7 +26,7 @@ class ServiceDeskUser(Base):
     access_type: Mapped[ServiceDeskAccessType] = mapped_column(
         SAEnum(ServiceDeskAccessType, values_callable=enum_values, native_enum=False, length=32),
         nullable=False,
-        default=ServiceDeskAccessType.MANAGER,
+        default=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(

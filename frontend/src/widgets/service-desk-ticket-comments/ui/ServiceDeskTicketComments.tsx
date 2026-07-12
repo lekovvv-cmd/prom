@@ -18,7 +18,7 @@ export function ServiceDeskTicketComments({
   ticket,
   onTicketChanged
 }: {
-  currentUser: { id: string; access_type: "manager" | "service_desk_admin"; capabilities: string[] };
+  currentUser: { id: string; access_type: "service_desk_manager" | "service_desk_admin"; capabilities: string[] };
   ticket: ServiceDeskTicket;
   onTicketChanged: () => Promise<void>;
 }) {

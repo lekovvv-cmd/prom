@@ -38,7 +38,7 @@ class ProjectResponseService:
             raise DomainError("Отклики доступны только для активных и приостановленных проектов")
 
         email = ensure_utmn_email(payload.email)
-        if current_user.role == UserRole.ADMIN:
+        if current_user.role == UserRole.PLATFORM_ADMIN:
             raise DomainError("Администратор не может отправлять отклики на проекты", status_code=403)
         if email != current_user.email:
             raise DomainError("Отклик можно отправить только от своего email", status_code=403)
@@ -166,12 +166,12 @@ class ProjectResponseService:
 
     @staticmethod
     def _manager_scope_user_id(current_user: User) -> UUID | None:
-        if current_user.role == UserRole.ADMIN:
+        if current_user.role == UserRole.PLATFORM_ADMIN:
             return None
         return current_user.id
 
     def _ensure_can_manage_project(self, project_id: UUID, current_user: User) -> None:
-        if current_user.role == UserRole.ADMIN:
+        if current_user.role == UserRole.PLATFORM_ADMIN:
             return
         if not self.repo.user_can_manage_project(project_id, current_user.id):
             raise DomainError("Недостаточно прав для работы с откликами этого проекта", status_code=403)

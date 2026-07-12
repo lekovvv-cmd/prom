@@ -20,7 +20,7 @@ def create_manager(db_session_factory, *capabilities: str) -> str:
             identity_user_id=str(uuid.uuid4()),
             email=f"{uuid.uuid4()}@utmn.ru",
             display_name="Операционный менеджер",
-            access_type=ServiceDeskAccessType.MANAGER,
+            access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
             is_active=True,
         )
         db.add(user)
@@ -225,7 +225,7 @@ def test_allowed_actions_match_lifecycle_and_assignee_options(
         ticket = db.get(ServiceDeskTicket, uuid.UUID(source["id"]))
         unrelated = ServiceDeskUser(
             identity_user_id=str(uuid.uuid4()), email="unrelated@utmn.ru",
-            display_name="Посторонний", access_type=ServiceDeskAccessType.MANAGER, is_active=True,
+            display_name="Посторонний", access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER, is_active=True,
         )
         db.add(unrelated)
         db.flush()

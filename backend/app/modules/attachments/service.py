@@ -42,7 +42,7 @@ class AttachmentService:
         response = ProjectResponseRepository(self.db).get_by_id(response_id)
         if response is None or response.project_id != project_id:
             raise DomainError("Отклик не найден", status_code=404)
-        if current_user.role != UserRole.ADMIN and response.user_id != current_user.id:
+        if current_user.role != UserRole.PLATFORM_ADMIN and response.user_id != current_user.id:
             raise DomainError("Недостаточно прав для загрузки файла к этому отклику", status_code=403)
         return self._upload(
             owner_type=AttachmentOwnerType.RESPONSE,

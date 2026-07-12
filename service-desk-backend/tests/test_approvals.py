@@ -23,7 +23,7 @@ def create_approval_user(
     email: str,
     *,
     can_approve: bool,
-    access_type: ServiceDeskAccessType = ServiceDeskAccessType.MANAGER,
+    access_type: ServiceDeskAccessType = ServiceDeskAccessType.SERVICE_DESK_MANAGER,
     capabilities: tuple[str, ...] = (),
 ) -> str:
     with db_session_factory() as db:

@@ -83,7 +83,7 @@ export function ProjectResponseForm({
     );
   }
 
-  if (user?.role === "admin") {
+  if (user?.role === "platform_admin") {
     return (
       <section className="form-panel" id="response-form" aria-live="polite">
         <h2>Отклики недоступны</h2>

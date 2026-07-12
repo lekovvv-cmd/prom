@@ -16,7 +16,7 @@ def _manager(db_session_factory, auth_headers_for_user, *capabilities):
             identity_user_id=str(uuid.uuid4()),
             email="reports@utmn.ru",
             display_name="Reports",
-            access_type=ServiceDeskAccessType.MANAGER,
+            access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         )
         db.add(user)
         db.flush()
@@ -69,7 +69,7 @@ def _user(db, name="Assignee", *, reports=False):
         identity_user_id=str(uuid.uuid4()),
         email=f"{uuid.uuid4()}@utmn.ru",
         display_name=name,
-        access_type=ServiceDeskAccessType.MANAGER,
+        access_type=ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         is_active=True,
     )
     db.add(user)

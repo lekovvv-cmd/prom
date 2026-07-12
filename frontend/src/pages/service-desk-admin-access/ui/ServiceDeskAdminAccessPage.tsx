@@ -133,7 +133,7 @@ export function ServiceDeskAdminAccessPage() {
       const created = await createAccessUser({
         identity_user_id: data.get("identity"),
         ...userPayload(form),
-        capabilities: data.get("type") === "manager" ? ["service_desk.access"] : []
+        capabilities: data.get("type") === "service_desk_manager" ? ["service_desk.access"] : []
       });
       form.reset();
       return created;
@@ -148,7 +148,7 @@ export function ServiceDeskAdminAccessPage() {
     const save = async () => {
       if (await mutate(() => updateAccessUser(editing.id, payload), editing.id)) setEditing(null);
     };
-    const dangerous = editing.access_type === "service_desk_admin" && payload.access_type === "manager";
+    const dangerous = editing.access_type === "service_desk_admin" && payload.access_type === "service_desk_manager";
     const selfChange = editing.id === actor?.id && payload.access_type !== editing.access_type;
     if (dangerous || selfChange) {
       setConfirmingAction({
@@ -193,7 +193,7 @@ export function ServiceDeskAdminAccessPage() {
             <Input name="department" label="Подразделение" />
             <Input name="position" label="Должность" />
             <Select name="type" label="Тип доступа">
-              <option value="manager">Менеджер</option>
+              <option value="service_desk_manager">Менеджер Service Desk</option>
               <option value="service_desk_admin">Администратор Service Desk</option>
             </Select>
             <Button disabled={pending}>Предоставить доступ</Button>
@@ -205,7 +205,7 @@ export function ServiceDeskAdminAccessPage() {
             <Input label="Поиск" value={filters.q} onChange={(event) => updateFilter("q", event.target.value)} />
             <Select label="Тип" value={filters.accessType} onChange={(event) => updateFilter("accessType", event.target.value)}>
               <option value="">Все</option>
-              <option value="manager">Менеджеры</option>
+              <option value="service_desk_manager">Менеджеры Service Desk</option>
               <option value="service_desk_admin">Администраторы</option>
             </Select>
             <Select label="Статус" value={filters.isActive} onChange={(event) => updateFilter("isActive", event.target.value)}>
@@ -273,7 +273,7 @@ export function ServiceDeskAdminAccessPage() {
             <Input name="department" label="Подразделение" defaultValue={editing.department ?? ""} />
             <Input name="position" label="Должность" defaultValue={editing.position ?? ""} />
             <Select name="type" label="Тип доступа" defaultValue={editing.access_type}>
-              <option value="manager">Менеджер</option>
+              <option value="service_desk_manager">Менеджер Service Desk</option>
               <option value="service_desk_admin">Администратор Service Desk</option>
             </Select>
             <div className="table-actions">

@@ -13,7 +13,7 @@ def test_admin_can_manage_local_access_with_audit(client, db_session_factory):
             "identity_user_id": identity,
             "email": "manager@utmn.ru",
             "display_name": "Manager",
-            "access_type": "manager",
+            "access_type": "service_desk_manager",
             "capabilities": ["service_desk.access", "service_desk.view_reports"],
         },
     )
@@ -60,7 +60,7 @@ def test_admin_to_manager_requires_explicit_manager_capabilities(client):
             "access_type": "service_desk_admin",
         },
     ).json()
-    updated = client.patch(f"/admin/access/users/{created['id']}", json={"access_type": "manager"})
+    updated = client.patch(f"/admin/access/users/{created['id']}", json={"access_type": "service_desk_manager"})
     assert updated.status_code == 200 and updated.json()["capabilities"] == []
 
 
@@ -75,7 +75,7 @@ def test_access_patch_validation_and_capability_mutation_are_isolated(
             "display_name": " Patch User ",
             "department": "  IT  ",
             "position": "  Analyst  ",
-            "access_type": "manager",
+            "access_type": "service_desk_manager",
             "capabilities": ["service_desk.access"],
         },
     )
@@ -150,7 +150,7 @@ def test_last_active_service_desk_admin_is_protected(client):
 
     demoted = client.patch(
         f"/admin/access/users/{only_admin['id']}",
-        json={"access_type": "manager"},
+        json={"access_type": "service_desk_manager"},
     )
     assert demoted.status_code == 409
 

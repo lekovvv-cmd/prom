@@ -18,7 +18,7 @@ DEMO_PROFILE_RULES: dict[str, dict[str, Any]] = {
         "capabilities": (),
     },
     "manager@utmn.ru": {
-        "access_type": ServiceDeskAccessType.MANAGER,
+        "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         "capabilities": (
             "service_desk.access",
             "service_desk.create_request",
@@ -32,11 +32,11 @@ DEMO_PROFILE_RULES: dict[str, dict[str, Any]] = {
         ),
     },
     "employee@utmn.ru": {
-        "access_type": ServiceDeskAccessType.MANAGER,
+        "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         "capabilities": ("service_desk.access", "service_desk.be_assignee"),
     },
     "analyst@utmn.ru": {
-        "access_type": ServiceDeskAccessType.MANAGER,
+        "access_type": ServiceDeskAccessType.SERVICE_DESK_MANAGER,
         "capabilities": (
             "service_desk.access",
             "service_desk.create_request",

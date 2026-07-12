@@ -94,7 +94,7 @@ def main() -> None:
             email="admin@utmn.ru",
             user_id=DEMO_IDENTITY_USER_IDS["admin@utmn.ru"],
             full_name="Администратор ШПИУ",
-            role=UserRole.ADMIN,
+            role=UserRole.PLATFORM_ADMIN,
             department="ШПИУ",
             position="Администратор витрины",
         )

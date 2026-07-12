@@ -113,7 +113,7 @@ class ProjectTaskService:
         task = self.repo.get_task(task_id)
         if task is None:
             raise DomainError("Задача не найдена", status_code=404)
-        if current_user.role == UserRole.ADMIN or self.project_repo.user_can_manage_project(task.project_id, current_user.id):
+        if current_user.role == UserRole.PLATFORM_ADMIN or self.project_repo.user_can_manage_project(task.project_id, current_user.id):
             return task
         if task.assignee_user_id == current_user.id:
             return task
@@ -142,7 +142,7 @@ class ProjectTaskService:
 
     def _ensure_can_manage_project(self, project_id: UUID, current_user: User) -> None:
         ProjectService(self.db).get_existing_project(project_id)
-        if current_user.role == UserRole.ADMIN:
+        if current_user.role == UserRole.PLATFORM_ADMIN:
             return
         if not self.project_repo.user_can_manage_project(project_id, current_user.id):
             raise DomainError("Недостаточно прав для управления задачами этого проекта", status_code=403)

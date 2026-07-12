@@ -9,7 +9,7 @@ describe("Service Desk admin landing", () => {
     ["service_desk.manage_access", "/admin/service-desk/access"],
     ["service_desk.view_reports", "/admin/service-desk"],
   ])("routes %s to %s", (capability, expected) => {
-    expect(getServiceDeskAdminLanding({ access_type: "manager", capabilities: [capability] })).toBe(expected);
+    expect(getServiceDeskAdminLanding({ access_type: "service_desk_manager", capabilities: [capability] })).toBe(expected);
   });
 
   it("routes Service Desk admin to dashboard", () => {
