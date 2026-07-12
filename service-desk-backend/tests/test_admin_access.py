@@ -135,3 +135,36 @@ def test_access_patch_validation_and_capability_mutation_are_isolated(
             "service_desk.access",
             "service_desk.view_reports",
         ]
+
+
+def test_last_active_service_desk_admin_is_protected(client):
+    page = client.get("/admin/access/users?access_type=service_desk_admin")
+    assert page.status_code == 200, page.text
+    only_admin = page.json()["items"][0]
+
+    deactivated = client.post(f"/admin/access/users/{only_admin['id']}/deactivate")
+    assert deactivated.status_code == 409
+    assert deactivated.json()["detail"] == (
+        "Нельзя отключить последнего активного администратора Service Desk"
+    )
+
+    demoted = client.patch(
+        f"/admin/access/users/{only_admin['id']}",
+        json={"access_type": "manager"},
+    )
+    assert demoted.status_code == 409
+
+    second_admin = client.post(
+        "/admin/access/users",
+        json={
+            "identity_user_id": str(uuid.uuid4()),
+            "email": "second-admin@utmn.ru",
+            "display_name": "Second Admin",
+            "access_type": "service_desk_admin",
+        },
+    )
+    assert second_admin.status_code == 201, second_admin.text
+    allowed = client.post(
+        f"/admin/access/users/{second_admin.json()['id']}/deactivate"
+    )
+    assert allowed.status_code == 200

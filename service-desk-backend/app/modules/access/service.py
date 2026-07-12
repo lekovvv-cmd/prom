@@ -193,6 +193,12 @@ class ServiceDeskAccessService:
         old_type = user.access_type
         if "access_type" in values:
             values["access_type"] = ServiceDeskAccessType(values["access_type"])
+            if (
+                user.is_active
+                and old_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+                and values["access_type"] != ServiceDeskAccessType.SERVICE_DESK_ADMIN
+            ):
+                self._require_another_active_admin(user.id)
         for key, value in values.items():
             setattr(
                 user,
@@ -237,6 +243,12 @@ class ServiceDeskAccessService:
         self.require_manage_access(actor)
         assert self.db is not None
         user = self._get(user_id)
+        if (
+            not active
+            and user.is_active
+            and user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+        ):
+            self._require_another_active_admin(user.id)
         before = self._state(user)
         user.is_active = active
         self.db.flush()
@@ -249,3 +261,19 @@ class ServiceDeskAccessService:
         )
         self.db.commit()
         return self.user_read(self._get(user.id))
+
+    def _require_another_active_admin(self, excluded_user_id: uuid.UUID) -> None:
+        assert self.db is not None
+        active_admin_ids = self.db.scalars(
+            select(ServiceDeskUser.id)
+            .where(
+                ServiceDeskUser.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN,
+                ServiceDeskUser.is_active.is_(True),
+            )
+            .with_for_update()
+        ).all()
+        if not any(user_id != excluded_user_id for user_id in active_admin_ids):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Нельзя отключить последнего активного администратора Service Desk",
+            )
