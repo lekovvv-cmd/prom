@@ -69,7 +69,7 @@ class TicketService:
             description=payload.description,
             status=ServiceDeskTicketStatus.DRAFT,
             priority=payload.priority,
-            field_values=payload.field_values,
+            field_values=self._with_template_defaults(template_version, payload.field_values),
         )
         self.repository.add_ticket(ticket)
         self._write_history(
@@ -476,6 +476,18 @@ class TicketService:
             if field.field_type == TemplateFieldType.FILE:
                 field_values[field.key] = uploaded_files.get(field.key, [])
         return field_values
+
+    @staticmethod
+    def _with_template_defaults(
+        template_version: ServiceDeskTemplateVersion,
+        field_values: dict[str, Any],
+    ) -> dict[str, Any]:
+        values = dict(field_values)
+        for field in template_version.fields:
+            default_value = (field.validation or {}).get("default_value")
+            if field.key not in values and default_value is not None:
+                values[field.key] = default_value
+        return values
 
     @staticmethod
     def _validate_system_fields(
