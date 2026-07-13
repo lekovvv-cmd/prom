@@ -62,7 +62,7 @@ export function ServiceDeskServiceFormPage() {
         setTitle(ticket?.title ?? settings.default_title ?? serviceItem.title);
         setDescription(ticket?.description ?? "");
         setPriority(ticket?.priority ?? "medium");
-        setValues(ticket?.field_values ?? {});
+        setValues(ticket ? ticket.field_values : fieldDefaults(formData.fields));
         setDraft(ticket);
         if (ticketId && ticket) {
           const fileFields = formData.fields.filter((field) => field.field_type === "file");
@@ -207,5 +207,11 @@ function DynamicField({ ticketId, field, value, files, existingAttachments, user
 
 function FieldHelp({ field }: { field: ServiceDeskTemplateField }) { return field.help_text ? <small className="field-help">{field.help_text}</small> : null; }
 function FieldError({ error, id }: { error?: string; id?: string }) { return error ? <small id={id} className="field-error">{error}</small> : null; }
+function fieldDefaults(fields: ServiceDeskTemplateField[]): FormValues {
+  return Object.fromEntries(fields.flatMap((field) => {
+    const value = field.validation?.default_value;
+    return value === undefined ? [] : [[field.key, value]];
+  }));
+}
 function formatSize(size: number) { return size < 1024 ? `${size} Б` : size < 1024 * 1024 ? `${(size / 1024).toFixed(1)} КБ` : `${(size / 1024 / 1024).toFixed(1)} МБ`; }
 async function downloadExistingAttachment(ticketId: string, attachment: ServiceDeskAttachment) { const blob = await downloadServiceDeskAttachment(ticketId, attachment.id); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = attachment.file_name; link.click(); URL.revokeObjectURL(url); }

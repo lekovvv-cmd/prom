@@ -61,3 +61,13 @@ Projects DB и Service Desk DB остаются раздельными. Service 
 - Playwright discovery: `12 tests`.
 - Обновлённый production Compose E2E: не выполнен локально из-за недоступного Docker socket;
   не считать этот пункт зелёным до фактического прогона.
+# Approved templates revision (2026-07-13)
+
+- Added revision-aware seed/sync for the 11 approved Service Desk templates:
+  `approved-11-v1`.
+- Seed versions are upgraded by archiving only prior seed-generated published
+  versions; manually published versions remain untouched and receive an approved draft.
+- Mapping, aliases, dictionary scope and known source gaps are documented in
+  `SERVICE_DESK_APPROVED_TEMPLATES_MAPPING.md`.
+- This work does not implement SSO, email delivery or an external ТюмГУ directory
+  integration.
