@@ -130,14 +130,17 @@ function RoutingRuleForm({
           onChange={(event) => onChange((current) => ({ ...current, name: event.target.value }))}
           required
         />
-        <Input
-          label="Приоритет (меньше — раньше)"
-          type="number"
-          min="0"
-          value={draft.priority}
-          onChange={(event) => onChange((current) => ({ ...current, priority: event.target.value }))}
-          required
-        />
+        <div className="service-desk-routing-order">
+          <Input
+            label="Позиция в цепочке"
+            type="number"
+            min="0"
+            value={draft.priority}
+            onChange={(event) => onChange((current) => ({ ...current, priority: event.target.value }))}
+            required
+          />
+          <p>Правила проверяются по возрастанию номера: 1 — первым. После сохранения цепочку можно менять стрелками в списке.</p>
+        </div>
         <label className="service-desk-routing-check">
           <input
             type="checkbox"
@@ -442,7 +445,7 @@ export function ServiceDeskAdminRoutingPage() {
     <>
       <PageLayout
         title="Маршрутизация Service Desk"
-        subtitle="Правила проверяются от меньшего приоритета к большему. Первое правило назначения выбирает исполнителя."
+        subtitle="Правила образуют цепочку и проверяются сверху вниз. Первое подходящее правило назначает исполнителя."
         actions={
           <div className="service-desk-routing-page-actions">
             <Button variant="secondary" onClick={() => void loadData()} disabled={isLoading}>
@@ -480,7 +483,7 @@ export function ServiceDeskAdminRoutingPage() {
                     <div className="service-desk-routing-card-heading">
                       <div>
                         <div className="card-topline">
-                          <span className="service-desk-routing-priority">Приоритет {rule.priority}</span>
+                          <span className="service-desk-routing-priority">Шаг {index + 1} в цепочке</span>
                           <span className={rule.is_active ? "status-badge status-active" : "status-badge status-archived"}>
                             {rule.is_active ? "Активно" : "Выключено"}
                           </span>

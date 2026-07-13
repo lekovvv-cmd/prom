@@ -160,7 +160,12 @@ export function ServiceDeskWorkbenchPage() {
           {counters && (Object.keys(quickLabels) as WorkbenchQuickView[])
             .filter((key) => counters[key] !== null)
             .map((key) => (
-              <Button key={key} variant={filters.quick_view === key ? "primary" : "secondary"} onClick={() => updateFilter("quick_view", key)}>
+              <Button
+                key={key}
+                variant={filters.quick_view === key ? "primary" : "secondary"}
+                aria-pressed={filters.quick_view === key}
+                onClick={() => updateFilter("quick_view", filters.quick_view === key ? "" : key)}
+              >
                 {quickLabels[key]} · {counters[key]}
               </Button>
             ))}

@@ -35,6 +35,9 @@ export function ServiceDeskAdminNav() {
               if (to === "/admin/service-desk/sla") {
                 return location.pathname === to && new URLSearchParams(location.search).get("section") !== "calendars" ? "active" : "";
               }
+              if (to === "/admin/service-desk") {
+                return location.pathname === to ? "active" : "";
+              }
               return location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : "";
             }}
           >

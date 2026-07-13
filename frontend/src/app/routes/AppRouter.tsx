@@ -30,7 +30,6 @@ import { Card } from "../../shared/ui/Card";
 import { PageLayout } from "../../shared/ui/PageLayout";
 import { Header } from "../../widgets/header/ui/Header";
 import { ServiceDeskAdminLayout } from "../../widgets/service-desk-admin-layout/ui/ServiceDeskAdminLayout";
-import { ServiceDeskContextualCounters } from "../../widgets/service-desk-notifications/ui/ServiceDeskContextualCounters";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, isLoading, token } = useAuth();
@@ -115,7 +114,7 @@ function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <><ServiceDeskContextualCounters />{children}</>;
+  return <>{children}</>;
 }
 
 function ServiceDeskRoutingAdminRoute({ children }: { children: React.ReactNode }) {

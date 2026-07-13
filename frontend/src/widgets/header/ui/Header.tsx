@@ -6,6 +6,7 @@ import { useServiceDeskAccess } from "../../../app/providers/ServiceDeskAccessPr
 import { getServiceDeskAdminLanding } from "../../../entities/service-desk-admin/model/adminLanding";
 import utmnLogo from "../../../shared/assets/utmn-logo.png";
 import { Button } from "../../../shared/ui/Button";
+import { ServiceDeskContextualCounters } from "../../service-desk-notifications/ui/ServiceDeskContextualCounters";
 import { ServiceDeskNotificationCenter } from "../../service-desk-notifications/ui/ServiceDeskNotificationCenter";
 
 const roleLabels = {
@@ -34,16 +35,14 @@ export function Header() {
       <nav className="main-nav">
         {isServiceDeskRoute ? (
           <>
-            <NavLink to="/service-desk"><Table2 size={15} aria-hidden="true" />Каталог</NavLink>
+            <NavLink end to="/service-desk"><Table2 size={15} aria-hidden="true" />Каталог</NavLink>
             {token && <NavLink to="/service-desk/my-tickets"><FileText size={15} aria-hidden="true" />Мои заявки</NavLink>}
             {canUseWorkbench && <NavLink to="/service-desk/workbench"><Archive size={15} aria-hidden="true" />Рабочее место</NavLink>}
             {adminLanding ? <NavLink to={adminLanding}><BarChart3 size={15} aria-hidden="true" />Администрирование</NavLink> : null}
-            {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
           </>
         ) : (
           <>
-            <NavLink to="/projects"><FolderKanban size={15} aria-hidden="true" />Витрина</NavLink>
-            {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
+            <NavLink end to="/projects"><FolderKanban size={15} aria-hidden="true" />Витрина</NavLink>
             {token && user?.role !== "platform_admin" && (
               <>
                 <NavLink to="/my/projects"><FolderKanban size={15} aria-hidden="true" />Мои проекты</NavLink>
@@ -60,12 +59,15 @@ export function Header() {
           </>
         )}
       </nav>
-      <nav className="module-switcher" aria-label="Переключатель модулей">
-        <NavLink to="/projects" className={({ isActive }) => !isServiceDeskRoute && isActive ? "active" : ""}>Проекты</NavLink>
-        {!token || serviceDeskUser ? (
-          <NavLink to="/service-desk" className={() => isServiceDeskRoute ? "active" : ""}>Service Desk</NavLink>
-        ) : null}
-      </nav>
+      <div className="header-tools">
+        {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
+        <nav className="module-switcher" aria-label="Переключатель модулей">
+          <NavLink to="/projects" className={({ isActive }) => !isServiceDeskRoute && isActive ? "active" : ""}>Проекты</NavLink>
+          {!token || serviceDeskUser ? (
+            <NavLink to="/service-desk" className={() => isServiceDeskRoute ? "active" : ""}>Service Desk</NavLink>
+          ) : null}
+        </nav>
+      </div>
       <div className="header-auth">
         {token ? (
           <>
@@ -86,6 +88,7 @@ export function Header() {
           </NavLink>
         )}
       </div>
+      {isServiceDeskRoute && token && serviceDeskUser ? <div className="service-desk-header-status"><ServiceDeskContextualCounters /></div> : null}
     </header>
   );
 }
