@@ -7,6 +7,7 @@ from scripts.seed import (
     APPROVED_TEMPLATE_CATEGORY_BY_SERVICE,
     APPROVED_TEMPLATE_REVISION,
     APPROVED_TEMPLATE_SOURCE,
+    APPROVED_TEMPLATE_REVISION_BY_SERVICE,
     main as seed_main,
     seed_categories,
     seed_dictionaries,
@@ -110,6 +111,40 @@ def test_seed_publishes_every_active_service_and_resolves_dictionary_options(cli
         {"label": "Негазированная", "value": "still", "position": 1, "is_active": True, "metadata": {}},
         {"label": "Другое", "value": "other", "position": 2, "is_active": True, "metadata": {}},
     ]
+    movement = next(
+        item
+        for item in services.json()
+        if item["title"] == "Ввоз (вывоз) и внос (вынос) материальных ценностей"
+    )
+    movement_form = client.get(
+        f"/services/{movement['id']}/form", headers=client.admin_headers
+    )
+    movement_fields = {field["key"]: field for field in movement_form.json()["fields"]}
+    assert movement_fields["movement_type"]["effective_options"] == [
+        {"label": "Ввоз", "value": "import", "position": 0, "is_active": True, "metadata": {}},
+        {"label": "Вывоз", "value": "export", "position": 1, "is_active": True, "metadata": {}},
+        {"label": "Внос", "value": "bring_in", "position": 2, "is_active": True, "metadata": {}},
+        {"label": "Вынос", "value": "take_out", "position": 3, "is_active": True, "metadata": {}},
+    ]
+    with db_session_factory() as db:
+        active_dictionary_codes = set(
+            db.scalars(
+                select(ServiceDeskDictionary.code).where(
+                    ServiceDeskDictionary.is_active.is_(True)
+                )
+            )
+        )
+        published_dictionary_codes = set(
+            db.scalars(
+                select(ServiceDeskTemplateField.dictionary_code)
+                .join(ServiceDeskTemplateVersion)
+                .where(
+                    ServiceDeskTemplateVersion.status == TemplateVersionStatus.PUBLISHED,
+                    ServiceDeskTemplateField.dictionary_code.is_not(None),
+                )
+            )
+        )
+    assert active_dictionary_codes == published_dictionary_codes
 
 
 def test_seed_preserves_user_draft_and_creates_separate_fallback(client, db_session_factory):
@@ -202,6 +237,7 @@ def test_approved_templates_have_exact_versioned_schemas(client, db_session_fact
         ],
         "Ввоз (вывоз) и внос (вынос) материальных ценностей": [
             ("event_name", "Название мероприятия", "text", True, None, None, None),
+            ("movement_type", "Тип перемещения", "select", True, "movement_type", None, None),
             ("movement_starts_at", "Дата и время вноса (ввоза)", "datetime", True, None, None, None),
             ("movement_ends_at", "Дата и время выноса (вывоза)", "datetime", True, None, None, None),
             ("inventory_list_file", "Прикрепите файл с перечнем МЦ", "file", True, None, None, None),
@@ -262,7 +298,10 @@ def test_approved_templates_have_exact_versioned_schemas(client, db_session_fact
             )
             assert version.system_settings["default_title"] == service_title
             assert version.system_settings["_seed_generated"] is True
-            assert version.system_settings["_approved_template_revision"] == APPROVED_TEMPLATE_REVISION
+            assert version.system_settings["_approved_template_revision"] == APPROVED_TEMPLATE_REVISION_BY_SERVICE.get(
+                service_title,
+                APPROVED_TEMPLATE_REVISION,
+            )
             assert version.system_settings["_approved_template_source"] == APPROVED_TEMPLATE_SOURCE
             actual_fields = [
                 (

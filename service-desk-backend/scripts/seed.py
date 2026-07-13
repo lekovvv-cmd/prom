@@ -96,6 +96,9 @@ SERVICES_BY_CATEGORY = {
 
 APPROVED_TEMPLATE_REVISION = "approved-11-v1"
 APPROVED_TEMPLATE_SOURCE = "PROM_TZ_11_APPROVED_SERVICE_DESK_TEMPLATES.md"
+APPROVED_TEMPLATE_REVISION_BY_SERVICE = {
+    "Ввоз (вывоз) и внос (вынос) материальных ценностей": "approved-11-v2-dictionaries",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +146,15 @@ DICTIONARIES = {
             ("Газированная", "sparkling"),
             ("Негазированная", "still"),
             ("Другое", "other"),
+        ],
+    },
+    "movement_type": {
+        "title": "Тип перемещения материальных ценностей",
+        "items": [
+            ("Ввоз", "import"),
+            ("Вывоз", "export"),
+            ("Внос", "bring_in"),
+            ("Вынос", "take_out"),
         ],
     },
     "gia_type": {
@@ -258,12 +270,13 @@ APPROVED_TEMPLATE_FIELDS = {
     ],
     "Ввоз (вывоз) и внос (вынос) материальных ценностей": [
         field("event_name", "Название мероприятия", TemplateFieldType.TEXT, 0),
-        field("movement_starts_at", "Дата и время вноса (ввоза)", TemplateFieldType.DATETIME, 1),
-        field("movement_ends_at", "Дата и время выноса (вывоза)", TemplateFieldType.DATETIME, 2),
-        field("inventory_list_file", "Прикрепите файл с перечнем МЦ", TemplateFieldType.FILE, 3),
-        field("material_type", "Вид материальных ценностей", TemplateFieldType.TEXT, 4),
-        field("packaging", "Тара", TemplateFieldType.TEXT, 5),
-        field("vehicle_details", "Номер, модель ТС при ввозе (вывозе)", TemplateFieldType.TEXT, 6),
+        field("movement_type", "Тип перемещения", TemplateFieldType.SELECT, 1, dictionary_code="movement_type"),
+        field("movement_starts_at", "Дата и время вноса (ввоза)", TemplateFieldType.DATETIME, 2),
+        field("movement_ends_at", "Дата и время выноса (вывоза)", TemplateFieldType.DATETIME, 3),
+        field("inventory_list_file", "Прикрепите файл с перечнем МЦ", TemplateFieldType.FILE, 4),
+        field("material_type", "Вид материальных ценностей", TemplateFieldType.TEXT, 5),
+        field("packaging", "Тара", TemplateFieldType.TEXT, 6),
+        field("vehicle_details", "Номер, модель ТС при ввозе (вывозе)", TemplateFieldType.TEXT, 7),
     ],
     "Допуск в здание": [
         field("person_full_name", "ФИО (на кого оформляется допуск)", TemplateFieldType.TEXTAREA, 0),
@@ -497,12 +510,16 @@ def _sync_approved_template(
     versions: list[ServiceDeskTemplateVersion],
     fields: list[dict[str, Any]],
 ) -> None:
+    revision = APPROVED_TEMPLATE_REVISION_BY_SERVICE.get(
+        service.title,
+        APPROVED_TEMPLATE_REVISION,
+    )
     approved_version = next(
         (
             item
             for item in versions
             if item.system_settings.get("_approved_template_revision")
-            == APPROVED_TEMPLATE_REVISION
+            == revision
         ),
         None,
     )
@@ -534,7 +551,7 @@ def _sync_approved_template(
             "default_title": service.title,
             "help_text": "Заполните поля формы и приложите файлы при необходимости.",
             "_seed_generated": True,
-            "_approved_template_revision": APPROVED_TEMPLATE_REVISION,
+            "_approved_template_revision": revision,
             "_approved_template_source": APPROVED_TEMPLATE_SOURCE,
         },
         published_at=now if should_publish else None,
