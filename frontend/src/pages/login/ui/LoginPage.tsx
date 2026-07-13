@@ -6,9 +6,11 @@ export function LoginPage() {
     <>
       <Header />
       <main className="login-page">
-        <section>
-          <h1>Вход в PROM</h1>
-          <p>Для MVP используется email на домене @utmn.ru и dev-код 000000.</p>
+        <section className="login-shell" aria-labelledby="login-title">
+          <div className="login-copy">
+            <h1 id="login-title">Вход в PROM</h1>
+            <p>Выберите демонстрационную роль или введите корпоративный адрес электронной почты.</p>
+          </div>
           <LoginForm />
         </section>
       </main>

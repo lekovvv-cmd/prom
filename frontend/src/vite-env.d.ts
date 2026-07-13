@@ -8,6 +8,7 @@ declare module "lucide-react" {
   export const Archive: Icon;
   export const ArchiveRestore: Icon;
   export const ArrowDown: Icon;
+  export const ArrowRight: Icon;
   export const ArrowUp: Icon;
   export const BarChart3: Icon;
   export const Bell: Icon;

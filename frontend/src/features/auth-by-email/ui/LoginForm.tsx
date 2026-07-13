@@ -9,11 +9,11 @@ import { isUtmnEmail, normalizeEmail } from "../../../shared/lib/email";
 import { requestCode, verifyCode } from "../api/authApi";
 
 const demoUsers = [
-  { label: "Сотрудник", email: "employee@utmn.ru", description: "Projects, без Service Desk" },
-  { label: "Руководитель проектов", email: "project.manager@utmn.ru", description: "управление Projects, без Service Desk" },
+  { label: "Сотрудник", email: "employee@utmn.ru", description: "Проекты, отклики и личный кабинет" },
+  { label: "Руководитель проектов", email: "project.manager@utmn.ru", description: "Управление проектами и отчётностью" },
   { label: "Менеджер Service Desk", email: "sd.manager@utmn.ru", description: "каталог, заявки и рабочее место" },
-  { label: "Администратор Service Desk", email: "sd.admin@utmn.ru", description: "полный доступ к Service Desk" },
-  { label: "Администратор платформы", email: "admin@utmn.ru", description: "полный доступ к Projects и Service Desk" }
+  { label: "Администратор Service Desk", email: "sd.admin@utmn.ru", description: "Каталог, настройки и заявки" },
+  { label: "Администратор платформы", email: "admin@utmn.ru", description: "Полный доступ к обоим модулям" }
 ];
 
 export function LoginForm() {
@@ -50,22 +50,27 @@ export function LoginForm() {
 
   return (
     <form className="form-panel login-form" onSubmit={handleSubmit}>
-      <div className="role-switcher" aria-label="Демо-роли">
+      <div className="login-form-heading">
+        <h2>Выберите учётную запись</h2>
+        <p>Для демо используется код подтверждения <strong>000000</strong>.</p>
+      </div>
+      <div className="role-switcher" role="group" aria-label="Демонстрационные роли">
         {demoUsers.map((user) => (
           <button
             type="button"
             key={user.email}
             className={email === user.email ? "role-option role-option-active" : "role-option"}
             onClick={() => setEmail(user.email)}
+            aria-pressed={email === user.email}
           >
-            <strong>{user.label}</strong>
-            <span>{user.email}</span>
-            <small>{user.description}</small>
+            <span className="role-option-title">{user.label}</span>
+            <span className="role-option-email">{user.email}</span>
+            <span className="role-option-description">{user.description}</span>
           </button>
         ))}
       </div>
       <Input
-        label="Email"
+        label="Электронная почта"
         name="email"
         type="email"
         value={email}
