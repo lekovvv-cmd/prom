@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 
 import {
   createServiceDeskRoutingRule,
   deleteServiceDeskRoutingRule,
+  getServiceDeskRoutingCatalogOptions,
   getServiceDeskRoutingCandidates,
   getServiceDeskRoutingRules,
   reorderServiceDeskRoutingRules,
@@ -17,12 +18,14 @@ import type {
   ServiceDeskRoutingRule,
   ServiceDeskRoutingRulePayload
 } from "../../../entities/service-desk-routing/model/types";
+import type { ServiceDeskCategory, ServiceDeskService } from "../../../entities/service-desk-catalog/model/types";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { EmptyState } from "../../../shared/ui/EmptyState";
 import { Input } from "../../../shared/ui/Input";
 import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Select } from "../../../shared/ui/Select";
+import { SearchableSelect, type SearchableSelectOption } from "../../../shared/ui/SearchableSelect";
 import { Spinner } from "../../../shared/ui/Spinner";
 
 type RoutingActionDraft = {
@@ -40,8 +43,8 @@ type RoutingRuleDraft = {
 };
 
 const CONDITION_OPTIONS: Array<{ value: ServiceDeskRoutingConditionField; label: string }> = [
-  { value: "service_id", label: "Услуга (ID)" },
-  { value: "category_id", label: "Категория (ID)" },
+  { value: "service_id", label: "Услуга" },
+  { value: "category_id", label: "Категория" },
   { value: "priority", label: "Приоритет заявки" },
   { value: "field_value", label: "Значение поля формы" }
 ];
@@ -86,10 +89,37 @@ function toAction(draft: RoutingActionDraft): ServiceDeskRoutingAction {
     : { type: "set_priority", priority: draft.priority };
 }
 
-function conditionLabel(condition: ServiceDeskRoutingCondition): string {
+function sortOptions(options: SearchableSelectOption[]) {
+  return options.toSorted((left, right) => left.label.localeCompare(right.label, "ru"));
+}
+
+export function buildRoutingCategoryOptions(categories: ServiceDeskCategory[]) {
+  return sortOptions(categories.map((category) => ({ value: category.id, label: category.title })));
+}
+
+export function buildRoutingServiceOptions(
+  services: ServiceDeskService[],
+  categories: ServiceDeskCategory[],
+) {
+  const categoriesById = new Map(categories.map((category) => [category.id, category.title]));
+  return sortOptions(
+    services.map((service) => ({
+      value: service.id,
+      label: `${service.title} · ${service.category?.title ?? categoriesById.get(service.category_id) ?? "Без категории"}`
+    }))
+  );
+}
+
+function conditionLabel(
+  condition: ServiceDeskRoutingCondition,
+  categoryOptions: SearchableSelectOption[],
+  serviceOptions: SearchableSelectOption[],
+): string {
   const fieldLabel = CONDITION_OPTIONS.find((item) => item.value === condition.field)?.label ?? condition.field;
   const fieldKey = condition.field === "field_value" ? ` · ${condition.field_key ?? "поле не задано"}` : "";
-  return `${fieldLabel}${fieldKey}: ${condition.value || "любое значение"}`;
+  const entityOptions = condition.field === "service_id" ? serviceOptions : condition.field === "category_id" ? categoryOptions : [];
+  const value = entityOptions.find((option) => option.value === condition.value)?.label ?? condition.value;
+  return `${fieldLabel}${fieldKey}: ${value || "любое значение"}`;
 }
 
 function actionLabel(action: ServiceDeskRoutingAction, assignees: ServiceDeskRoutingAssignee[]): string {
@@ -102,15 +132,19 @@ function actionLabel(action: ServiceDeskRoutingAction, assignees: ServiceDeskRou
 
 function RoutingRuleForm({
   assignees,
+  categoryOptions,
   draft,
   isSaving,
+  serviceOptions,
   onCancel,
   onChange,
   onSubmit
 }: {
   assignees: ServiceDeskRoutingAssignee[];
+  categoryOptions: SearchableSelectOption[];
   draft: RoutingRuleDraft;
   isSaving: boolean;
+  serviceOptions: SearchableSelectOption[];
   onCancel: () => void;
   onChange: (updater: (current: RoutingRuleDraft) => RoutingRuleDraft) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -215,7 +249,26 @@ function RoutingRuleForm({
                       required
                     />
                   ) : null}
-                  {condition.field === "priority" ? (
+                  {condition.field === "service_id" || condition.field === "category_id" ? (
+                    <SearchableSelect
+                      ariaLabel={`Значение условия ${index + 1}: ${condition.field === "service_id" ? "услуга" : "категория"}`}
+                      name={`routing-condition-${index}-${condition.field}`}
+                      value={condition.value}
+                      options={condition.field === "service_id" ? serviceOptions : categoryOptions}
+                      placeholder={condition.field === "service_id" ? "Услуга не выбрана" : "Категория не выбрана"}
+                      searchPlaceholder={condition.field === "service_id" ? "Найдите или выберите услугу" : "Найдите или выберите категорию"}
+                      emptyText={condition.field === "service_id" ? "Услуги не найдены" : "Категории не найдены"}
+                      clearLabel={condition.field === "service_id" ? "Очистить выбранную услугу" : "Очистить выбранную категорию"}
+                      onChange={(value) =>
+                        onChange((current) => ({
+                          ...current,
+                          conditions: current.conditions.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, value } : item
+                          )
+                        }))
+                      }
+                    />
+                  ) : condition.field === "priority" ? (
                     <Select
                       aria-label={`Значение условия ${index + 1}`}
                       value={condition.value}
@@ -347,6 +400,8 @@ function RoutingRuleForm({
 export function ServiceDeskAdminRoutingPage() {
   const [rules, setRules] = useState<ServiceDeskRoutingRule[]>([]);
   const [assignees, setAssignees] = useState<ServiceDeskRoutingAssignee[]>([]);
+  const [categories, setCategories] = useState<ServiceDeskCategory[]>([]);
+  const [services, setServices] = useState<ServiceDeskService[]>([]);
   const [draft, setDraft] = useState<RoutingRuleDraft>(createEmptyDraft);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -357,12 +412,15 @@ export function ServiceDeskAdminRoutingPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const [nextRules, nextAssignees] = await Promise.all([
+      const [nextRules, nextAssignees, catalogOptions] = await Promise.all([
         getServiceDeskRoutingRules(),
-        getServiceDeskRoutingCandidates()
+        getServiceDeskRoutingCandidates(),
+        getServiceDeskRoutingCatalogOptions()
       ]);
       setRules(nextRules);
       setAssignees(nextAssignees);
+      setCategories(catalogOptions.categories);
+      setServices(catalogOptions.services);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить правила маршрутизации");
     } finally {
@@ -379,8 +437,15 @@ export function ServiceDeskAdminRoutingPage() {
     setDraft(createEmptyDraft());
   }, []);
 
+  const categoryOptions = useMemo(() => buildRoutingCategoryOptions(categories), [categories]);
+  const serviceOptions = useMemo(() => buildRoutingServiceOptions(services, categories), [services, categories]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (draft.conditions.some((condition) => !condition.value.trim())) {
+      setError("Выберите значение для каждого условия маршрутизации.");
+      return;
+    }
     const payload: ServiceDeskRoutingRulePayload = {
       name: draft.name.trim(),
       priority: Number(draft.priority),
@@ -463,8 +528,10 @@ export function ServiceDeskAdminRoutingPage() {
           <div className="service-desk-routing-layout">
             <RoutingRuleForm
               assignees={assignees}
+              categoryOptions={categoryOptions}
               draft={draft}
               isSaving={isSaving}
+              serviceOptions={serviceOptions}
               onCancel={resetForm}
               onChange={(updater) => setDraft(updater)}
               onSubmit={handleSubmit}
@@ -517,7 +584,7 @@ export function ServiceDeskAdminRoutingPage() {
                         ) : (
                           <ul>
                             {rule.conditions.map((condition, conditionIndex) => (
-                              <li key={`${rule.id}-${conditionIndex}`}>{conditionLabel(condition)}</li>
+                              <li key={`${rule.id}-${conditionIndex}`}>{conditionLabel(condition, categoryOptions, serviceOptions)}</li>
                             ))}
                           </ul>
                         )}

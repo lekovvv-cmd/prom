@@ -4,12 +4,25 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import ApprovalDecisionRule, ApprovalMode, ServiceDeskApprovalStatus
+from app.modules.templates.schemas import TemplateVersionRead
 
 
 class ApprovalWorkflowConfigure(BaseModel):
     approval_mode: ApprovalMode
     name: str = Field(default="Согласование заявки", min_length=2, max_length=255)
     is_active: bool = True
+
+
+class ApprovalWorkflowStageApply(BaseModel):
+    title: str = Field(min_length=2, max_length=255)
+    decision_rule: ApprovalDecisionRule
+    approver_user_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class ApprovalWorkflowApply(BaseModel):
+    approval_mode: ApprovalMode
+    name: str = Field(default="Согласование заявки", min_length=2, max_length=255)
+    stages: list[ApprovalWorkflowStageApply] = Field(default_factory=list)
 
 
 class ApprovalStageCreate(BaseModel):
@@ -70,6 +83,10 @@ class ApprovalWorkflowConfigurationRead(BaseModel):
     template_version_id: uuid.UUID
     approval_mode: ApprovalMode
     workflow: ApprovalWorkflowRead | None
+
+
+class ServiceApprovalWorkflowConfigurationRead(ApprovalWorkflowConfigurationRead):
+    template_version: TemplateVersionRead
 
 
 class TicketApprovalRead(BaseModel):

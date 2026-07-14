@@ -31,12 +31,25 @@ import { Header } from "./Header";
 describe("Header", () => {
   it("shows Service Desk notifications to a Projects admin with Service Desk access", () => {
     const html = renderToStaticMarkup(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/projects"]}>
         <Header />
       </MemoryRouter>
     );
 
     expect(html).toContain("notification-center-for-admin");
     expect(html).not.toContain("contextual-counters");
+  });
+
+  it("shows only the UTMN brand outside product modules", () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>
+    );
+
+    expect(html).toContain('alt="UTMN"');
+    expect(html).not.toContain("ШПИУ Проекты");
+    expect(html).not.toContain("ШПИУ Service Desk");
+    expect(html).not.toContain("notification-center-for-admin");
   });
 });

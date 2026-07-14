@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.enums import ServiceDeskPriority
+from app.modules.catalog.schemas import CategoryRead, ServiceRead
 
 
 class RoutingCondition(BaseModel):
@@ -80,3 +81,10 @@ class RoutingAssigneeRead(BaseModel):
     email: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RoutingCatalogOptionsRead(BaseModel):
+    """Catalog entities available as routing rule conditions."""
+
+    categories: list[CategoryRead]
+    services: list[ServiceRead]

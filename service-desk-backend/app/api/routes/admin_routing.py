@@ -30,6 +30,15 @@ def list_routing_candidates(
     return RoutingService(db).list_eligible_assignees(actor)
 
 
+@router.get("/catalog-options", response_model=schemas.RoutingCatalogOptionsRead)
+def list_routing_catalog_options(
+    actor: CurrentServiceDeskUser,
+    db: Session = Depends(get_db),
+):
+    categories, services = RoutingService(db).list_catalog_options(actor)
+    return {"categories": categories, "services": services}
+
+
 @router.post("", response_model=schemas.RoutingRuleRead, status_code=status.HTTP_201_CREATED)
 def create_routing_rule(
     payload: schemas.RoutingRuleCreate,

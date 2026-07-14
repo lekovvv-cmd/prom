@@ -49,6 +49,15 @@ class TemplateRepository:
         )
         return self.db.scalar(stmt)
 
+    def list_published_service_ids(self, service_ids: list[uuid.UUID]) -> set[uuid.UUID]:
+        if not service_ids:
+            return set()
+        stmt = select(ServiceDeskTemplateVersion.service_id).where(
+            ServiceDeskTemplateVersion.service_id.in_(service_ids),
+            ServiceDeskTemplateVersion.status == TemplateVersionStatus.PUBLISHED,
+        )
+        return set(self.db.scalars(stmt).all())
+
     def next_version_number(self, service_id: uuid.UUID) -> int:
         stmt = select(func.max(ServiceDeskTemplateVersion.version)).where(
             ServiceDeskTemplateVersion.service_id == service_id

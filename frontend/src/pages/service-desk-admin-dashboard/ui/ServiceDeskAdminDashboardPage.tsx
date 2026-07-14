@@ -24,6 +24,10 @@ import {
   getWorkbenchServices
 } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
 import type { CatalogOption } from "../../../entities/service-desk-workbench/model/types";
+import {
+  serviceDeskPriorityLabels,
+  serviceDeskStatusLabels
+} from "../../../entities/service-desk-ticket/lib/serviceDeskLabels";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { EmptyState } from "../../../shared/ui/EmptyState";
@@ -61,10 +65,19 @@ export function buildStatsParams(filters: StatsFilterState) {
   return params;
 }
 
+const dashboardDistributionLabels: Record<string, string> = {
+  ...serviceDeskStatusLabels,
+  ...serviceDeskPriorityLabels
+};
+
+export function getDashboardDistributionLabel(id: string, fallback: string) {
+  return dashboardDistributionLabels[id] ?? fallback;
+}
+
 const summaryCards: Array<[keyof Summary, string]> = [
   ["created", "Всего создано"],
   ["closed_in_period", "Закрыто за период"],
-  ["current_backlog", "Текущий backlog"],
+  ["current_backlog", "Текущая очередь заявок"],
   ["submitted", "Новые"],
   ["pending_approval", "На согласовании"],
   ["approved_in_period", "Согласовано"],
@@ -109,7 +122,7 @@ function Distribution({ title, items }: { title: string; items: DistributionItem
       <div className="stats-bars">
         {items.map((item) => (
           <div className="stats-bar" key={item.id}>
-            <span>{item.label}</span>
+            <span>{getDashboardDistributionLabel(item.id, item.label)}</span>
             <div><i style={{ width: `${(item.count / max) * 100}%` }} /></div>
             <strong>{item.count}</strong>
           </div>
@@ -161,7 +174,7 @@ function OperationalAnalytics({
         <Card><span className="muted">Рядом с нарушением / нарушены</span><strong className="metric-value">{sla.active_near_breach} / {sla.active_breached}</strong></Card>
       </div>
       <Distribution
-        title="Возраст backlog"
+        title="Возраст заявок в очереди"
         items={backlog.map((item) => ({ id: item.code, label: item.label, count: item.count }))}
       />
     </>
@@ -209,12 +222,12 @@ function PeopleAnalytics({
       </Card>
       <Card>
         <h2>Согласования</h2>
-        <div className="metric-grid">
-          <div><span>Ожидают решения</span><strong className="metric-value">{approvals.pending_approval_stages}</strong></div>
-          <div><span>Среднее</span><strong>{formatDuration(duration.average_seconds)}</strong></div>
-          <div><span>Медиана</span><strong>{formatDuration(duration.median_seconds)}</strong></div>
-          <div><span>P90</span><strong>{formatDuration(duration.p90_seconds)}</strong></div>
-          <div><span>Доля отклонений</span><strong>{approvals.rejection_rate_percent === null ? "Нет данных" : `${approvals.rejection_rate_percent}%`}</strong></div>
+        <div className="metric-grid approval-metrics">
+          <div className="approval-metric"><span>Ожидают решения</span><strong className="metric-value">{approvals.pending_approval_stages}</strong></div>
+          <div className="approval-metric"><span>Среднее</span><strong className="metric-value">{formatDuration(duration.average_seconds)}</strong></div>
+          <div className="approval-metric"><span>Медиана</span><strong className="metric-value">{formatDuration(duration.median_seconds)}</strong></div>
+          <div className="approval-metric"><span>P90</span><strong className="metric-value">{formatDuration(duration.p90_seconds)}</strong></div>
+          <div className="approval-metric"><span>Доля отклонений</span><strong className="metric-value">{approvals.rejection_rate_percent === null ? "Нет данных" : `${approvals.rejection_rate_percent}%`}</strong></div>
         </div>
       </Card>
     </>
@@ -281,7 +294,7 @@ export function ServiceDeskAdminDashboardPage() {
 
   return (
     <>
-      <PageLayout title="Service Desk - обзор" subtitle="Период событий считается по UTC; backlog отражает текущее состояние.">
+      <PageLayout title="Service Desk - обзор" subtitle="Период событий считается по UTC; очередь заявок отражает текущее состояние.">
         <Card>
           <div className="filter-grid">
             <Input label="Дата с" type="date" value={filters.dateFrom} onChange={(event) => updateFilter("dateFrom", event.target.value)} />

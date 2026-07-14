@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any
 
 from app.core.enums import TemplateFieldType
@@ -90,6 +90,9 @@ def _validate_field_value(
                 errors.append(_error(field, f"Дата должна быть не раньше {min_date.isoformat()}"))
             if max_date and parsed > max_date:
                 errors.append(_error(field, f"Дата должна быть не позже {max_date.isoformat()}"))
+
+    if field.field_type == TemplateFieldType.TIME and _parse_time(value) is None:
+        errors.append(_error(field, "Укажите время в формате HH:MM"))
 
     if field.field_type == TemplateFieldType.SELECT:
         allowed_values = _option_values(field, dictionary_options)
@@ -198,6 +201,17 @@ def _parse_date(value: Any) -> date | None:
             return date.fromisoformat(value)
         except ValueError:
             return None
+
+
+def _parse_time(value: Any) -> time | None:
+    if isinstance(value, time):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        return time.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _option_values(

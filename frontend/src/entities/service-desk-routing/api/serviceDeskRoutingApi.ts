@@ -1,6 +1,7 @@
 import { serviceDeskApiClient } from "../../../shared/api/client";
 import type {
   ServiceDeskRoutingAssignee,
+  ServiceDeskRoutingCatalogOptions,
   ServiceDeskRoutingRule,
   ServiceDeskRoutingRulePayload
 } from "../model/types";
@@ -11,6 +12,10 @@ export function getServiceDeskRoutingRules() {
 
 export function getServiceDeskRoutingCandidates() {
   return serviceDeskApiClient.request<ServiceDeskRoutingAssignee[]>("/admin/routing-rules/candidates");
+}
+
+export function getServiceDeskRoutingCatalogOptions() {
+  return serviceDeskApiClient.request<ServiceDeskRoutingCatalogOptions>("/admin/routing-rules/catalog-options");
 }
 
 export function createServiceDeskRoutingRule(payload: ServiceDeskRoutingRulePayload) {

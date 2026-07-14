@@ -17,6 +17,26 @@ router = APIRouter(
 
 
 @router.get(
+    "/services/{service_id}/approval-workflow",
+    response_model=schemas.ServiceApprovalWorkflowConfigurationRead,
+)
+def get_service_approval_workflow(service_id: uuid.UUID, db: Session = Depends(get_db)):
+    return ApprovalWorkflowService(db).get_service_configuration(service_id)
+
+
+@router.post(
+    "/services/{service_id}/approval-workflow/apply",
+    response_model=schemas.ServiceApprovalWorkflowConfigurationRead,
+)
+def apply_service_approval_workflow(
+    service_id: uuid.UUID,
+    payload: schemas.ApprovalWorkflowApply,
+    db: Session = Depends(get_db),
+):
+    return ApprovalWorkflowService(db).apply_for_service(service_id, payload)
+
+
+@router.get(
     "/template-versions/{version_id}/approval-workflow",
     response_model=schemas.ApprovalWorkflowConfigurationRead,
 )

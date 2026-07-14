@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 from app.core.enums import ServiceDeskAccessType, ServiceDeskTicketAction
 from app.modules.access.models import ServiceDeskUser
 from app.modules.assignments.policy import AssigneePolicy
-from app.modules.catalog.models import ServiceDeskService
+from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
+from app.modules.catalog.service import CatalogService
 from app.modules.routing import schemas
 from app.modules.routing.models import ServiceDeskRoutingRule
 from app.modules.routing.repository import RoutingRuleRepository
@@ -34,6 +35,18 @@ class RoutingService:
     def list_eligible_assignees(self, actor: ServiceDeskUser) -> list[ServiceDeskUser]:
         self._require_manage_routing(actor)
         return self.assignee_policy.list_eligible_assignees()
+
+    def list_catalog_options(
+        self,
+        actor: ServiceDeskUser,
+    ) -> tuple[list[ServiceDeskCategory], list[ServiceDeskService]]:
+        """Return active catalog entries without requiring catalog-management access."""
+        self._require_manage_routing(actor)
+        catalog = CatalogService(self.db)
+        return (
+            catalog.list_categories(active=True),
+            catalog.list_services(active=True),
+        )
 
     def create_rule(
         self,

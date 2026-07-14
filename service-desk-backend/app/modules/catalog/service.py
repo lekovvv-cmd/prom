@@ -104,17 +104,21 @@ class CatalogService:
             return services
         from app.modules.templates.repository import TemplateRepository
 
-        templates = TemplateRepository(self.db)
-        return [
-            service
-            for service in services
-            if templates.get_published_version(service.id) is not None
-        ]
+        published_service_ids = TemplateRepository(self.db).list_published_service_ids(
+            [service.id for service in services]
+        )
+        for service in services:
+            service._request_form_available = service.id in published_service_ids
+        return services
 
     def get_service(self, service_id: uuid.UUID, *, public: bool = False) -> ServiceDeskService:
         service = self._require_service(service_id)
         if public and (not service.is_active or service.deleted_at is not None):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
+        if public:
+            from app.modules.templates.repository import TemplateRepository
+
+            service._request_form_available = TemplateRepository(self.db).get_published_version(service.id) is not None
         return service
 
     def create_service(self, payload: schemas.ServiceCreate) -> ServiceDeskService:

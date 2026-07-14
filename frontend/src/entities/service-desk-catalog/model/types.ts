@@ -18,9 +18,10 @@ export type ServiceDeskService = {
   is_active: boolean;
   deleted_at: string | null;
   category: ServiceDeskCategory | null;
+  request_form_available?: boolean;
 };
 
-export type ServiceDeskTemplateFieldType = "text" | "textarea" | "rich_text" | "select" | "multiselect" | "date" | "datetime" | "email" | "number" | "checkbox" | "file" | "user";
+export type ServiceDeskTemplateFieldType = "text" | "textarea" | "rich_text" | "select" | "multiselect" | "date" | "time" | "datetime" | "email" | "number" | "checkbox" | "file" | "user";
 
 export type ServiceDeskTemplateField = {
   id: string;

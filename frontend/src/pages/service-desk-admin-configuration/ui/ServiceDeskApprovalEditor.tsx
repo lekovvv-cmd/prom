@@ -1,46 +1,247 @@
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Check, Plus, Save, Trash2, X } from "lucide-react";
 
 import type { ServiceDeskService } from "../../../entities/service-desk-catalog/model/types";
 import { getServiceDeskUserOptions, type ServiceDeskUserOption } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
-import { addAdminApprover, configureAdminApproval, createAdminApprovalStage, deleteAdminApprover, deleteAdminApprovalStage, getAdminApprovalConfiguration, listAdminServices, listAdminTemplateVersions, reorderAdminApprovalStages, updateAdminApprovalStage } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
-import type { AdminTemplateVersion, ApprovalConfiguration } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
+import {
+  applyAdminServiceApprovalConfiguration,
+  getAdminServiceApprovalConfiguration,
+  listAdminServices
+} from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
+import type { ApprovalWorkflowApplyPayload, ServiceApprovalConfiguration } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { Input } from "../../../shared/ui/Input";
 import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Select } from "../../../shared/ui/Select";
+import { Spinner } from "../../../shared/ui/Spinner";
 
-type ApprovalStage = NonNullable<ApprovalConfiguration["workflow"]>["stages"][number];
+type ApprovalMode = "none" | "workflow";
+type DraftStage = {
+  id: string;
+  title: string;
+  decision_rule: "any" | "all";
+  approverIds: string[];
+};
+
+const defaultWorkflowName = "Согласование заявки";
+
+function errorText(reason: unknown, fallback: string) {
+  return reason instanceof Error ? reason.message : fallback;
+}
 
 export function ServiceDeskApprovalEditor() {
   const [services, setServices] = useState<ServiceDeskService[]>([]);
-  const [versions, setVersions] = useState<AdminTemplateVersion[]>([]);
-  const [serviceId, setServiceId] = useState("");
-  const [versionId, setVersionId] = useState("");
-  const [config, setConfig] = useState<ApprovalConfiguration | null>(null);
   const [users, setUsers] = useState<ServiceDeskUserOption[]>([]);
-  const [stageTitle, setStageTitle] = useState("");
-  const [rule, setRule] = useState<"any" | "all">("all");
-  const [approver, setApprover] = useState("");
-  const [editingStageId, setEditingStageId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState("");
-  const [editingRule, setEditingRule] = useState<"any" | "all">("all");
+  const [serviceId, setServiceId] = useState("");
+  const [configuration, setConfiguration] = useState<ServiceApprovalConfiguration | null>(null);
+  const [mode, setMode] = useState<ApprovalMode>("none");
+  const [workflowName, setWorkflowName] = useState(defaultWorkflowName);
+  const [stages, setStages] = useState<DraftStage[]>([]);
+  const [newStageTitle, setNewStageTitle] = useState("");
+  const [newStageRule, setNewStageRule] = useState<"any" | "all">("all");
+  const [selectedApprovers, setSelectedApprovers] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const stageSequence = useRef(0);
 
-  useEffect(() => { listAdminServices().then(setServices).catch((reason) => setError(errorText(reason, "Не удалось загрузить услуги"))); getServiceDeskUserOptions("service_desk.approve").then(setUsers).catch((reason) => setError(errorText(reason, "Не удалось загрузить список согласующих"))); }, []);
-  async function loadVersions(nextService: string) { setServiceId(nextService); setVersionId(""); setConfig(null); if (!nextService) { setVersions([]); return; } try { setVersions(await listAdminTemplateVersions(nextService)); } catch (reason) { setError(errorText(reason, "Не удалось загрузить версии форм")); } }
-  async function loadConfig(nextVersion: string) { setVersionId(nextVersion); try { setConfig(await getAdminApprovalConfiguration(nextVersion)); } catch (reason) { setError(errorText(reason, "Не удалось загрузить процесс согласования")); } }
-  async function mutate(action: () => Promise<ApprovalConfiguration>) { try { setConfig(await action()); } catch (reason) { setError(errorText(reason, "Не удалось сохранить изменения")); } }
-  async function addStage() { if (!config?.workflow || !stageTitle.trim()) return; await mutate(() => createAdminApprovalStage(config.workflow!.id, { title: stageTitle.trim(), decision_rule: rule })); setStageTitle(""); }
-  async function editStage(stage: ApprovalStage) { setEditingStageId(stage.id); setEditingTitle(stage.title); setEditingRule(stage.decision_rule); }
-  async function saveStage(stageId: string) { await mutate(() => updateAdminApprovalStage(stageId, { title: editingTitle.trim(), decision_rule: editingRule })); setEditingStageId(null); }
-  async function moveStage(index: number, delta: number) { if (!config?.workflow) return; const stages = [...config.workflow.stages]; const target = index + delta; if (target < 0 || target >= stages.length) return; [stages[index], stages[target]] = [stages[target], stages[index]]; await mutate(() => reorderAdminApprovalStages(config.workflow!.id, stages.map((stage) => stage.id))); }
-  async function removeStage(stageId: string) { await mutate(() => deleteAdminApprovalStage(stageId).then(() => getAdminApprovalConfiguration(versionId))); }
-  async function addApprover(stageId: string) { if (!approver) return; await mutate(() => addAdminApprover(stageId, approver)); setApprover(""); }
-  async function removeApprover(approverId: string) { await mutate(() => deleteAdminApprover(approverId).then(() => getAdminApprovalConfiguration(versionId))); }
-  return <PageLayout title="Согласования" subtitle="Этапы, правила и пользователи, которым разрешено согласовывать заявки.">{error ? <p className="form-error" role="alert">{error}</p> : null}<Card><Select label="Услуга" value={serviceId} onChange={(event) => void loadVersions(event.target.value)}><option value="">Выберите услугу</option>{services.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}</Select><Select label="Версия формы" value={versionId} onChange={(event) => void loadConfig(event.target.value)}><option value="">Выберите версию</option>{versions.map((version) => <option key={version.id} value={version.id}>{versionLabel(version)}</option>)}</Select></Card>{config ? <Card><h3>Процесс согласования</h3><p className="muted">{config.approval_mode === "workflow" ? "По этапам" : "Без согласования"}</p><Button variant="secondary" onClick={() => void mutate(() => configureAdminApproval(versionId, { approval_mode: config.approval_mode === "workflow" ? "none" : "workflow", name: "Согласование заявки", is_active: config.approval_mode !== "workflow" }))}>{config.approval_mode === "workflow" ? "Отключить процесс" : "Включить процесс по этапам"}</Button>{config.workflow ? <><div className="admin-config-form-grid"><Input label="Название нового этапа" value={stageTitle} onChange={(event) => setStageTitle(event.target.value)} /><Select label="Правило нового этапа" value={rule} onChange={(event) => setRule(event.target.value as "any" | "all")}><option value="all">Нужны все</option><option value="any">Достаточно одного</option></Select><Button onClick={() => void addStage()} disabled={!stageTitle.trim()}><Plus size={15} />Добавить этап</Button></div><div className="admin-config-list">{config.workflow.stages.map((stage, index) => editingStageId === stage.id ? <div className="admin-config-row" key={stage.id}><Input label="Название этапа" value={editingTitle} onChange={(event) => setEditingTitle(event.target.value)} /><Select label="Правило" value={editingRule} onChange={(event) => setEditingRule(event.target.value as "any" | "all")}><option value="all">Нужны все</option><option value="any">Достаточно одного</option></Select><Button onClick={() => void saveStage(stage.id)}><Save size={15} />Сохранить</Button></div> : <div className="admin-config-row approval-stage-row" key={stage.id}><span><strong>{index + 1}. {stage.title}</strong><small>{stage.decision_rule === "all" ? "Нужны все" : "Достаточно одного"} · {stage.approvers.length} согласующих</small></span><span className="button-row approval-stage-actions"><Button variant="ghost" onClick={() => void editStage(stage)}><Pencil size={15} />Изменить</Button><Button variant="ghost" onClick={() => void moveStage(index, -1)} disabled={index === 0}><ArrowUp size={15} /></Button><Button variant="ghost" onClick={() => void moveStage(index, 1)} disabled={index === config.workflow!.stages.length - 1}><ArrowDown size={15} /></Button><Button variant="ghost" onClick={() => void removeStage(stage.id)}><Trash2 size={15} />Удалить</Button><Select aria-label="Согласующий" value={approver} onChange={(event) => setApprover(event.target.value)}><option value="">Выберите согласующего</option>{users.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}</Select><Button className="approval-add-approver" onClick={() => void addApprover(stage.id)} disabled={!approver}><Plus size={15} />Добавить согласующего</Button></span><div>{stage.approvers.map((item) => { const user = users.find((candidate) => candidate.id === item.service_desk_user_id); return <span className="tag" key={item.id}>{user?.display_name ?? "Согласующий"}{user?.department || user?.position ? " · " + [user.department, user.position].filter(Boolean).join(", ") : ""}<button type="button" aria-label="Удалить согласующего" onClick={() => void removeApprover(item.id)}>×</button></span>; })}</div></div>)}</div></> : null}</Card> : null}</PageLayout>;
+  useEffect(() => {
+    void Promise.all([listAdminServices(), getServiceDeskUserOptions("service_desk.approve")])
+      .then(([nextServices, nextUsers]) => {
+        setServices(nextServices);
+        setUsers(nextUsers);
+      })
+      .catch((reason) => setError(errorText(reason, "Не удалось загрузить данные согласований")));
+  }, []);
+
+  function hydrate(next: ServiceApprovalConfiguration) {
+    setConfiguration(next);
+    setMode(next.approval_mode);
+    setWorkflowName(next.workflow?.name ?? defaultWorkflowName);
+    setStages((next.workflow?.stages ?? []).map((stage) => ({
+      id: stage.id,
+      title: stage.title,
+      decision_rule: stage.decision_rule,
+      approverIds: stage.approvers.map((approver) => approver.service_desk_user_id)
+    })));
+    setSelectedApprovers({});
+  }
+
+  async function selectService(nextServiceId: string) {
+    setServiceId(nextServiceId);
+    setConfiguration(null);
+    setError(null);
+    setSuccess(null);
+    setStages([]);
+    if (!nextServiceId) return;
+    setLoading(true);
+    try {
+      hydrate(await getAdminServiceApprovalConfiguration(nextServiceId));
+    } catch (reason) {
+      setError(errorText(reason, "Не удалось загрузить опубликованную версию формы"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function addStage() {
+    if (!newStageTitle.trim()) return;
+    stageSequence.current += 1;
+    setStages((current) => [...current, {
+      id: `new-stage-${stageSequence.current}`,
+      title: newStageTitle.trim(),
+      decision_rule: newStageRule,
+      approverIds: []
+    }]);
+    setNewStageTitle("");
+  }
+
+  function updateStage(stageId: string, patch: Partial<DraftStage>) {
+    setStages((current) => current.map((stage) => stage.id === stageId ? { ...stage, ...patch } : stage));
+  }
+
+  function moveStage(index: number, delta: number) {
+    const target = index + delta;
+    if (target < 0 || target >= stages.length) return;
+    setStages((current) => {
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function removeStage(stageId: string) {
+    setStages((current) => current.filter((stage) => stage.id !== stageId));
+    setSelectedApprovers((current) => {
+      const next = { ...current };
+      delete next[stageId];
+      return next;
+    });
+  }
+
+  function addApprover(stageId: string) {
+    const userId = selectedApprovers[stageId];
+    if (!userId) return;
+    setStages((current) => current.map((stage) => stage.id === stageId && !stage.approverIds.includes(userId)
+      ? { ...stage, approverIds: [...stage.approverIds, userId] }
+      : stage));
+    setSelectedApprovers((current) => ({ ...current, [stageId]: "" }));
+  }
+
+  function removeApprover(stageId: string, userId: string) {
+    setStages((current) => current.map((stage) => stage.id === stageId
+      ? { ...stage, approverIds: stage.approverIds.filter((id) => id !== userId) }
+      : stage));
+  }
+
+  const canApply = Boolean(serviceId) && !saving && (mode === "none" || (
+    workflowName.trim().length >= 2
+    && stages.length > 0
+    && stages.every((stage) => stage.title.trim().length >= 2 && stage.approverIds.length > 0)
+  ));
+
+  async function apply() {
+    if (!serviceId || !canApply) return;
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    const payload: ApprovalWorkflowApplyPayload = {
+      approval_mode: mode,
+      name: workflowName.trim() || defaultWorkflowName,
+      stages: mode === "workflow" ? stages.map((stage) => ({
+        title: stage.title.trim(),
+        decision_rule: stage.decision_rule,
+        approver_user_ids: stage.approverIds
+      })) : []
+    };
+    try {
+      const applied = await applyAdminServiceApprovalConfiguration(serviceId, payload);
+      hydrate(applied);
+      setSuccess(`Версия ${applied.template_version.version} опубликована. Предыдущая версия перенесена в архив.`);
+    } catch (reason) {
+      setError(errorText(reason, "Не удалось применить согласование"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <PageLayout title="Согласования" subtitle="Настройте процесс для услуги и примените его одной новой версией формы.">
+    {error ? <p className="form-error" role="alert">{error}</p> : null}
+    {success ? <p className="success-text" role="status">{success}</p> : null}
+    <Card className="approval-apply-selector">
+      <Select label="Услуга" value={serviceId} onChange={(event) => void selectService(event.target.value)}>
+        <option value="">Выберите услугу</option>
+        {services.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}
+      </Select>
+    </Card>
+
+    {loading ? <Spinner label="Загружаем настройки согласования" /> : null}
+    {configuration ? <Card className="approval-apply-card">
+      <div className="service-desk-section-heading">
+        <div>
+          <h3>Опубликованная версия {configuration.template_version.version}</h3>
+          <p className="muted">Поля и настройки формы будут скопированы автоматически.</p>
+        </div>
+        <div className="button-row approval-mode-actions">
+          <Button variant={mode === "workflow" ? "secondary" : "primary"} aria-pressed={mode === "workflow"} onClick={() => setMode(mode === "workflow" ? "none" : "workflow")}>
+            {mode === "workflow" ? <><X size={16} />Отключить согласование</> : <><Check size={16} />Включить согласование</>}
+          </Button>
+        </div>
+      </div>
+
+      {mode === "workflow" ? <div className="approval-apply-workflow">
+        <Input label="Название процесса" value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} />
+        <div className="service-desk-section-heading">
+          <div><h3>Этапы</h3><p className="muted">Каждому этапу нужен хотя бы один согласующий.</p></div>
+        </div>
+        <div className="admin-config-form-grid approval-new-stage">
+          <Input label="Название нового этапа" value={newStageTitle} onChange={(event) => setNewStageTitle(event.target.value)} />
+          <Select label="Правило нового этапа" value={newStageRule} onChange={(event) => setNewStageRule(event.target.value as "any" | "all")}>
+            <option value="all">Нужны все</option>
+            <option value="any">Достаточно одного</option>
+          </Select>
+          <Button onClick={addStage} disabled={!newStageTitle.trim()}><Plus size={16} />Добавить этап</Button>
+        </div>
+        {stages.length ? <div className="approval-draft-stage-list">
+          {stages.map((stage, index) => <div className="approval-draft-stage" key={stage.id}>
+            <div className="approval-draft-stage-heading">
+              <strong>Этап {index + 1}</strong>
+              <span className="button-row">
+                <Button variant="ghost" aria-label="Поднять этап" onClick={() => moveStage(index, -1)} disabled={index === 0}><ArrowUp size={16} /></Button>
+                <Button variant="ghost" aria-label="Опустить этап" onClick={() => moveStage(index, 1)} disabled={index === stages.length - 1}><ArrowDown size={16} /></Button>
+                <Button variant="ghost" aria-label="Удалить этап" onClick={() => removeStage(stage.id)}><Trash2 size={16} /></Button>
+              </span>
+            </div>
+            <div className="admin-config-form-grid">
+              <Input label={`Название этапа ${index + 1}`} value={stage.title} onChange={(event) => updateStage(stage.id, { title: event.target.value })} />
+              <Select label={`Правило этапа ${index + 1}`} value={stage.decision_rule} onChange={(event) => updateStage(stage.id, { decision_rule: event.target.value as "any" | "all" })}>
+                <option value="all">Нужны все</option>
+                <option value="any">Достаточно одного</option>
+              </Select>
+            </div>
+            <div className="approval-draft-approvers">
+              <Select label={`Добавить согласующего к этапу ${index + 1}`} value={selectedApprovers[stage.id] ?? ""} onChange={(event) => setSelectedApprovers((current) => ({ ...current, [stage.id]: event.target.value }))}>
+                <option value="">Выберите согласующего</option>
+                {users.filter((user) => !stage.approverIds.includes(user.id)).map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
+              </Select>
+              <Button variant="secondary" onClick={() => addApprover(stage.id)} disabled={!selectedApprovers[stage.id]}><Plus size={16} />Добавить согласующего</Button>
+              <div className="approval-draft-approver-tags">
+                {stage.approverIds.map((userId) => {
+                  const user = users.find((candidate) => candidate.id === userId);
+                  return <span className="tag" key={userId}>{user?.display_name ?? "Согласующий"}<button type="button" aria-label={`Удалить согласующего ${user?.display_name ?? ""}`} onClick={() => removeApprover(stage.id, userId)}>×</button></span>;
+                })}
+              </div>
+            </div>
+          </div>)}
+        </div> : <p className="muted">Добавьте хотя бы один этап согласования.</p>}
+      </div> : <p className="muted">Новые заявки будут создаваться без согласования.</p>}
+
+      <div className="approval-apply-footer">
+        <p className="approval-apply-warning">Изменения применятся только к новым заявкам.</p>
+        <Button onClick={() => void apply()} disabled={!canApply}><Save size={16} />{saving ? "Применяем…" : "Сохранить и применить"}</Button>
+      </div>
+    </Card> : null}
+  </PageLayout>;
 }
-
-function versionLabel(version: AdminTemplateVersion) { return "Версия " + version.version + " · " + (version.status === "draft" ? "Черновая версия" : version.status === "published" ? "Опубликовано" : "Архив"); }
-function errorText(reason: unknown, fallback: string) { return reason instanceof Error ? reason.message : fallback; }

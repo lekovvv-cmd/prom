@@ -18,7 +18,7 @@ from scripts.seed import (
 from app.modules.access.models import ServiceDeskUser
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
 from app.modules.templates.models import ServiceDeskDictionary, ServiceDeskTemplateField, ServiceDeskTemplateVersion
-from app.core.enums import TemplateVersionStatus
+from app.core.enums import TemplateFieldType, TemplateVersionStatus
 
 
 def test_seed_script_registers_referenced_user_table_in_isolated_process():
@@ -61,6 +61,39 @@ def test_service_desk_seed_is_idempotent(client, db_session_factory):
     form = client.get(f"/services/{service_id}/form", headers=client.admin_headers)
     assert form.status_code == 200
     assert any(field["key"] == "building_address" for field in form.json()["fields"])
+
+    lesson_transfer = next(
+        item
+        for item in client.get("/services", headers=client.admin_headers).json()
+        if item["title"] == "Перенос занятий, замена преподавателя"
+    )
+    lesson_transfer_form = client.get(
+        f"/services/{lesson_transfer['id']}/form",
+        headers=client.admin_headers,
+    )
+    assert lesson_transfer_form.status_code == 200
+    fields = {field["key"]: field for field in lesson_transfer_form.json()["fields"]}
+    assert fields["discipline"]["dictionary_code"] == "disciplines"
+    assert [item["label"] for item in fields["discipline"]["effective_options"]] == [
+        "Математика",
+        "Информатика",
+        "Экономика",
+        "Иностранный язык",
+        "Физическая культура",
+    ]
+    assert fields["substitute_teacher_full_name"]["dictionary_code"] == "teachers"
+    assert [item["label"] for item in fields["substitute_teacher_full_name"]["effective_options"]] == [
+        "Иванова Анна Сергеевна",
+        "Петров Дмитрий Алексеевич",
+        "Смирнова Елена Викторовна",
+        "Кузнецов Максим Олегович",
+    ]
+    assert fields["change_datetime"]["field_type"] == "checkbox"
+    assert fields["change_datetime"]["is_required"] is False
+    assert fields["new_datetime"]["field_type"] == "datetime"
+    assert fields["new_datetime"]["visibility_rules"] == {
+        "field": "change_datetime", "operator": "equals", "value": True
+    }
 
 
 def test_seed_models_exist_after_script(client, db_session_factory):
@@ -206,7 +239,7 @@ def test_approved_templates_have_exact_versioned_schemas(client, db_session_fact
             ("institute", "Институт", "select", True, "institutes", {"default_value": "shpiu"}, None),
             ("gia_type", "Вид ГИА", "select", True, "gia_type", None, None),
             ("study_direction", "Направление (специальность)", "select", True, "study_directions", None, None),
-            ("installation_address", "Адрес установки камер", "select", True, "camera_installation_addresses", {"default_value": "lenina_38"}, None),
+            ("installation_address", "Адрес установки камер", "select", True, "building_addresses", {"default_value": "lenina_38"}, None),
             ("room_number", "Номер аудитории для установки камер", "text", True, None, None, None),
             ("event_starts_at", "Дата и время начала мероприятия", "datetime", True, None, None, None),
             ("event_ends_at", "Дата и время окончания мероприятия", "datetime", True, None, None, None),
@@ -324,9 +357,67 @@ def test_approved_templates_have_exact_versioned_schemas(client, db_session_fact
         assert dictionaries["building_addresses"] == [
             "Ленина 16", "Ленина 23", "Ленина 38", "Перекопская 15", "Республики 9", "Другое (укажите в комментарии)"
         ]
-        assert dictionaries["camera_installation_addresses"] == ["Ленина 38", "Ленина 16", "Ленина 23"]
+        assert "camera_installation_addresses" not in dictionaries
         assert dictionaries["gia_type"] == ["гос.экзамен", "ВКР"]
         assert dictionaries["publisher_approval_status"] == ["Согласовано", "Не согласовано"]
+
+
+def test_seed_replaces_redundant_camera_address_dictionary(client, db_session_factory):
+    with db_session_factory() as db:
+        seed_dictionaries(db)
+        services = seed_services(db, seed_categories(db))
+        service = services[("ГИА: Администрирование", "Установка камер")]
+        service_id = service.id
+        legacy_dictionary = ServiceDeskDictionary(
+            code="camera_installation_addresses",
+            title="Адреса установки камер",
+        )
+        db.add(legacy_dictionary)
+        legacy_version = ServiceDeskTemplateVersion(
+            service_id=service.id,
+            version=1,
+            status=TemplateVersionStatus.PUBLISHED,
+            system_settings={
+                "_seed_generated": True,
+                "_approved_template_revision": APPROVED_TEMPLATE_REVISION,
+            },
+        )
+        db.add(legacy_version)
+        db.flush()
+        db.add(
+            ServiceDeskTemplateField(
+                template_version_id=legacy_version.id,
+                key="installation_address",
+                label="Адрес установки камер",
+                field_type=TemplateFieldType.SELECT,
+                is_required=True,
+                position=0,
+                dictionary_code="camera_installation_addresses",
+            )
+        )
+        db.commit()
+
+    seed_main(db_session_factory)
+
+    with db_session_factory() as db:
+        assert db.scalar(
+            select(ServiceDeskDictionary).where(
+                ServiceDeskDictionary.code == "camera_installation_addresses"
+            )
+        ) is None
+        versions = list(
+            db.scalars(
+                select(ServiceDeskTemplateVersion)
+                .where(ServiceDeskTemplateVersion.service_id == service_id)
+                .order_by(ServiceDeskTemplateVersion.version)
+            )
+        )
+        assert [version.status for version in versions] == [
+            TemplateVersionStatus.ARCHIVED,
+            TemplateVersionStatus.PUBLISHED,
+        ]
+        assert versions[0].fields[0].dictionary_code == "building_addresses"
+        assert versions[1].fields[3].dictionary_code == "building_addresses"
 
 
 def test_approved_template_sync_archives_old_seed_version(client, db_session_factory):
@@ -367,6 +458,49 @@ def test_approved_template_sync_archives_old_seed_version(client, db_session_fac
         ]
         assert versions[0].fields[0].key == "legacy_field"
         assert versions[1].system_settings["_approved_template_revision"] == APPROVED_TEMPLATE_REVISION
+
+
+def test_seed_upgrades_generated_lesson_transfer_form_with_directories(client, db_session_factory):
+    with db_session_factory() as db:
+        seed_dictionaries(db)
+        services = seed_services(db, seed_categories(db))
+        service = services[("Сопровождение учебного процесса", "Перенос занятий, замена преподавателя")]
+        legacy = ServiceDeskTemplateVersion(
+            service_id=service.id,
+            version=1,
+            status=TemplateVersionStatus.PUBLISHED,
+            system_settings={"_seed_generated": True, "default_title": service.title},
+        )
+        db.add(legacy)
+        db.flush()
+        db.add(
+            ServiceDeskTemplateField(
+                template_version_id=legacy.id,
+                key="discipline",
+                label="Дисциплина",
+                field_type="text",
+                position=0,
+            )
+        )
+        seed_templates(db, services)
+        db.commit()
+
+        versions = list(
+            db.scalars(
+                select(ServiceDeskTemplateVersion)
+                .where(ServiceDeskTemplateVersion.service_id == service.id)
+                .order_by(ServiceDeskTemplateVersion.version)
+            )
+        )
+        assert [item.status for item in versions] == [
+            TemplateVersionStatus.ARCHIVED,
+            TemplateVersionStatus.PUBLISHED,
+        ]
+        fields = {field.key: field for field in versions[1].fields}
+        assert fields["discipline"].dictionary_code == "disciplines"
+        assert fields["substitute_teacher_full_name"].dictionary_code == "teachers"
+        assert fields["change_datetime"].field_type.value == "checkbox"
+        assert fields["new_datetime"].field_type.value == "datetime"
 
 
 def test_approved_template_sync_preserves_manual_published_version(client, db_session_factory, caplog):

@@ -1,6 +1,25 @@
+import type { WorkbenchQuickView } from "../../../entities/service-desk-workbench/model/types";
+
 export type WorkbenchFilters = Record<string, string>;
 
 export const initialWorkbenchFilters: WorkbenchFilters = { page: "1", page_size: "25" };
+
+const workbenchQuickViews: WorkbenchQuickView[] = [
+  "waiting_approval",
+  "assigned_to_me",
+  "in_progress",
+  "waiting_requester",
+  "waiting_external",
+  "resolved",
+  "sla_breached"
+];
+
+export function getWorkbenchFiltersFromSearch(searchParams: URLSearchParams): WorkbenchFilters {
+  const quickView = searchParams.get("quick_view");
+  return quickView && workbenchQuickViews.includes(quickView as WorkbenchQuickView)
+    ? { ...initialWorkbenchFilters, quick_view: quickView }
+    : initialWorkbenchFilters;
+}
 
 export function updateWorkbenchFilter(
   current: WorkbenchFilters,

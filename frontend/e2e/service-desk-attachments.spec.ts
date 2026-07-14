@@ -22,14 +22,14 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
 
   await page.goto("/admin/service-desk/templates");
   await page.getByLabel("Услуга").selectOption({ label: serviceTitle });
-  await page.getByRole("button", { name: "Новая версия" }).click();
-  const editor = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Добавить поле" }) });
-  await editor.getByLabel("Ключ").fill(fieldKey);
-  await editor.getByLabel("Название").fill(fieldLabel);
-  await editor.getByLabel("Тип поля").selectOption("file");
-  await editor.getByText("Обязательное поле").click();
-  await editor.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await page.getByRole("button", { name: "Опубликовать" }).click();
+  await page.getByRole("button", { name: "Создать новую версию" }).click();
+  const editor = page.locator(".template-field-editor");
+  await editor.getByLabel("Системное имя поля").fill(fieldKey);
+  await editor.getByLabel("Название поля для пользователя").fill(fieldLabel);
+  await editor.getByLabel("Тип ответа").selectOption("file");
+  await editor.getByText("Это поле обязательно всегда").click();
+  await editor.getByRole("button", { name: "Сохранить поле" }).click();
+  await page.getByRole("button", { name: "Опубликовать версию" }).click();
 
   await page.goto("/service-desk");
   await page.getByPlaceholder("Например, доступ к системе").fill(serviceTitle);

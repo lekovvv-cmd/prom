@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildWorkbenchParams,
+  getWorkbenchFiltersFromSearch,
   initialWorkbenchFilters,
   shouldShowInitialWorkbenchSpinner,
   updateWorkbenchFilter,
@@ -36,6 +37,13 @@ describe("workbenchFilters", () => {
   it("builds backend pagination and search params", () => {
     const params = buildWorkbenchParams({ ...initialWorkbenchFilters, page: "2", status: "assigned" }, "SD-1");
     expect(params.toString()).toBe("page=2&page_size=25&status=assigned&q=SD-1");
+  });
+
+  it("restores a valid quick view from the URL", () => {
+    expect(getWorkbenchFiltersFromSearch(new URLSearchParams("quick_view=assigned_to_me"))).toMatchObject({
+      page: "1", page_size: "25", quick_view: "assigned_to_me"
+    });
+    expect(getWorkbenchFiltersFromSearch(new URLSearchParams("quick_view=unknown"))).toEqual(initialWorkbenchFilters);
   });
 
   it("shows the spinner only for initial loading without existing data", () => {

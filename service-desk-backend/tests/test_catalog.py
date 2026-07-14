@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 
-def test_admin_can_manage_catalog_and_authenticated_user_sees_only_active(client: TestClient):
+def test_admin_can_manage_catalog_and_authenticated_user_sees_active_services_before_form_publication(client: TestClient):
     category = client.post(
         "/admin/categories",
         json={"title": "Сопровождение учебного процесса", "position": 1},
@@ -38,8 +38,8 @@ def test_admin_can_manage_catalog_and_authenticated_user_sees_only_active(client
         "/services", params={"q": "аудитор"}, headers=client.admin_headers
     )
     assert public_services.status_code == 200
-    # Public catalog only exposes services that have a published form.
-    assert public_services.json() == []
+    assert [item["id"] for item in public_services.json()] == [service_id]
+    assert public_services.json()[0]["request_form_available"] is False
 
     deactivated = client.post(f"/admin/services/{service_id}/deactivate")
     assert deactivated.status_code == 200

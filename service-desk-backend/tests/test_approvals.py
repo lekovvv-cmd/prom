@@ -331,6 +331,202 @@ def test_submit_snapshots_published_approval_workflow(
     assert [stage["title"] for stage in snapshot.json()] == ["Первый этап", "Второй этап"]
 
 
+def test_apply_service_approval_versions_form_and_preserves_existing_ticket_snapshots(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    category = client.post("/admin/categories", json={"title": "Apply approval category"})
+    service = client.post(
+        "/admin/services",
+        json={"category_id": category.json()["id"], "title": "Apply approval service"},
+    )
+    service_id = service.json()["id"]
+    settings = {
+        "default_title": "Заявка на согласование",
+        "is_title_editable": False,
+        "is_description_required": True,
+        "help_text": "Исходная настройка формы",
+    }
+    source = client.post(
+        f"/admin/services/{service_id}/versions",
+        json={"system_settings": settings},
+    )
+    source_id = source.json()["id"]
+    source_field = client.post(
+        f"/admin/template-versions/{source_id}/fields",
+        json={
+            "key": "location",
+            "label": "Место проведения",
+            "field_type": "text",
+            "is_required": False,
+            "position": 0,
+            "placeholder": "Корпус и аудитория",
+            "help_text": "Укажите место",
+            "options": [{"label": "Корпус 1", "value": "b1"}],
+            "validation": {"max_length": 100},
+        },
+    )
+    assert source_field.status_code == 201, source_field.text
+    approver_id = create_approval_user(
+        db_session_factory,
+        "apply-approval-approver@utmn.ru",
+        can_approve=True,
+    )
+    published = client.post(f"/admin/template-versions/{source_id}/publish")
+    assert published.status_code == 200, published.text
+
+    requester_id = create_approval_user(
+        db_session_factory,
+        "apply-approval-requester@utmn.ru",
+        can_approve=False,
+    )
+    existing_draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "title": "Существующая заявка",
+            "description": "Нужно сохранить snapshot.",
+            "field_values": {"location": "Корпус 1"},
+        },
+        headers=auth_headers_for_user(requester_id),
+    )
+    existing = client.post(
+        f"/tickets/{existing_draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
+    assert existing.status_code == 200, existing.text
+
+    disabled_before_enable = client.post(
+        f"/admin/services/{service_id}/approval-workflow/apply",
+        json={"approval_mode": "none", "name": "Согласование не требуется", "stages": []},
+    )
+    assert disabled_before_enable.status_code == 200, disabled_before_enable.text
+    assert disabled_before_enable.json()["template_version"]["version"] == 2
+    assert disabled_before_enable.json()["workflow"] is None
+
+    enabled = client.post(
+        f"/admin/services/{service_id}/approval-workflow/apply",
+        json={
+            "approval_mode": "workflow",
+            "name": "Обновлённое согласование",
+            "stages": [{
+                "title": "Новый этап",
+                "decision_rule": "any",
+                "approver_user_ids": [approver_id],
+            }],
+        },
+    )
+    assert enabled.status_code == 200, enabled.text
+    applied = enabled.json()
+    applied_version = applied["template_version"]
+    assert applied_version["version"] == 3
+    assert applied_version["status"] == "published"
+    assert applied_version["approval_mode"] == "workflow"
+    assert applied_version["system_settings"] == settings
+    assert applied_version["fields"][0]["id"] != source_field.json()["id"]
+    assert applied_version["fields"][0]["key"] == "location"
+    assert applied_version["fields"][0]["options"] == [{"label": "Корпус 1", "value": "b1"}]
+    assert applied_version["fields"][0]["validation"] == {"max_length": 100}
+    assert [stage["title"] for stage in applied["workflow"]["stages"]] == ["Новый этап"]
+
+    versions = client.get(f"/admin/services/{service_id}/versions")
+    assert [(item["version"], item["status"]) for item in versions.json()] == [
+        (3, "published"),
+        (2, "archived"),
+        (1, "archived"),
+    ]
+    existing_after_apply = client.get(
+        f"/tickets/{existing.json()['id']}",
+        headers=auth_headers_for_user(requester_id),
+    )
+    assert existing_after_apply.json()["template_version_id"] == source_id
+    existing_snapshot = client.get(
+        f"/tickets/{existing.json()['id']}/approvals",
+        headers=auth_headers_for_user(requester_id),
+    )
+    assert existing_snapshot.json() == []
+
+    new_draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "title": "Новая заявка",
+            "description": "Должна получить новый этап.",
+            "field_values": {"location": "Корпус 2"},
+        },
+        headers=auth_headers_for_user(requester_id),
+    )
+    new_ticket = client.post(
+        f"/tickets/{new_draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
+    assert new_ticket.status_code == 200, new_ticket.text
+    assert new_ticket.json()["template_version_id"] == applied_version["id"]
+    assert [stage["title"] for stage in new_ticket.json()["approval_stages"]] == ["Новый этап"]
+
+    changed = client.post(
+        f"/admin/services/{service_id}/approval-workflow/apply",
+        json={
+            "approval_mode": "workflow",
+            "name": "Изменённое согласование",
+            "stages": [{
+                "title": "Изменённый этап",
+                "decision_rule": "all",
+                "approver_user_ids": [approver_id],
+            }],
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    changed_version = changed.json()["template_version"]
+    assert changed_version["version"] == 4
+    assert [stage["title"] for stage in changed.json()["workflow"]["stages"]] == ["Изменённый этап"]
+    assert client.get(
+        f"/tickets/{new_ticket.json()['id']}",
+        headers=auth_headers_for_user(requester_id),
+    ).json()["template_version_id"] == applied_version["id"]
+
+    changed_draft = client.post(
+        "/tickets/drafts",
+        json={
+            "service_id": service_id,
+            "title": "Заявка после изменения",
+            "description": "Должна получить изменённый этап.",
+            "field_values": {"location": "Корпус 3"},
+        },
+        headers=auth_headers_for_user(requester_id),
+    )
+    changed_ticket = client.post(
+        f"/tickets/{changed_draft.json()['id']}/submit",
+        headers=auth_headers_for_user(requester_id),
+    )
+    assert changed_ticket.status_code == 200, changed_ticket.text
+    assert changed_ticket.json()["template_version_id"] == changed_version["id"]
+    assert [stage["title"] for stage in changed_ticket.json()["approval_stages"]] == ["Изменённый этап"]
+
+    disabled = client.post(
+        f"/admin/services/{service_id}/approval-workflow/apply",
+        json={"approval_mode": "none", "name": "Согласование не требуется", "stages": []},
+    )
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()["template_version"]["version"] == 5
+    assert disabled.json()["template_version"]["status"] == "published"
+    assert disabled.json()["approval_mode"] == "none"
+    assert disabled.json()["workflow"] is None
+    versions_after_disable = client.get(f"/admin/services/{service_id}/versions")
+    assert [(item["version"], item["status"]) for item in versions_after_disable.json()] == [
+        (5, "published"),
+        (4, "archived"),
+        (3, "archived"),
+        (2, "archived"),
+        (1, "archived"),
+    ]
+    assert client.get(
+        f"/tickets/{changed_ticket.json()['id']}",
+        headers=auth_headers_for_user(requester_id),
+    ).json()["template_version_id"] == changed_version["id"]
+
+
 def test_default_assignee_is_applied_after_successful_approval(
     client,
     db_session_factory,

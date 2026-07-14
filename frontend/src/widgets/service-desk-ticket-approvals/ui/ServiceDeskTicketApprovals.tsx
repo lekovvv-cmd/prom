@@ -103,7 +103,6 @@ export function ServiceDeskTicketApprovals({
         <div className="approval-action-panel">
           <div>
             <strong>Требуется ваше решение</strong>
-            <span>Backend подтвердил доступные действия для текущего этапа.</span>
           </div>
           <div className="button-row">
             {canApprove && (

@@ -69,3 +69,9 @@ class ServiceDeskService(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     category: Mapped[ServiceDeskCategory] = relationship(back_populates="services")
+
+    @property
+    def request_form_available(self) -> bool:
+        """Return whether the service has a published form for new requests."""
+
+        return bool(getattr(self, "_request_form_available", False))

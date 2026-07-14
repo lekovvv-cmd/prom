@@ -122,6 +122,14 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
         default_assignee_id,
     }
 
+    catalog_options = client.get("/admin/routing-rules/catalog-options", headers=admin_headers)
+    assert catalog_options.status_code == 200, catalog_options.text
+    catalog_service = next(item for item in catalog_options.json()["services"] if item["id"] == service_id)
+    assert catalog_service["is_active"] is True
+    assert catalog_service["category_id"] in {
+        item["id"] for item in catalog_options.json()["categories"]
+    }
+
     forbidden = client.post(
         "/admin/routing-rules",
         json={
@@ -132,6 +140,10 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
         headers=auth_headers_for_user(requester_id),
     )
     assert forbidden.status_code == 403
+    assert client.get(
+        "/admin/routing-rules/catalog-options",
+        headers=auth_headers_for_user(requester_id),
+    ).status_code == 403
 
     invalid_assignee_id = create_routing_user(db_session_factory, "ineligible@utmn.ru")
     invalid = client.post(

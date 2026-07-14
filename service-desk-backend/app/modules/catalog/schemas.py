@@ -67,5 +67,6 @@ class ServiceRead(BaseModel):
     updated_at: datetime
     deleted_at: datetime | None
     category: CategoryRead | None = None
+    request_form_available: bool = False
 
     model_config = ConfigDict(from_attributes=True)

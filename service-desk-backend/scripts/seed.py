@@ -97,7 +97,16 @@ SERVICES_BY_CATEGORY = {
 APPROVED_TEMPLATE_REVISION = "approved-11-v1"
 APPROVED_TEMPLATE_SOURCE = "PROM_TZ_11_APPROVED_SERVICE_DESK_TEMPLATES.md"
 APPROVED_TEMPLATE_REVISION_BY_SERVICE = {
+    "Установка камер": "approved-11-v2-building-addresses",
     "Ввоз (вывоз) и внос (вынос) материальных ценностей": "approved-11-v2-dictionaries",
+}
+
+OBSOLETE_DICTIONARY_REPLACEMENTS = {
+    "camera_installation_addresses": "building_addresses",
+}
+
+SEED_TEMPLATE_REVISION_BY_SERVICE = {
+    "Перенос занятий, замена преподавателя": "seed-v4-unified-datetime-change",
 }
 
 logger = logging.getLogger(__name__)
@@ -164,14 +173,6 @@ DICTIONARIES = {
             ("ВКР", "vkr"),
         ],
     },
-    "camera_installation_addresses": {
-        "title": "Адреса установки камер",
-        "items": [
-            ("Ленина 38", "lenina_38"),
-            ("Ленина 16", "lenina_16"),
-            ("Ленина 23", "lenina_23"),
-        ],
-    },
     "institutes": {"title": "Институты", "items": [("ШПИУ", "shpiu")]},
     "study_directions": {
         "title": "Направления подготовки (локальный набор)",
@@ -191,6 +192,25 @@ DICTIONARIES = {
         "items": [
             ("Согласовано", "approved"),
             ("Не согласовано", "not_approved"),
+        ],
+    },
+    "disciplines": {
+        "title": "Дисциплины",
+        "items": [
+            ("Математика", "mathematics"),
+            ("Информатика", "computer_science"),
+            ("Экономика", "economics"),
+            ("Иностранный язык", "foreign_language"),
+            ("Физическая культура", "physical_education"),
+        ],
+    },
+    "teachers": {
+        "title": "Преподаватели",
+        "items": [
+            ("Иванова Анна Сергеевна", "ivanova_a_s"),
+            ("Петров Дмитрий Алексеевич", "petrov_d_a"),
+            ("Смирнова Елена Викторовна", "smirnova_e_v"),
+            ("Кузнецов Максим Олегович", "kuznetsov_m_o"),
         ],
     },
 }
@@ -239,7 +259,7 @@ APPROVED_TEMPLATE_FIELDS = {
         field("institute", "Институт", TemplateFieldType.SELECT, 0, dictionary_code="institutes", validation={"default_value": "shpiu"}),
         field("gia_type", "Вид ГИА", TemplateFieldType.SELECT, 1, dictionary_code="gia_type"),
         field("study_direction", "Направление (специальность)", TemplateFieldType.SELECT, 2, dictionary_code="study_directions"),
-        field("installation_address", "Адрес установки камер", TemplateFieldType.SELECT, 3, dictionary_code="camera_installation_addresses", validation={"default_value": "lenina_38"}),
+        field("installation_address", "Адрес установки камер", TemplateFieldType.SELECT, 3, dictionary_code="building_addresses", validation={"default_value": "lenina_38"}),
         field("room_number", "Номер аудитории для установки камер", TemplateFieldType.TEXT, 4),
         field("event_starts_at", "Дата и время начала мероприятия", TemplateFieldType.DATETIME, 5),
         field("event_ends_at", "Дата и время окончания мероприятия", TemplateFieldType.DATETIME, 6),
@@ -313,16 +333,48 @@ APPROVED_TEMPLATE_FIELDS = {
 
 TEMPLATE_FIELDS = {
     "Перенос занятий, замена преподавателя": [
-        field("discipline", "Дисциплина", TemplateFieldType.TEXT, 0),
+        field(
+            "discipline",
+            "Дисциплина",
+            TemplateFieldType.TEXT,
+            0,
+            dictionary_code="disciplines",
+            help_text="Начните вводить название дисциплины и выберите подсказку из справочника.",
+        ),
         field("current_datetime", "Текущая дата и время занятия", TemplateFieldType.DATETIME, 1),
-        field("new_datetime", "Новая дата и время занятия", TemplateFieldType.DATETIME, 2),
-        field("requires_substitute_teacher", "Нужен заменяющий преподаватель", TemplateFieldType.CHECKBOX, 3),
+        field(
+            "change_datetime",
+            "Изменить дату и время занятия",
+            TemplateFieldType.CHECKBOX,
+            2,
+            is_required=False,
+            help_text="Отметьте, если занятие переносится на другую дату или время.",
+        ),
+        field(
+            "new_datetime",
+            "Новая дата и время занятия",
+            TemplateFieldType.DATETIME,
+            3,
+            is_required=False,
+            help_text="Укажите новую дату и время вместе.",
+            visibility_rules={"field": "change_datetime", "operator": "equals", "value": True},
+            required_rules={"field": "change_datetime", "operator": "equals", "value": True},
+        ),
+        field(
+            "requires_substitute_teacher",
+            "Нужен заменяющий преподаватель",
+            TemplateFieldType.CHECKBOX,
+            4,
+            is_required=False,
+        ),
         field(
             "substitute_teacher_full_name",
             "ФИО заменяющего преподавателя",
             TemplateFieldType.TEXT,
-            4,
+            5,
             is_required=False,
+            dictionary_code="teachers",
+            help_text="Начните вводить ФИО и выберите преподавателя из справочника.",
             visibility_rules={"field": "requires_substitute_teacher", "operator": "equals", "value": True},
             required_rules={"field": "requires_substitute_teacher", "operator": "equals", "value": True},
         ),
@@ -379,6 +431,23 @@ def seed_dictionaries(db: Session) -> None:
                     metadata_json={},
                 )
             )
+    _retire_redundant_dictionaries(db)
+
+
+def _retire_redundant_dictionaries(db: Session) -> None:
+    for obsolete_code, replacement_code in OBSOLETE_DICTIONARY_REPLACEMENTS.items():
+        dictionary = db.scalar(
+            select(ServiceDeskDictionary).where(ServiceDeskDictionary.code == obsolete_code)
+        )
+        if not dictionary:
+            continue
+        for field in db.scalars(
+            select(ServiceDeskTemplateField).where(
+                ServiceDeskTemplateField.dictionary_code == obsolete_code
+            )
+        ):
+            field.dictionary_code = replacement_code
+        db.delete(dictionary)
 
 
 def seed_categories(db: Session) -> dict[str, ServiceDeskCategory]:
@@ -468,8 +537,17 @@ def seed_templates(
             continue
 
         published = next((item for item in versions if item.status == TemplateVersionStatus.PUBLISHED), None)
+        revision = SEED_TEMPLATE_REVISION_BY_SERVICE.get(service_title)
         if published:
-            continue
+            should_refresh_seed = (
+                revision is not None
+                and published.system_settings.get("_seed_generated") is True
+                and published.system_settings.get("_seed_template_revision") != revision
+            )
+            if not should_refresh_seed:
+                continue
+            published.status = TemplateVersionStatus.ARCHIVED
+            published.archived_at = utc_now()
         now = utc_now()
         fields = TEMPLATE_FIELDS.get(service_title, [])
         seed_version = next(
@@ -477,6 +555,10 @@ def seed_templates(
                 item
                 for item in versions
                 if item.system_settings.get("_seed_generated") is True
+                and (
+                    revision is None
+                    or item.system_settings.get("_seed_template_revision") == revision
+                )
             ),
             None,
         )
@@ -495,6 +577,7 @@ def seed_templates(
                 "default_title": service.title,
                 "help_text": "Заполните поля формы и приложите файлы при необходимости.",
                 "_seed_generated": True,
+                **({"_seed_template_revision": revision} if revision else {}),
             },
             published_at=now,
         )

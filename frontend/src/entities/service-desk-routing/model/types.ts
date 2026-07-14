@@ -47,3 +47,8 @@ export type ServiceDeskRoutingAssignee = {
   display_name: string;
   email: string;
 };
+
+export type ServiceDeskRoutingCatalogOptions = {
+  categories: import("../../service-desk-catalog/model/types").ServiceDeskCategory[];
+  services: import("../../service-desk-catalog/model/types").ServiceDeskService[];
+};

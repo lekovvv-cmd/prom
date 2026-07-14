@@ -27,7 +27,7 @@ export function Modal({
             <X size={18} />
           </Button>
         </div>
-        {children}
+        <div className="modal-content">{children}</div>
       </div>
     </div>
   );

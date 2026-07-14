@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { getWorkbenchCategories, getWorkbenchCounters, getWorkbenchServices, getWorkbenchTickets, getWorkbenchUsers, performWorkbenchAction } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
 import type { CatalogOption, WorkbenchCounters, WorkbenchQuickView, WorkbenchTicket, WorkbenchUserOption } from "../../../entities/service-desk-workbench/model/types";
@@ -15,6 +16,7 @@ import { Select } from "../../../shared/ui/Select";
 import { Spinner } from "../../../shared/ui/Spinner";
 import {
   buildWorkbenchParams,
+  getWorkbenchFiltersFromSearch,
   initialWorkbenchFilters,
   shouldShowInitialWorkbenchSpinner,
   updateWorkbenchFilter,
@@ -57,7 +59,9 @@ const payloadFields: Partial<Record<ServiceDeskAllowedAction, [string, string]>>
 type WorkbenchPageData = { items: WorkbenchTicket[]; total: number; pages: number };
 
 export function ServiceDeskWorkbenchPage() {
-  const [filters, setFilters] = useState(initialWorkbenchFilters);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const quickViewFromSearch = getWorkbenchFiltersFromSearch(searchParams).quick_view ?? "";
+  const [filters, setFilters] = useState(() => getWorkbenchFiltersFromSearch(searchParams));
   const [search, setSearch] = useState("");
   const [data, setData] = useState<WorkbenchPageData | null>(null);
   const [counters, setCounters] = useState<WorkbenchCounters | null>(null);
@@ -104,6 +108,12 @@ export function ServiceDeskWorkbenchPage() {
   useEffect(() => subscribeToServiceDeskRefresh(() => void load({ silent: true })), [load]);
 
   useEffect(() => {
+    setFilters((current) => current.quick_view === quickViewFromSearch
+      ? current
+      : updateWorkbenchFilter(current, "quick_view", quickViewFromSearch));
+  }, [quickViewFromSearch]);
+
+  useEffect(() => {
     void Promise.all([
       getWorkbenchUsers(),
       getWorkbenchUsers(true),
@@ -119,6 +129,14 @@ export function ServiceDeskWorkbenchPage() {
 
   function updateFilter(key: string, value: string) {
     setFilters((current) => updateWorkbenchFilter(current, key, value));
+  }
+
+  function updateQuickView(value: string) {
+    updateFilter("quick_view", value);
+    const nextSearchParams = new URLSearchParams(searchParams);
+    if (value) nextSearchParams.set("quick_view", value);
+    else nextSearchParams.delete("quick_view");
+    setSearchParams(nextSearchParams);
   }
 
   function setPage(nextPage: number) {
@@ -164,7 +182,7 @@ export function ServiceDeskWorkbenchPage() {
                 key={key}
                 variant={filters.quick_view === key ? "primary" : "secondary"}
                 aria-pressed={filters.quick_view === key}
-                onClick={() => updateFilter("quick_view", filters.quick_view === key ? "" : key)}
+                onClick={() => updateQuickView(filters.quick_view === key ? "" : key)}
               >
                 {quickLabels[key]} · {counters[key]}
               </Button>

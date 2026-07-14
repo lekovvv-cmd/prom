@@ -16,6 +16,7 @@ declare module "lucide-react" {
   export const Check: Icon;
   export const CheckCircle2: Icon;
   export const CheckCheck: Icon;
+  export const CircleQuestionMark: Icon;
   export const CirclePlay: Icon;
   export const Download: Icon;
   export const Clipboard: Icon;

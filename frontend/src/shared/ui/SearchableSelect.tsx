@@ -25,6 +25,7 @@ export function filterSearchableOptions(options: SearchableSelectOption[], query
 
 export function SearchableSelect({
   label,
+  ariaLabel,
   name,
   value,
   options,
@@ -40,6 +41,7 @@ export function SearchableSelect({
   onSearchChange
 }: {
   label?: string;
+  ariaLabel?: string;
   name?: string;
   value: string;
   options: SearchableSelectOption[];
@@ -138,6 +140,7 @@ export function SearchableSelect({
         <input
           id={inputId}
           name={name}
+          aria-label={ariaLabel}
           aria-autocomplete="list"
           aria-controls={listboxId}
           aria-expanded={isOpen}

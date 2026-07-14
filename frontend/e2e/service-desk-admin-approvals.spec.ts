@@ -2,13 +2,13 @@ import { expect, test } from "@playwright/test";
 
 import { loginAs, watchPage } from "./helpers";
 
-test("approval editor configures, edits and removes a workflow stage through UI", async ({ page }) => {
+test("администратор включает, изменяет и отключает согласование у услуги", async ({ page }) => {
   const diagnostics = watchPage(page);
   const suffix = Date.now();
   const categoryTitle = `Approval QA category ${suffix}`;
   const serviceTitle = `Approval QA service ${suffix}`;
   const stageTitle = `Approval QA stage ${suffix}`;
-  const editedStageTitle = `${stageTitle} edited`;
+  const editedStageTitle = `${stageTitle} updated`;
 
   await loginAs(page, "Администратор Service Desk", "/admin/service-desk/catalog");
   const categories = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Категории" }) });
@@ -21,35 +21,38 @@ test("approval editor configures, edits and removes a workflow stage through UI"
 
   await page.goto("/admin/service-desk/templates");
   await page.getByLabel("Услуга").selectOption({ label: serviceTitle });
-  await page.getByRole("button", { name: "Новая версия" }).click();
+  await page.getByRole("button", { name: "Создать новую версию" }).click();
+  await page.getByRole("button", { name: "Опубликовать версию" }).click();
 
   await page.goto("/admin/service-desk/approvals");
   await expect(page.getByRole("heading", { name: "Согласования" })).toBeVisible();
   await page.getByLabel("Услуга").selectOption({ label: serviceTitle });
-  await page.getByLabel("Версия формы").selectOption({ index: 1 });
-  await expect(page.getByText("Без согласования")).toBeVisible();
-  await page.getByRole("button", { name: "Включить процесс по этапам" }).click();
+  await expect(page.getByText("Опубликованная версия 1")).toBeVisible();
+  await expect(page.getByText("Изменения применятся только к новым заявкам.")).toBeVisible();
+  await expect(page.getByLabel("Версия формы")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Включить согласование" }).click();
   await page.getByLabel("Название нового этапа").fill(stageTitle);
   await page.getByLabel("Правило нового этапа").selectOption("any");
   await page.getByRole("button", { name: "Добавить этап" }).click();
-  let stageRow = page.locator(".admin-config-row").filter({ hasText: stageTitle });
-  await expect(stageRow).toContainText("Достаточно одного");
-  await stageRow.getByLabel("Согласующий").selectOption({ index: 1 });
-  await stageRow.locator("button").last().click();
-  await expect(stageRow).toContainText("1 согласующих");
-  await stageRow.getByRole("button", { name: "Изменить" }).click();
-  stageRow = page.locator(".admin-config-row").filter({ has: page.getByLabel("Название этапа") });
-  await stageRow.getByLabel("Название этапа").fill(editedStageTitle);
-  await stageRow.getByRole("button", { name: "Сохранить" }).click();
-  stageRow = page.locator(".admin-config-row").filter({ hasText: editedStageTitle });
-  await expect(stageRow).toBeVisible();
-  await stageRow.getByRole("button", { name: "Удалить", exact: true }).click();
-  await expect(page.getByText(editedStageTitle)).toHaveCount(0);
-  await page.getByRole("button", { name: "Отключить процесс" }).click();
-  await expect(page.getByText("Без согласования")).toBeVisible();
-  await page.reload();
-  await page.getByLabel("Услуга").selectOption({ label: serviceTitle });
-  await page.getByLabel("Версия формы").selectOption({ index: 1 });
-  await expect(page.getByText("Без согласования")).toBeVisible();
+  await expect(page.getByLabel("Правило этапа 1")).toHaveValue("any");
+  await page.getByLabel("Добавить согласующего к этапу 1").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Добавить согласующего" }).click();
+  await expect(page.locator(".tag")).toHaveCount(1);
+  await page.getByRole("button", { name: "Сохранить и применить" }).click();
+  await expect(page.getByText("Версия 2 опубликована. Предыдущая версия перенесена в архив.")).toBeVisible();
+  await expect(page.getByText("Опубликованная версия 2")).toBeVisible();
+
+  await page.getByLabel("Название этапа 1").fill(editedStageTitle);
+  await page.getByRole("button", { name: "Сохранить и применить" }).click();
+  await expect(page.getByText("Версия 3 опубликована. Предыдущая версия перенесена в архив.")).toBeVisible();
+  await expect(page.getByLabel("Название этапа 1")).toHaveValue(editedStageTitle);
+
+  await page.getByRole("button", { name: "Отключить согласование" }).click();
+  await expect(page.getByText("Новые заявки будут создаваться без согласования.")).toBeVisible();
+  await page.getByRole("button", { name: "Сохранить и применить" }).click();
+  await expect(page.getByText("Версия 4 опубликована. Предыдущая версия перенесена в архив.")).toBeVisible();
+  await expect(page.getByText("Опубликованная версия 4")).toBeVisible();
+
   diagnostics.assertClean();
 });

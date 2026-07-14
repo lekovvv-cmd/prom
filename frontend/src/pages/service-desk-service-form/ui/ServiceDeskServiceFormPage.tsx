@@ -210,7 +210,8 @@ function FieldError({ error, id }: { error?: string; id?: string }) { return err
 function fieldDefaults(fields: ServiceDeskTemplateField[]): FormValues {
   return Object.fromEntries(fields.flatMap((field) => {
     const value = field.validation?.default_value;
-    return value === undefined ? [] : [[field.key, value]];
+    if (value !== undefined) return [[field.key, value]];
+    return field.field_type === "checkbox" ? [[field.key, false]] : [];
   }));
 }
 function formatSize(size: number) { return size < 1024 ? `${size} Б` : size < 1024 * 1024 ? `${(size / 1024).toFixed(1)} КБ` : `${(size / 1024 / 1024).toFixed(1)} МБ`; }

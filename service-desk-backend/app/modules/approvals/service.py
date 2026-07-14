@@ -1,8 +1,10 @@
 import uuid
+from copy import deepcopy
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.database import utc_now
 from app.core.enums import ApprovalMode, ServiceDeskAccessType, TemplateVersionStatus
 from app.modules.access.models import ServiceDeskUser
 from app.modules.approvals import schemas
@@ -12,7 +14,7 @@ from app.modules.approvals.models import (
     ServiceDeskApprovalWorkflow,
 )
 from app.modules.approvals.repository import ApprovalWorkflowRepository
-from app.modules.templates.models import ServiceDeskTemplateVersion
+from app.modules.templates.models import ServiceDeskTemplateField, ServiceDeskTemplateVersion
 from app.modules.templates.repository import TemplateRepository
 
 
@@ -33,6 +35,106 @@ class ApprovalWorkflowService:
             approval_mode=version.approval_mode,
             workflow=workflow,
         )
+
+    def get_service_configuration(
+        self,
+        service_id: uuid.UUID,
+    ) -> schemas.ServiceApprovalWorkflowConfigurationRead:
+        version = self.template_repository.get_published_version(service_id)
+        if not version:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                "Для услуги нет опубликованной версии формы",
+            )
+        workflow = self.repository.get_workflow_by_version(version.id)
+        return schemas.ServiceApprovalWorkflowConfigurationRead(
+            template_version=version,
+            template_version_id=version.id,
+            approval_mode=version.approval_mode,
+            workflow=workflow,
+        )
+
+    def apply_for_service(
+        self,
+        service_id: uuid.UUID,
+        payload: schemas.ApprovalWorkflowApply,
+    ) -> schemas.ServiceApprovalWorkflowConfigurationRead:
+        source = self.template_repository.get_published_version(service_id)
+        if not source:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                "Для услуги нет опубликованной версии формы",
+            )
+        self._validate_apply_payload(payload)
+
+        version = ServiceDeskTemplateVersion(
+            service_id=source.service_id,
+            version=self.template_repository.next_version_number(source.service_id),
+            status=TemplateVersionStatus.DRAFT,
+            approval_mode=payload.approval_mode,
+            default_assignee_user_id=source.default_assignee_user_id,
+            system_settings=deepcopy(source.system_settings),
+        )
+        self.db.add(version)
+        self.db.flush()
+
+        for field in source.fields:
+            self.db.add(
+                ServiceDeskTemplateField(
+                    template_version_id=version.id,
+                    key=field.key,
+                    label=field.label,
+                    field_type=field.field_type,
+                    is_required=field.is_required,
+                    position=field.position,
+                    help_text=field.help_text,
+                    placeholder=field.placeholder,
+                    options=deepcopy(field.options),
+                    dictionary_code=field.dictionary_code,
+                    validation=deepcopy(field.validation),
+                    visibility_rules=deepcopy(field.visibility_rules),
+                    required_rules=deepcopy(field.required_rules),
+                )
+            )
+
+        if payload.approval_mode == ApprovalMode.WORKFLOW:
+            workflow = ServiceDeskApprovalWorkflow(
+                template_version_id=version.id,
+                name=payload.name,
+                is_active=True,
+            )
+            self.db.add(workflow)
+            self.db.flush()
+            for position, stage_payload in enumerate(payload.stages):
+                stage = ServiceDeskApprovalStage(
+                    workflow_id=workflow.id,
+                    title=stage_payload.title,
+                    decision_rule=stage_payload.decision_rule,
+                    position=position,
+                )
+                self.db.add(stage)
+                self.db.flush()
+                for approver_id in stage_payload.approver_user_ids:
+                    self._require_eligible_approver(approver_id)
+                    self.db.add(
+                        ServiceDeskApprovalStageApprover(
+                            stage_id=stage.id,
+                            service_desk_user_id=approver_id,
+                        )
+                    )
+
+        self.db.flush()
+        self.validate_for_publish(version)
+
+        now = utc_now()
+        source.status = TemplateVersionStatus.ARCHIVED
+        source.archived_at = now
+        version.status = TemplateVersionStatus.PUBLISHED
+        version.published_at = now
+        version.archived_at = None
+        self.db.commit()
+
+        return self.get_service_configuration(service_id)
 
     def configure(
         self,
@@ -124,14 +226,7 @@ class ApprovalWorkflowService:
     ) -> schemas.ApprovalWorkflowConfigurationRead:
         stage = self._require_stage(stage_id)
         version = self._require_draft_version(stage.workflow.template_version_id)
-        user = self.db.get(ServiceDeskUser, payload.service_desk_user_id)
-        if not user or not user.is_active:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Согласующий неактивен или не найден")
-        if not self._can_approve(user):
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "У пользователя нет права согласовывать заявки Service Desk",
-            )
+        user = self._require_eligible_approver(payload.service_desk_user_id)
         if self.repository.get_stage_approver(stage.id, user.id):
             raise HTTPException(status.HTTP_409_CONFLICT, "Пользователь уже добавлен в этап")
         self.repository.add_approver(
@@ -195,6 +290,35 @@ class ApprovalWorkflowService:
         if not stage:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Этап согласования не найден")
         return stage
+
+    @staticmethod
+    def _validate_apply_payload(payload: schemas.ApprovalWorkflowApply) -> None:
+        if payload.approval_mode == ApprovalMode.NONE:
+            if payload.stages:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "Для отключённого согласования этапы не передаются",
+                )
+            return
+        if not payload.stages:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Добавьте этап согласования")
+        for stage in payload.stages:
+            if len(stage.approver_user_ids) != len(set(stage.approver_user_ids)):
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    f"В этапе «{stage.title}» есть повторяющиеся согласующие",
+                )
+
+    def _require_eligible_approver(self, user_id: uuid.UUID) -> ServiceDeskUser:
+        user = self.db.get(ServiceDeskUser, user_id)
+        if not user or not user.is_active:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Согласующий неактивен или не найден")
+        if not self._can_approve(user):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "У пользователя нет права согласовывать заявки Service Desk",
+            )
+        return user
 
     @staticmethod
     def _ensure_workflow_mode(version: ServiceDeskTemplateVersion) -> None:

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Table2, Ticket } from "lucide-react";
+import { Clock3, Search, Table2, Ticket } from "lucide-react";
 
 import { getServiceDeskCategories, getServiceDeskServices } from "../../../entities/service-desk-catalog/api/serviceDeskCatalogApi";
 import type { ServiceDeskCategory, ServiceDeskService } from "../../../entities/service-desk-catalog/model/types";
@@ -30,12 +30,22 @@ export function ServiceDeskCatalogPage() {
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : "Не удалось загрузить каталог");
       })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [query]);
 
   const categoryMap = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
-  const groupedServices = useMemo(() => categories.map((category) => ({ category, services: services.filter((service) => service.category_id === category.id) })).filter((group) => group.services.length > 0), [categories, services]);
+  const groupedServices = useMemo(
+    () => categories.map((category) => ({
+      category,
+      services: services.filter((service) => service.category_id === category.id)
+    })),
+    [categories, services]
+  );
   const uncategorized = services.filter((service) => !categoryMap.has(service.category_id));
 
   return (
@@ -50,11 +60,11 @@ export function ServiceDeskCatalogPage() {
           <div className="service-desk-catalog-groups">
             {groupedServices.map(({ category, services: categoryServices }) => (
               <section key={category.id} className="service-desk-catalog-group" aria-labelledby={`category-${category.id}`}>
-                <div className="section-heading"><div><span className="service-desk-eyebrow"><Table2 size={14} aria-hidden="true" /> Категория</span><h2 id={`category-${category.id}`}>{category.title}</h2></div><p>{category.description}</p></div>
-                <div className="service-desk-service-grid">{categoryServices.map((service) => <ServiceCard key={service.id} service={service} />)}</div>
+                <div className="section-heading"><div><span className="service-desk-eyebrow"><Table2 size={14} aria-hidden="true" />Категория</span><h2 id={`category-${category.id}`}>{category.title}</h2></div><p>{category.description}</p></div>
+                {categoryServices.length ? <div className="service-desk-service-grid">{categoryServices.map((service) => <ServiceDeskCatalogServiceCard key={service.id} service={service} />)}</div> : <p className="service-desk-catalog-empty-group">В этой категории пока нет услуг.</p>}
               </section>
             ))}
-            {uncategorized.length ? <section className="service-desk-catalog-group"><div className="section-heading"><h2>Другие услуги</h2></div><div className="service-desk-service-grid">{uncategorized.map((service) => <ServiceCard key={service.id} service={service} />)}</div></section> : null}
+            {uncategorized.length ? <section className="service-desk-catalog-group"><div className="section-heading"><h2>Другие услуги</h2></div><div className="service-desk-service-grid">{uncategorized.map((service) => <ServiceDeskCatalogServiceCard key={service.id} service={service} />)}</div></section> : null}
           </div>
         ) : <Card><div className="empty-state"><Search size={22} aria-hidden="true" /><h3>Ничего не найдено</h3><p>Измените запрос или попробуйте поискать позже.</p></div></Card>}
       </PageLayout>
@@ -62,6 +72,7 @@ export function ServiceDeskCatalogPage() {
   );
 }
 
-function ServiceCard({ service }: { service: ServiceDeskService }) {
-  return <Card className="service-desk-service-card"><div><span className="service-desk-eyebrow">Услуга</span><h3>{service.title}</h3><p>{service.short_description ?? service.description ?? "Описание услуги появится здесь."}</p></div><Link className="button" to={`/service-desk/services/${service.id}`}>Открыть услугу</Link></Card>;
+export function ServiceDeskCatalogServiceCard({ service }: { service: ServiceDeskService }) {
+  const requestFormAvailable = service.request_form_available !== false;
+  return <Card className="service-desk-service-card"><div><span className="service-desk-eyebrow">Услуга</span><h3>{service.title}</h3><p>{service.short_description ?? service.description ?? "Описание услуги появится здесь."}</p>{!requestFormAvailable ? <p className="service-desk-service-card-status"><Clock3 size={15} aria-hidden="true" />Форма настраивается</p> : null}</div>{requestFormAvailable ? <Link className="button" to={`/service-desk/services/${service.id}`}>Открыть услугу</Link> : <span className="button button-secondary" aria-disabled="true">Заявка пока недоступна</span>}</Card>;
 }

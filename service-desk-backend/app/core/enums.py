@@ -36,6 +36,7 @@ class TemplateFieldType(StrEnum):
     SELECT = "select"
     MULTISELECT = "multiselect"
     DATE = "date"
+    TIME = "time"
     DATETIME = "datetime"
     EMAIL = "email"
     NUMBER = "number"

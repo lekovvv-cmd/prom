@@ -5,6 +5,9 @@ import { Modal } from "./Modal";
 
 type BackdropElement = ReactElement<{
   onClick: (event: unknown) => void;
+  children: ReactElement<{
+    children: ReactElement[];
+  }>;
 }>;
 
 function renderModal(onClose = vi.fn()) {
@@ -35,5 +38,13 @@ describe("Modal", () => {
     element.props.onClick({ target: content, currentTarget: backdrop });
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test("wraps supplied content in the shared modal content region", () => {
+    const { element } = renderModal();
+    const dialog = element.props.children;
+    const content = dialog.props.children[1] as ReactElement<{ className: string }>;
+
+    expect(content.props.className).toBe("modal-content");
   });
 });

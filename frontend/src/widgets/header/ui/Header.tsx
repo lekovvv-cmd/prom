@@ -20,19 +20,22 @@ export function Header() {
   const { user: serviceDeskUser } = useServiceDeskAccess();
   const location = useLocation();
   const isServiceDeskRoute = location.pathname.startsWith("/service-desk") || location.pathname.startsWith("/admin/service-desk");
+  const isProjectsRoute = ["/projects", "/my/projects", "/my/responses", "/admin/projects", "/admin/responses", "/admin/stats"]
+    .some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`));
+  const isModuleRoute = isServiceDeskRoute || isProjectsRoute;
   const canUseWorkbench = serviceDeskUser?.access_type === "service_desk_admin" || ["service_desk.be_assignee", "service_desk.approve", "service_desk.assign", "service_desk.change_priority", "service_desk.view_all_tickets"].some((capability) => serviceDeskUser?.capabilities?.includes(capability));
   const adminLanding = getServiceDeskAdminLanding(serviceDeskUser);
 
   return (
     <header className="app-header">
-      <NavLink className="brand" to={isServiceDeskRoute ? "/service-desk" : "/projects"}>
+      <NavLink className={isModuleRoute ? "brand" : "brand brand-standalone"} to={isServiceDeskRoute ? "/service-desk" : isProjectsRoute ? "/projects" : "/"}>
         <img className="brand-logo" src={utmnLogo} alt="UTMN" />
-        <span className="brand-copy">
+        {isModuleRoute ? <span className="brand-copy">
           <strong>{isServiceDeskRoute ? "ШПИУ Service Desk" : "ШПИУ Проекты"}</strong>
           <small>Тюменский государственный университет</small>
-        </span>
+        </span> : null}
       </NavLink>
-      <nav className="main-nav">
+      {isModuleRoute ? <nav className="main-nav">
         {isServiceDeskRoute ? (
           <>
             <NavLink end to="/service-desk"><Table2 size={15} aria-hidden="true" />Каталог</NavLink>
@@ -58,19 +61,14 @@ export function Header() {
             {isAdmin && <NavLink to="/admin/stats"><BarChart3 size={15} aria-hidden="true" />Статистика</NavLink>}
           </>
         )}
-      </nav>
-      <div className="header-tools">
+      </nav> : null}
+      {isModuleRoute ? <div className="header-tools">
         {token && serviceDeskUser && <ServiceDeskNotificationCenter />}
-        <nav className="module-switcher" aria-label="Переключатель модулей">
-          <NavLink to="/projects" className={({ isActive }) => !isServiceDeskRoute && isActive ? "active" : ""}>Проекты</NavLink>
-          {!token || serviceDeskUser ? (
-            <NavLink to="/service-desk" className={() => isServiceDeskRoute ? "active" : ""}>Service Desk</NavLink>
-          ) : null}
-        </nav>
-      </div>
-      <div className="header-auth">
-        {token ? (
-          <>
+      </div> : null}
+      {isModuleRoute ? <div className="header-auth">
+        <div className="header-auth-actions">
+          {token ? (
+            <>
             <NavLink className="user-chip user-chip-link" to="/profile">
               <UserRound size={15} />
               <span>{isServiceDeskRoute ? (serviceDeskUser?.access_type === "service_desk_admin" ? "Администратор Service Desk" : serviceDeskUser ? "Менеджер Service Desk" : "Пользователь Service Desk") : user ? roleLabels[user.role] : "Пользователь"}</span>
@@ -81,14 +79,21 @@ export function Header() {
               Выйти
             </Button>
           </>
-        ) : (
-          <NavLink className="button button-secondary" to="/login">
-            <LogIn size={16} />
-            Войти
-          </NavLink>
-        )}
-      </div>
-      {isServiceDeskRoute && token && serviceDeskUser ? <div className="service-desk-header-status"><ServiceDeskContextualCounters /></div> : null}
+          ) : (
+            <NavLink className="button button-secondary" to="/login">
+              <LogIn size={16} />
+              Войти
+            </NavLink>
+          )}
+        </div>
+        <nav className="module-switcher" aria-label="Переключатель модулей">
+          <NavLink to="/projects" className={({ isActive }) => !isServiceDeskRoute && isActive ? "active" : ""}>Проекты</NavLink>
+          {!token || serviceDeskUser ? (
+            <NavLink to="/service-desk" className={() => isServiceDeskRoute ? "active" : ""}>Service Desk</NavLink>
+          ) : null}
+        </nav>
+      </div> : null}
+      {isServiceDeskRoute && token && serviceDeskUser ? <div className="service-desk-header-status"><ServiceDeskContextualCounters interactive={canUseWorkbench} /></div> : null}
     </header>
   );
 }
