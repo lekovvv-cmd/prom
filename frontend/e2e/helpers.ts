@@ -63,3 +63,70 @@ export async function expectNoHorizontalOverflow(page: Page) {
     dimensions.viewport + 1
   );
 }
+
+type CatalogFixture = {
+  categoryTitles?: string[];
+  serviceTitles?: string[];
+};
+
+type TrackedCatalogFixture = CatalogFixture & {
+  token: string;
+};
+
+/**
+ * E2E scenarios create catalog data through the same UI and API as a real
+ * administrator. Deactivate only the explicitly registered fixtures after the
+ * test, so the public catalog never accumulates QA services or categories.
+ */
+export function createCatalogFixtureCleaner() {
+  const fixtures: TrackedCatalogFixture[] = [];
+
+  return {
+    async track(page: Page, fixture: CatalogFixture) {
+      const token = await page.evaluate(() => localStorage.getItem("shpiu_project_showcase_token"));
+      if (!token) throw new Error("Невозможно очистить E2E-фикстуру: отсутствует авторизованная сессия.");
+      fixtures.push({ ...fixture, token });
+    },
+
+    trackWithToken(token: string, fixture: CatalogFixture) {
+      fixtures.push({ ...fixture, token });
+    },
+
+    async cleanup(page: Page) {
+      const tracked = fixtures.splice(0);
+      if (!tracked.length) return;
+
+      const failures = await page.evaluate(async (items) => {
+        const errors: string[] = [];
+
+        for (const item of items) {
+          const headers = { Authorization: `Bearer ${item.token}` };
+          const deactivateByTitle = async (kind: "services" | "categories", title: string) => {
+            const listed = await fetch(`/service-desk-api/admin/${kind}?q=${encodeURIComponent(title)}`, { headers });
+            if (!listed.ok) {
+              errors.push(`Не удалось найти ${kind} «${title}»: ${listed.status}`);
+              return;
+            }
+
+            const entries = await listed.json() as Array<{ id: string; title: string; deleted_at: string | null }>;
+            const matching = entries.filter((entry) => entry.title === title && entry.deleted_at === null);
+            for (const entry of matching) {
+              const response = await fetch(`/service-desk-api/admin/${kind}/${entry.id}/deactivate`, {
+                method: "POST",
+                headers
+              });
+              if (!response.ok) errors.push(`Не удалось отключить ${kind} «${title}»: ${response.status}`);
+            }
+          };
+
+          for (const title of item.serviceTitles ?? []) await deactivateByTitle("services", title);
+          for (const title of item.categoryTitles ?? []) await deactivateByTitle("categories", title);
+        }
+
+        return errors;
+      }, tracked);
+
+      if (failures.length) throw new Error(`Не удалось очистить E2E-фикстуры каталога:\n${failures.join("\n")}`);
+    }
+  };
+}

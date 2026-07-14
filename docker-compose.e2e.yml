@@ -1,0 +1,15 @@
+services:
+  projects-db:
+    ports: !override ["5542:5432"]
+
+  service-desk-db:
+    ports: !override ["5543:5432"]
+
+  projects-backend:
+    ports: !override ["8003:8000"]
+
+  service-desk-backend:
+    ports: !override ["8002:8001"]
+
+  frontend:
+    ports: !override ["5174:80"]

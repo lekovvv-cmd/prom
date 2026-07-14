@@ -1,6 +1,13 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
+import { createCatalogFixtureCleaner } from "./helpers";
+
 const serviceDeskUrl = process.env.E2E_SERVICE_DESK_URL ?? "http://127.0.0.1:8001";
+const catalogFixtures = createCatalogFixtureCleaner();
+
+test.afterEach(async ({ page }) => {
+  await catalogFixtures.cleanup(page);
+});
 
 async function loginAsManager(page: Page) {
   await page.goto("/login");
@@ -41,20 +48,23 @@ test("Service Desk flow: approver reviews and approves a ticket", async ({ page,
   const token = await loginAsManager(page);
   const currentUser = await serviceDeskRequest<{ id: string }>(request, token, "get", "/me");
   const suffix = Date.now();
+  const categoryTitle = `E2E approval category ${suffix}`;
+  const serviceTitle = `E2E approval service ${suffix}`;
 
   const category = await serviceDeskRequest<{ id: string }>(
     request,
     token,
     "post",
     "/admin/categories",
-    { title: `E2E approval category ${suffix}` }
+    { title: categoryTitle }
   );
+  catalogFixtures.trackWithToken(token, { categoryTitles: [categoryTitle], serviceTitles: [serviceTitle] });
   const service = await serviceDeskRequest<{ id: string }>(
     request,
     token,
     "post",
     "/admin/services",
-    { category_id: category.id, title: `E2E approval service ${suffix}` }
+    { category_id: category.id, title: serviceTitle }
   );
   const version = await serviceDeskRequest<{ id: string }>(
     request,
@@ -279,8 +289,11 @@ test("Service Desk Workbench assigns, starts and resolves a ticket", async ({ pa
   const employee = assignees.find((item) => item.display_name === "Менеджер Service Desk");
   expect(employee).toBeTruthy();
   const suffix = Date.now();
-  const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: `E2E Workbench ${suffix}` });
-  const service = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: `E2E Workbench service ${suffix}` });
+  const categoryTitle = `E2E Workbench ${suffix}`;
+  const serviceTitle = `E2E Workbench service ${suffix}`;
+  const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: categoryTitle });
+  catalogFixtures.trackWithToken(token, { categoryTitles: [categoryTitle], serviceTitles: [serviceTitle] });
+  const service = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: serviceTitle });
   const version = await serviceDeskRequest<{ id: string }>(request, token, "post", `/admin/services/${service.id}/versions`);
   await serviceDeskRequest(request, token, "post", `/admin/template-versions/${version.id}/publish`);
   const draft = await serviceDeskRequest<{ id: string }>(request, token, "post", "/tickets/drafts", {
@@ -322,8 +335,11 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
   const employee = assignees.find((item) => item.display_name === "Менеджер Service Desk");
   expect(employee).toBeTruthy();
   const suffix = Date.now();
-  const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: `E2E requester category ${suffix}` });
-  const service = await serviceDeskRequest<{ id: string; title: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: `E2E requester service ${suffix}`, short_description: "Услуга для полного UI сценария" });
+  const categoryTitle = `E2E requester category ${suffix}`;
+  const serviceTitle = `E2E requester service ${suffix}`;
+  const category = await serviceDeskRequest<{ id: string }>(request, token, "post", "/admin/categories", { title: categoryTitle });
+  catalogFixtures.trackWithToken(token, { categoryTitles: [categoryTitle], serviceTitles: [serviceTitle] });
+  const service = await serviceDeskRequest<{ id: string; title: string }>(request, token, "post", "/admin/services", { category_id: category.id, title: serviceTitle, short_description: "Услуга для полного UI сценария" });
   const version = await serviceDeskRequest<{ id: string }>(request, token, "post", `/admin/services/${service.id}/versions`);
   const configured = await serviceDeskRequest<{ workflow: { id: string } }>(request, token, "put", `/admin/template-versions/${version.id}/approval-workflow`, { approval_mode: "workflow", name: "E2E пользовательское согласование", is_active: true });
   await serviceDeskRequest(request, token, "post", `/admin/approval-workflows/${configured.workflow.id}/stages`, { title: "Согласование менеджера", decision_rule: "any" });

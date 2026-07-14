@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { loginAs, watchPage } from "./helpers";
+import { createCatalogFixtureCleaner, loginAs, watchPage } from "./helpers";
+
+const catalogFixtures = createCatalogFixtureCleaner();
+
+test.afterEach(async ({ page }) => {
+  await catalogFixtures.cleanup(page);
+});
 
 test("администратор включает, изменяет и отключает согласование у услуги", async ({ page }) => {
   const diagnostics = watchPage(page);
@@ -11,6 +17,7 @@ test("администратор включает, изменяет и откл�
   const editedStageTitle = `${stageTitle} updated`;
 
   await loginAs(page, "Администратор Service Desk", "/admin/service-desk/catalog");
+  await catalogFixtures.track(page, { categoryTitles: [categoryTitle], serviceTitles: [serviceTitle] });
   const categories = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Категории" }) });
   await categories.getByLabel("Новая категория").fill(categoryTitle);
   await categories.getByRole("button", { name: "Создать" }).click();

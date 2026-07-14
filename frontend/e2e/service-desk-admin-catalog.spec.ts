@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { attachScreenshot, loginAs, watchPage } from "./helpers";
+import { attachScreenshot, createCatalogFixtureCleaner, loginAs, watchPage } from "./helpers";
+
+const catalogFixtures = createCatalogFixtureCleaner();
+
+test.afterEach(async ({ page }) => {
+  await catalogFixtures.cleanup(page);
+});
 
 test("admin catalog CRUD validates duplicate category titles", async ({ page }, testInfo) => {
   const diagnostics = watchPage(page);
@@ -10,6 +16,10 @@ test("admin catalog CRUD validates duplicate category titles", async ({ page }, 
   const serviceTitle = `Browser QA service ${suffix}`;
 
   await loginAs(page, "Администратор Service Desk", "/admin/service-desk/catalog");
+  await catalogFixtures.track(page, {
+    categoryTitles: [title, editedTitle],
+    serviceTitles: [serviceTitle]
+  });
   await expect(page.getByRole("heading", { name: "Каталог Service Desk" })).toBeVisible();
 
   const categories = page.locator(".card").filter({

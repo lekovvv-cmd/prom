@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { attachScreenshot, loginAs, watchPage } from "./helpers";
+import { attachScreenshot, createCatalogFixtureCleaner, loginAs, watchPage } from "./helpers";
+
+const catalogFixtures = createCatalogFixtureCleaner();
+
+test.afterEach(async ({ page }) => {
+  await catalogFixtures.cleanup(page);
+});
 
 test("draft field attachment survives reload, downloads, deletes and is replaced through UI", async ({ page }, testInfo) => {
   const diagnostics = watchPage(page);
@@ -12,6 +18,7 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
   const ticketTitle = `Attachment QA ticket ${suffix}`;
 
   await loginAs(page, "Администратор Service Desk", "/admin/service-desk/catalog");
+  await catalogFixtures.track(page, { categoryTitles: [categoryTitle], serviceTitles: [serviceTitle] });
   const categories = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Категории" }) });
   await categories.getByLabel("Новая категория").fill(categoryTitle);
   await categories.getByRole("button", { name: "Создать" }).click();
