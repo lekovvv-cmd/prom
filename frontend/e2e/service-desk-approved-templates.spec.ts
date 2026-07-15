@@ -8,9 +8,14 @@ type ApprovedTemplate = {
   labels: string[];
 };
 
+function fieldByLabel(page: Page, label: string) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return page.getByLabel(new RegExp(`^${escapedLabel}(?:\\s|$)`));
+}
+
 const approvedTemplates: ApprovedTemplate[] = [
   { category: "ГИА: Администрирование", service: "Заказ воды", labels: ["Количество бутылок", "Объем бутылок", "Тип воды", "Дата и время начала мероприятия", "Дата и время окончания мероприятия", "Количество членов комиссии", "Количество заседаний ГЭК", "Количество выпускающихся студентов"] },
-  { category: "ГИА: Администрирование", service: "Установка камер", labels: ["Институт", "Вид ГИА", "Направление (специальность)", "Адрес установки камер", "Номер аудитории для установки камер", "Дата и время начала мероприятия", "Дата и время окончания мероприятия", "комментарии"] },
+  { category: "ГИА: Администрирование", service: "Установка камер", labels: ["Институт", "Вид ГИА", "Направление (специальность)", "Номер аудитории для установки камер", "Дата и время начала мероприятия", "Дата и время окончания мероприятия", "комментарии"] },
   { category: "Административно-хозяйственное сопровождение", service: "Бронирование аудиторий", labels: ["Цель брони аудитории", "ФИО (с кем согласовано)", "Адрес корпуса брони аудитории", "Номер аудитории", "Дата и время начала мероприятия", "Дата и время окончания мероприятия", "Комментарий"] },
   { category: "Административно-хозяйственное сопровождение", service: "На печать в Издательство", labels: ["Название мероприятия", "Согласовано/не согласовано с издательством", "Вид продукции", "Сроки изготовления", "Количество продукции", "Ссылка на шаблон", "Дополнительные характеристики"] },
   { category: "Административно-хозяйственное сопровождение", service: "Роль табельщика (табель рабочего времени, график отпусков)", labels: ["ФИО", "Дата начала отпуска", "Дата окончания отпуска"] },
@@ -24,10 +29,12 @@ const approvedTemplates: ApprovedTemplate[] = [
 
 async function openTemplate(page: Page, template: ApprovedTemplate) {
   await page.goto("/service-desk");
-  const category = page.getByRole("region", { name: template.category, exact: true });
-  const serviceHeading = category.getByRole("heading", { name: template.service, exact: true });
+  await page.getByLabel("Поиск услуги или категории").fill(template.service);
+  const categoryGroup = page.getByLabel(template.category);
+  const serviceCard = categoryGroup.locator(".service-desk-service-card").filter({ has: page.getByRole("heading", { name: template.service, exact: true }) });
+  const serviceHeading = serviceCard.getByRole("heading", { name: template.service, exact: true });
   await expect(serviceHeading).toBeVisible();
-  await serviceHeading.locator("xpath=../..").getByRole("link", { name: "Открыть услугу" }).click();
+  await serviceCard.getByRole("link", { name: "Открыть услугу" }).click();
   await expect(page.getByRole("heading", { level: 1, name: template.service })).toBeVisible();
 }
 
@@ -49,7 +56,7 @@ test("all eleven approved templates render exact labels and reject an empty subm
   for (const template of approvedTemplates) {
     await openTemplate(page, template);
     for (const label of template.labels) {
-      const field = label === "Документ" ? page.locator("#document") : page.getByLabel(label);
+      const field = label === "Документ" ? page.locator("#document") : fieldByLabel(page, label);
       await expect(field).toBeVisible();
     }
     await page.getByRole("button", { name: "Отправить заявку" }).click();
@@ -82,7 +89,7 @@ test("approved templates submit with required dictionaries and files", async ({ 
 
   await openTemplate(page, approvedTemplates[1]);
   await expect(page.getByLabel("Институт")).toHaveValue("shpiu");
-  await expect(page.getByLabel("Адрес установки камер")).toHaveValue("lenina_38");
+  await expect(page.getByLabel("Адрес установки камер")).toHaveCount(0);
   await page.getByLabel("Вид ГИА").selectOption("state_exam");
   await page.getByLabel("Направление (специальность)").selectOption("40_03_01_law");
   await page.getByLabel("Номер аудитории для установки камер").fill("305");
@@ -113,6 +120,7 @@ test("approved templates submit with required dictionaries and files", async ({ 
 
   await openTemplate(page, approvedTemplates[5]);
   await page.getByLabel("Название мероприятия").fill("Конференция");
+  await page.getByLabel("Тип перемещения").selectOption("import");
   await page.getByLabel("Дата и время вноса (ввоза)").fill("2027-01-15T08:00");
   await page.getByLabel("Дата и время выноса (вывоза)").fill("2027-01-15T18:00");
   await page.locator("#inventory_list_file").setInputFiles({ name: "inventory.txt", mimeType: "text/plain", buffer: Buffer.from("Inventory") });

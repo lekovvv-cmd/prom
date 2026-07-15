@@ -97,7 +97,7 @@ SERVICES_BY_CATEGORY = {
 APPROVED_TEMPLATE_REVISION = "approved-11-v1"
 APPROVED_TEMPLATE_SOURCE = "PROM_TZ_11_APPROVED_SERVICE_DESK_TEMPLATES.md"
 APPROVED_TEMPLATE_REVISION_BY_SERVICE = {
-    "Установка камер": "approved-11-v2-building-addresses",
+    "Установка камер": "approved-11-v3-remove-installation-address",
     "Ввоз (вывоз) и внос (вынос) материальных ценностей": "approved-11-v2-dictionaries",
 }
 
@@ -259,11 +259,10 @@ APPROVED_TEMPLATE_FIELDS = {
         field("institute", "Институт", TemplateFieldType.SELECT, 0, dictionary_code="institutes", validation={"default_value": "shpiu"}),
         field("gia_type", "Вид ГИА", TemplateFieldType.SELECT, 1, dictionary_code="gia_type"),
         field("study_direction", "Направление (специальность)", TemplateFieldType.SELECT, 2, dictionary_code="study_directions"),
-        field("installation_address", "Адрес установки камер", TemplateFieldType.SELECT, 3, dictionary_code="building_addresses", validation={"default_value": "lenina_38"}),
-        field("room_number", "Номер аудитории для установки камер", TemplateFieldType.TEXT, 4),
-        field("event_starts_at", "Дата и время начала мероприятия", TemplateFieldType.DATETIME, 5),
-        field("event_ends_at", "Дата и время окончания мероприятия", TemplateFieldType.DATETIME, 6),
-        field("comment", "комментарии", TemplateFieldType.TEXTAREA, 7, is_required=False),
+        field("room_number", "Номер аудитории для установки камер", TemplateFieldType.TEXT, 3),
+        field("event_starts_at", "Дата и время начала мероприятия", TemplateFieldType.DATETIME, 4),
+        field("event_ends_at", "Дата и время окончания мероприятия", TemplateFieldType.DATETIME, 5),
+        field("comment", "комментарии", TemplateFieldType.TEXTAREA, 6, is_required=False),
     ],
     "Бронирование аудиторий": [
         field("booking_purpose", "Цель брони аудитории", TemplateFieldType.TEXTAREA, 0),

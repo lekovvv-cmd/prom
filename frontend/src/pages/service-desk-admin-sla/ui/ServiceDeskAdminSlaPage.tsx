@@ -163,11 +163,11 @@ function ActiveCheckbox({
   );
 }
 
-function FormActions({ editingId, isSaving, onCancel }: Pick<EditorProps<unknown>, "editingId" | "isSaving" | "onCancel">) {
+function FormActions({ editingId, isSaving, onCancel, createLabel = "Создать", updateLabel = "Сохранить изменения" }: Pick<EditorProps<unknown>, "editingId" | "isSaving" | "onCancel"> & { createLabel?: string; updateLabel?: string }) {
   return (
     <div className="form-actions">
       <Button type="submit" disabled={isSaving}>
-        <Save size={16} /> {isSaving ? "Сохраняем…" : editingId ? "Сохранить изменения" : "Создать"}
+        <Save size={16} /> {isSaving ? "Сохраняем…" : editingId ? updateLabel : createLabel}
       </Button>
       {editingId ? (
         <Button type="button" variant="secondary" onClick={onCancel} disabled={isSaving}>
@@ -333,7 +333,7 @@ function BindingEditor({ policies, draft, editingId, isSaving, onCancel, onChang
 function EscalationEditor({ policies, recipients, draft, editingId, isSaving, onCancel, onChange, onSubmit }: EditorProps<EscalationDraft> & { policies: SlaPolicy[]; recipients: SlaRecipient[] }) {
   return (
     <Card className="service-desk-sla-editor-card">
-      <div className="service-desk-sla-card-heading"><div><span className="service-desk-eyebrow">Эскалация</span><h2>{editingId ? "Редактирование эскалации" : "Новая эскалация"}</h2></div></div>
+      <div className="service-desk-sla-card-heading"><div><span className="service-desk-eyebrow">Уведомление о риске</span><h2>{editingId ? "Редактирование уведомления" : "Новое уведомление"}</h2></div></div>
       <form className="service-desk-sla-form" onSubmit={onSubmit}>
         <Select label="Политика SLA" value={draft.policyId} disabled={editingId !== null} onChange={(event) => onChange((current) => ({ ...current, policyId: event.target.value }))} required><option value="">Выберите политику</option>{policies.map((policy) => <option key={policy.id} value={policy.id}>{policy.name}</option>)}</Select>
         <div className="service-desk-sla-form-grid">
@@ -343,8 +343,8 @@ function EscalationEditor({ policies, recipients, draft, editingId, isSaving, on
         <Select label="Действие" value={draft.actionType} onChange={(event) => onChange((current) => ({ ...current, actionType: event.target.value as EscalationDraft["actionType"] }))}><option value="create_in_app_notification">Уведомление в системе</option><option value="email_notification_when_available">Email при доступности канала</option></Select>
         <Select label="Получатель" value={draft.recipientType} onChange={(event) => { const recipientType = event.target.value as EscalationRecipientType; onChange((current) => ({ ...current, recipientType, recipientUserId: recipientType === "specific_user" ? current.recipientUserId : "" })); }}><option value="assignee">Исполнитель</option><option value="requester">Заявитель</option><option value="service_desk_admin">Администраторы Service Desk</option><option value="specific_user">Конкретный пользователь</option></Select>
         {draft.recipientType === "specific_user" ? <Select label="Пользователь-получатель" value={draft.recipientUserId} onChange={(event) => onChange((current) => ({ ...current, recipientUserId: event.target.value }))} required><option value="">Выберите пользователя</option>{recipients.map((recipient) => <option key={recipient.id} value={recipient.id}>{recipient.display_name} — {recipient.email}</option>)}</Select> : null}
-        <ActiveCheckbox checked={draft.isActive} label="Эскалация активна" onChange={(isActive) => onChange((current) => ({ ...current, isActive }))} />
-        <FormActions editingId={editingId} isSaving={isSaving} onCancel={onCancel} />
+        <ActiveCheckbox checked={draft.isActive} label="Уведомление включено" onChange={(isActive) => onChange((current) => ({ ...current, isActive }))} />
+        <FormActions editingId={editingId} isSaving={isSaving} onCancel={onCancel} createLabel="Создать уведомление" updateLabel="Сохранить уведомление" />
       </form>
     </Card>
   );

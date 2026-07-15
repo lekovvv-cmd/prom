@@ -9,7 +9,7 @@ test("employee session, profile, direct guards and logout stay consistent", asyn
   await page.goto("/profile");
   await expect(page.getByRole("heading", { name: "Профиль" })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("employee@utmn.ru")).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveValue("employee@utmn.ru");
   await page.goto("/admin/projects");
   await expect(page).toHaveURL(/\/projects$/);
   await page.getByRole("button", { name: "Выйти" }).click();

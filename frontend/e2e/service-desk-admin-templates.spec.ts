@@ -85,6 +85,8 @@ test("admin creates and publishes a template with production preview", async ({ 
   await expect(page.getByText("Эта версия уже используется в заявках и доступна только для просмотра.")).toBeVisible();
   await page.reload();
   await page.getByLabel("Услуга").selectOption({ label: serviceTitle });
-  await expect(page.getByRole("button", { name: /Версия 1 Опубликована/ })).toBeVisible();
+  const publishedVersion = page.getByLabel("Версии формы").getByRole("button", { name: "Версия 1" });
+  await expect(publishedVersion).toBeVisible();
+  await expect(publishedVersion).toContainText("Опубликована");
   diagnostics.assertClean();
 });

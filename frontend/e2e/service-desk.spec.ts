@@ -249,12 +249,12 @@ test("Service Desk SLA admin persists complete calendar, policy, binding and esc
   await escalationForm.getByLabel("Порог, %").fill("73");
   await escalationForm.getByLabel("Получатель").selectOption("specific_user");
   await escalationForm.getByLabel("Пользователь-получатель").selectOption(managerRecipient!.id);
-  await escalationForm.getByRole("button", { name: "Создать" }).click();
+  await escalationForm.getByRole("button", { name: "Создать уведомление" }).click();
   const escalationCard = escalationSection.locator(".service-desk-sla-summary-card").filter({ hasText: "Выполнение · 73%" });
   await expect(escalationCard).toContainText("Конкретный пользователь");
   await escalationCard.getByRole("button", { name: "Изменить" }).click();
   await escalationForm.getByLabel("Порог, %").fill("81");
-  await escalationForm.getByRole("button", { name: "Сохранить изменения" }).click();
+  await escalationForm.getByRole("button", { name: "Сохранить уведомление" }).click();
 
   await page.reload();
   await expect(page.getByRole("heading", { name: `${calendarName} edited` })).toBeVisible();

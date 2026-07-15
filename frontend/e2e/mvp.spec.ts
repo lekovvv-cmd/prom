@@ -17,7 +17,7 @@ async function loginAs(page: Page, roleLabel: "Администратор пла
 
 async function logout(page: Page) {
   await page.getByRole("button", { name: "Выйти" }).click();
-  await expect(page.getByRole("banner").getByRole("link", { name: "Войти" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("shpiu_project_showcase_token"))).toBeNull();
 }
 
 async function addCustomCompetency(scope: Locator, value: string) {

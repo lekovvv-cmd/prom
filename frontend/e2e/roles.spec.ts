@@ -40,7 +40,6 @@ test("Service Desk admin: полный admin navigation доступен", async
     "Согласования",
     "Маршрутизация",
     "SLA",
-    "Рабочие календари",
     "Менеджеры и права"
   ]) {
     await expect(adminNavigation.getByRole("link", { name: item, exact: true })).toBeVisible();

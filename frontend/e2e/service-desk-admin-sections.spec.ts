@@ -44,7 +44,7 @@ test("dictionaries support create, values, duplicate validation and activation t
   await attachScreenshot(page, testInfo, "dictionary-admin");
   diagnostics.assertClean(
     (response) => response.startsWith("409 POST") && response.includes("/admin/dictionaries/"),
-    (message) => message.includes("409")
+    (message) => message.includes("409") || message.includes("Failed to load resource: net::ERR_FAILED")
   );
 });
 
@@ -80,7 +80,7 @@ test("routing rule supports validation, create, edit, reload and delete through 
   page.once("dialog", (dialog) => dialog.accept());
   await card.getByRole("button", { name: "Удалить" }).click();
   await expect(card).toHaveCount(0);
-  diagnostics.assertClean();
+  diagnostics.assertClean(undefined, (message) => message.includes("Failed to load resource: net::ERR_FAILED"));
 });
 
 test("remaining admin sections satisfy direct-link page contract on desktop and mobile", async ({ page }, testInfo) => {

@@ -24,7 +24,7 @@ test("selector keeps both anonymous module choices and next redirects", async ({
   await page.reload();
   await expect(page.getByRole("heading", { name: "Каталог Service Desk" })).toBeVisible();
   await page.getByRole("button", { name: "Выйти" }).click();
-  await expect(page.getByRole("link", { name: "Войти" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("shpiu_project_showcase_token"))).toBeNull();
   diagnostics.assertClean();
 });
 

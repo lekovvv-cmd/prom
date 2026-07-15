@@ -13,7 +13,6 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
   const suffix = Date.now();
   const categoryTitle = `Attachment QA category ${suffix}`;
   const serviceTitle = `Attachment QA service ${suffix}`;
-  const fieldKey = `qa_file_${suffix}`;
   const fieldLabel = `QA evidence ${suffix}`;
   const ticketTitle = `Attachment QA ticket ${suffix}`;
 
@@ -31,7 +30,6 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
   await page.getByLabel("Услуга").selectOption({ label: serviceTitle });
   await page.getByRole("button", { name: "Создать новую версию" }).click();
   const editor = page.locator(".template-field-editor");
-  await editor.getByLabel("Системное имя поля").fill(fieldKey);
   await editor.getByLabel("Название поля для пользователя").fill(fieldLabel);
   await editor.getByLabel("Тип ответа").selectOption("file");
   await editor.getByText("Это поле обязательно всегда").click();
@@ -44,7 +42,7 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
     .getByRole("link", { name: "Открыть услугу" }).click();
   await page.getByLabel("Тема заявки").fill(ticketTitle);
   await page.getByLabel("Описание").fill("Проверка файлового поля через production UI.");
-  await page.locator(`input#${fieldKey}`).setInputFiles({
+  await page.getByLabel(fieldLabel).setInputFiles({
     name: "draft-evidence.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("draft attachment evidence")
@@ -64,7 +62,7 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
   await savedFiles.getByRole("button", { name: "Удалить" }).click();
   await expect(savedFiles).toHaveCount(0);
 
-  await page.locator(`input#${fieldKey}`).setInputFiles({
+  await page.getByLabel(fieldLabel).setInputFiles({
     name: "replacement.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("replacement attachment evidence")

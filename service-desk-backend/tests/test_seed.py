@@ -239,7 +239,6 @@ def test_approved_templates_have_exact_versioned_schemas(client, db_session_fact
             ("institute", "Институт", "select", True, "institutes", {"default_value": "shpiu"}, None),
             ("gia_type", "Вид ГИА", "select", True, "gia_type", None, None),
             ("study_direction", "Направление (специальность)", "select", True, "study_directions", None, None),
-            ("installation_address", "Адрес установки камер", "select", True, "building_addresses", {"default_value": "lenina_38"}, None),
             ("room_number", "Номер аудитории для установки камер", "text", True, None, None, None),
             ("event_starts_at", "Дата и время начала мероприятия", "datetime", True, None, None, None),
             ("event_ends_at", "Дата и время окончания мероприятия", "datetime", True, None, None, None),
@@ -417,7 +416,7 @@ def test_seed_replaces_redundant_camera_address_dictionary(client, db_session_fa
             TemplateVersionStatus.PUBLISHED,
         ]
         assert versions[0].fields[0].dictionary_code == "building_addresses"
-        assert versions[1].fields[3].dictionary_code == "building_addresses"
+        assert all(field.key != "installation_address" for field in versions[1].fields)
 
 
 def test_approved_template_sync_archives_old_seed_version(client, db_session_factory):
