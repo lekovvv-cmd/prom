@@ -6,6 +6,8 @@ type RequestOptions = RequestInit & {
   auth?: boolean;
 };
 
+const NETWORK_ERROR_MESSAGE = "Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.";
+
 export class ApiError extends Error {
   status: number;
   details: unknown;
@@ -220,10 +222,18 @@ export function createApiClient(baseUrl: string, tokenStorage: AuthTokenStorage 
       if (token && options.auth !== false) {
         headers.set("Authorization", `Bearer ${token}`);
       }
-      const response = await fetch(`${baseUrl}${path}`, {
-        ...options,
-        headers
-      });
+      let response: Response;
+      try {
+        response = await fetch(`${baseUrl}${path}`, {
+          ...options,
+          headers
+        });
+      } catch (reason) {
+        const message = reason instanceof Error && /failed to fetch|network(?:\s+request)?\s+failed|networkerror/i.test(reason.message)
+          ? NETWORK_ERROR_MESSAGE
+          : "Не удалось выполнить запрос. Попробуйте ещё раз.";
+        throw new ApiError(message, 0, reason);
+      }
       const payload = await parseResponse<T>(response);
       if (options.method && !["GET", "HEAD"].includes(options.method.toUpperCase())) onMutation?.();
       return payload;

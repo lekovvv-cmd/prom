@@ -8,6 +8,33 @@ test.afterEach(async ({ page }) => {
   await catalogFixtures.cleanup(page);
 });
 
+test("template preview keeps controls aligned within each row", async ({ page }, testInfo) => {
+  const diagnostics = watchPage(page);
+
+  await loginAs(page, "Администратор Service Desk", "/admin/service-desk/templates");
+  await page.getByLabel("Услуга").selectOption({ label: "Транспортное обслуживание" });
+  await page.getByRole("button", { name: "Открыть предпросмотр" }).click();
+
+  const preview = page.locator(".template-preview-card");
+  await expect(preview).toBeVisible();
+  const [eventName, peopleCount, studentsCount, startsAt] = await Promise.all([
+    preview.getByLabel("Название мероприятия").boundingBox(),
+    preview.getByLabel("Количество человек (всего)").boundingBox(),
+    preview.getByLabel("Количество студентов").boundingBox(),
+    preview.getByLabel("Дата и время начала мероприятия").boundingBox()
+  ]);
+
+  expect(eventName).not.toBeNull();
+  expect(peopleCount).not.toBeNull();
+  expect(studentsCount).not.toBeNull();
+  expect(startsAt).not.toBeNull();
+  expect(eventName!.y).toBe(peopleCount!.y);
+  expect(studentsCount!.y).toBe(startsAt!.y);
+
+  await attachScreenshot(page, testInfo, "template-preview-aligned");
+  diagnostics.assertClean();
+});
+
 test("admin creates and publishes a template with production preview", async ({ page }, testInfo) => {
   const diagnostics = watchPage(page);
   const suffix = Date.now();
@@ -34,16 +61,16 @@ test("admin creates and publishes a template with production preview", async ({ 
   await page.getByLabel("Подсказка в начале формы").fill("Browser QA help text");
   await page.getByRole("button", { name: "Сохранить настройки формы" }).click();
   const editor = page.locator(".template-field-editor");
-  await expect(editor.getByLabel("Системное имя поля")).toHaveCount(0);
+  await expect(editor.getByText("Системное имя", { exact: false })).toHaveCount(0);
   await editor.getByLabel("Название поля для пользователя").fill(fieldLabel);
-  await expect(editor.getByText(`contact_email_${suffix}`, { exact: true })).toBeVisible();
+  await expect(editor.getByText(`contact_email_${suffix}`, { exact: true })).toHaveCount(0);
   await editor.getByLabel("Тип ответа").selectOption("email");
   await editor.getByText("Это поле обязательно всегда").click();
   await editor.getByRole("button", { name: "Сохранить поле" }).click();
   await expect(page.getByText(fieldLabel)).toBeVisible();
   const dependentLabel = `Extra details ${suffix}`;
   await editor.getByLabel("Название поля для пользователя").fill(dependentLabel);
-  await expect(editor.getByText(`extra_details_${suffix}`, { exact: true })).toBeVisible();
+  await expect(editor.getByText(`extra_details_${suffix}`, { exact: true })).toHaveCount(0);
   await editor.getByText("Показывать это поле только при выполнении условия", { exact: true }).click();
   await editor.getByLabel("Поле для условия видимости 1").selectOption(`contact_email_${suffix}`);
   await editor.getByLabel("Значение для условия 1").fill("yes");

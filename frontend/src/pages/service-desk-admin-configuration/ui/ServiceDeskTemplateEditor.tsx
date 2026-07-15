@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Search as Eye, Pencil, Plus, Save, Trash2 } from "lucide-react";
 
 import type { ServiceDeskService, ServiceDeskTemplateField, ServiceDeskTemplateFieldType } from "../../../entities/service-desk-catalog/model/types";
-import { createAdminTemplateField, createAdminTemplateVersion, deleteAdminTemplateField, listAdminServices, listAdminTemplateVersions, previewAdminTemplateVersion, publishAdminTemplateVersion, reorderAdminTemplateFields, updateAdminTemplateField, updateAdminTemplateVersion } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
-import type { AdminTemplateVersion } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
+import { createAdminTemplateField, createAdminTemplateVersion, deleteAdminTemplateField, listAdminDictionaries, listAdminServices, listAdminTemplateVersions, previewAdminTemplateVersion, publishAdminTemplateVersion, reorderAdminTemplateFields, updateAdminTemplateField, updateAdminTemplateVersion } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
+import type { AdminDictionary, AdminTemplateVersion } from "../../../entities/service-desk-admin/api/serviceDeskAdminConfigApi";
 import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
@@ -41,6 +41,7 @@ const operators = ["equals", "not_equals", "in", "not_in", "is_empty", "is_not_e
 
 export function ServiceDeskTemplateEditor() {
   const [services, setServices] = useState<ServiceDeskService[]>([]);
+  const [dictionaries, setDictionaries] = useState<AdminDictionary[]>([]);
   const [versions, setVersions] = useState<AdminTemplateVersion[]>([]);
   const [serviceId, setServiceId] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -53,6 +54,7 @@ export function ServiceDeskTemplateEditor() {
 
   useEffect(() => {
     listAdminServices().then(setServices).catch((reason) => setError(errorText(reason, "Не удалось загрузить услуги")));
+    listAdminDictionaries().then(setDictionaries).catch(() => setDictionaries([]));
   }, []);
 
   async function loadVersions(nextService = serviceId) {
@@ -185,7 +187,7 @@ export function ServiceDeskTemplateEditor() {
           </div>
           {selected.status === "draft" ? <>
             <VersionSettings version={selected} onSaved={(updated) => setVersions((current) => current.map((item) => item.id === updated.id ? updated : item))} />
-            <FieldEditor draft={draft} fields={fieldReferences} editingId={editingId} onChange={setDraft} onSave={() => void saveField()} onCancel={() => { setEditingId(null); setDraft(emptyDraft()); }} />
+            <FieldEditor draft={draft} fields={fieldReferences} dictionaries={dictionaries} editingId={editingId} onChange={setDraft} onSave={() => void saveField()} onCancel={() => { setEditingId(null); setDraft(emptyDraft()); }} />
           </> : null}
           <section className="template-fields-section" aria-labelledby="template-fields-heading">
             <div className="service-desk-section-heading">
@@ -199,7 +201,7 @@ export function ServiceDeskTemplateEditor() {
               {selected.fields.map((field, index) => <div className="admin-config-row template-field-row" key={field.id}>
                 <span>
                   <strong>{field.label}{field.is_required ? " *" : ""}</strong>
-                  <small>{fieldTypeLabel(field.field_type)} · служебное имя: <code>{field.key}</code></small>
+                  <small>{fieldTypeLabel(field.field_type)}</small>
                 </span>
                 {selected.status === "draft" ? <span className="button-row">
                   <Button variant="ghost" onClick={() => startEdit(field)}><Pencil size={15} />Изменить</Button>
@@ -250,7 +252,7 @@ function VersionSettings({ version, onSaved }: { version: AdminTemplateVersion; 
   </Card>;
 }
 
-function FieldEditor({ draft, fields, editingId, onChange, onSave, onCancel }: { draft: EditorDraft; fields: FieldReference[]; editingId: string | null; onChange: (draft: EditorDraft) => void; onSave: () => void; onCancel: () => void }) {
+function FieldEditor({ draft, fields, dictionaries, editingId, onChange, onSave, onCancel }: { draft: EditorDraft; fields: FieldReference[]; dictionaries: AdminDictionary[]; editingId: string | null; onChange: (draft: EditorDraft) => void; onSave: () => void; onCancel: () => void }) {
   const update = (patch: Partial<EditorDraft>) => onChange({ ...draft, ...patch });
   const generatedKey = editingId ? draft.key : createSystemSlug(draft.label);
   const isChoice = draft.field_type === "select" || draft.field_type === "multiselect";
@@ -267,7 +269,6 @@ function FieldEditor({ draft, fields, editingId, onChange, onSave, onCancel }: {
       <div className="template-section-title"><span className="template-step-number">1</span><div><h4 id="field-basics-heading">Что спросить у пользователя</h4><p className="muted">Название отображается в форме заявки.</p></div></div>
       <div className="template-step-grid">
         <div className="template-control-with-help"><Input label="Название поля для пользователя" value={draft.label} placeholder="Например, дата занятия" onChange={(event) => update({ label: event.target.value, key: editingId ? draft.key : createSystemSlug(event.target.value) })} /><small className="field-help">Пишите простыми словами: «Номер аудитории», «ФИО преподавателя», «Дата занятия».</small></div>
-        <div className="system-slug-preview"><span>Системное имя</span><code>{generatedKey || "Появится после названия"}</code><small>Создаётся автоматически для условий и интеграций. После сохранения не меняется.</small></div>
       </div>
     </section>
 
@@ -277,7 +278,7 @@ function FieldEditor({ draft, fields, editingId, onChange, onSave, onCancel }: {
         <div className="template-control-with-help"><Select label="Тип ответа" value={draft.field_type} disabled={Boolean(editingId)} onChange={(event) => update({ field_type: event.target.value as ServiceDeskTemplateFieldType })}>{fieldTypes.map((type) => <option key={type} value={type}>{fieldTypeLabel(type)}</option>)}</Select><small className="field-help">Выберите «Список» для готовых вариантов, «Файл» для вложений, «Дата и время» для расписания.</small></div>
         <div className="template-control-with-help"><Input label="Пример ответа (необязательно)" value={draft.placeholder} placeholder="Например, 305" onChange={(event) => update({ placeholder: event.target.value })} /><small className="field-help">Серый пример внутри поля; он не отправляется как ответ.</small></div>
         <div className="template-control-with-help template-step-wide"><Input label="Подсказка для пользователя (необязательно)" value={draft.help_text} placeholder="Укажите дату и время по расписанию" onChange={(event) => update({ help_text: event.target.value })} /><small className="field-help">Появится под полем и поможет заполнить его без лишних вопросов.</small></div>
-        {isChoice ? <ChoiceSource draft={draft} onChange={update} /> : null}
+        {isChoice ? <ChoiceSource draft={draft} dictionaries={dictionaries} onChange={update} /> : null}
       </div>
       {hasValidation ? <ValidationSettings draft={draft} onChange={update} /> : null}
     </section>
@@ -296,10 +297,10 @@ function FieldEditor({ draft, fields, editingId, onChange, onSave, onCancel }: {
   </Card>;
 }
 
-function ChoiceSource({ draft, onChange }: { draft: EditorDraft; onChange: (patch: Partial<EditorDraft>) => void }) {
+function ChoiceSource({ draft, dictionaries, onChange }: { draft: EditorDraft; dictionaries: AdminDictionary[]; onChange: (patch: Partial<EditorDraft>) => void }) {
   return <>
     <div className="template-control-with-help"><Select label="Откуда брать варианты" value={draft.options_mode} onChange={(event) => onChange({ options_mode: event.target.value as "static" | "dictionary" })}><option value="static">Ввести варианты вручную</option><option value="dictionary">Взять из справочника</option></Select><small className="field-help">Справочник пригодится, если один и тот же список нужен в нескольких формах.</small></div>
-    {draft.options_mode === "static" ? <div className="template-control-with-help"><Input label="Варианты списка" value={draft.options_text} placeholder="Очная=full_time, Заочная=part_time" onChange={(event) => onChange({ options_text: event.target.value })} /><small className="field-help">Введите варианты через запятую. Можно задать понятное название и служебное значение через «=».</small></div> : <div className="template-control-with-help"><Input label="Код справочника" value={draft.dictionary_code} placeholder="discipline" onChange={(event) => onChange({ dictionary_code: event.target.value, options_text: "" })} /><small className="field-help">Код указан в разделе «Справочники». Пользователь увидит актуальные варианты из этого списка.</small></div>}
+    {draft.options_mode === "static" ? <div className="template-control-with-help"><Input label="Варианты списка" value={draft.options_text} placeholder="Очная, заочная" onChange={(event) => onChange({ options_text: event.target.value })} /><small className="field-help">Введите понятные варианты через запятую. Система сама подготовит их для сохранения.</small></div> : <div className="template-control-with-help"><Select label="Справочник" value={draft.dictionary_code} onChange={(event) => onChange({ dictionary_code: event.target.value, options_text: "" })}><option value="">Выберите справочник</option>{dictionaries.map((dictionary) => <option key={dictionary.id} value={dictionary.code}>{dictionary.title}</option>)}</Select><small className="field-help">Пользователь увидит актуальные варианты из выбранного справочника.</small></div>}
   </>;
 }
 
@@ -342,8 +343,8 @@ function ConditionSection({ kind, rules, fields, ownKey, onChange }: { kind: Rul
           <div className="template-step-grid template-condition-grid">
             <Select label={`Поле для условия ${isVisibility ? "видимости" : "обязательности"} ${index + 1}`} value={String(rule.field ?? "")} onChange={(event) => updateRule(index, { field: event.target.value })}>
               <option value="">Выберите поле</option>
-              {availableFields.map((field) => <option key={field.key} value={field.key}>{field.label} ({field.key})</option>)}
-              {isUnknownField ? <option value={String(rule.field)}>Недоступное поле: {String(rule.field)}</option> : null}
+              {availableFields.map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
+              {isUnknownField ? <option value={String(rule.field)}>Недоступное поле</option> : null}
             </Select>
             <Select label={`Проверка для условия ${index + 1}`} value={operator} onChange={(event) => updateRule(index, { operator: event.target.value })}>{operators.map((item) => <option key={item} value={item}>{operatorLabel(item)}</option>)}</Select>
             {!["is_empty", "is_not_empty"].includes(operator) ? <Input label={`Значение для условия ${index + 1}`} value={ruleValue(rule.value)} onChange={(event) => updateRule(index, { value: event.target.value })} /> : null}
@@ -383,10 +384,7 @@ function buildPayload(draft: EditorDraft, position: number) {
     payload.options = null;
   } else {
     payload.dictionary_code = null;
-    payload.options = draft.options_text.split(",").map((item) => item.trim()).filter(Boolean).map((item) => {
-      const parts = item.split("=", 2);
-      return { label: parts[0], value: parts[1] ?? parts[0] };
-    });
+    payload.options = draft.options_text.split(",").map((item) => item.trim()).filter(Boolean).map((label) => ({ label, value: createSystemSlug(label) }));
   }
   payload.visibility_rules = visibilityRules.length ? visibilityRules : null;
   payload.required_rules = requiredRules.length ? requiredRules : null;

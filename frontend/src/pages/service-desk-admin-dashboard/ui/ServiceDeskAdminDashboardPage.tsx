@@ -295,8 +295,8 @@ export function ServiceDeskAdminDashboardPage() {
   return (
     <>
       <PageLayout title="Service Desk - обзор" subtitle="Период событий считается по UTC; очередь заявок отражает текущее состояние.">
-        <Card>
-          <div className="filter-grid">
+        <Card className="service-desk-dashboard-filter-card">
+          <div className="service-desk-dashboard-filter-grid">
             <Input label="Дата с" type="date" value={filters.dateFrom} onChange={(event) => updateFilter("dateFrom", event.target.value)} />
             <Input label="Дата по" type="date" value={filters.dateTo} onChange={(event) => updateFilter("dateTo", event.target.value)} />
             <Select label="Категория" value={filters.categoryId} onChange={(event) => updateFilter("categoryId", event.target.value)}>
@@ -325,14 +325,16 @@ export function ServiceDeskAdminDashboardPage() {
                 <Card key={key}><span className="muted">{label}</span><strong className="metric-value">{data.summary[key] as number}</strong></Card>
               ))}
             </div>
-            <div className="dashboard-grid">
-              <Distribution title="По статусам" items={data.statuses} />
-              <Distribution title="По приоритетам" items={data.summary.priorities} />
-              <Distribution title="По категориям" items={data.categories} />
-              <Distribution title="По услугам" items={data.services} />
+            <div className="dashboard-analytics">
+              <div className="dashboard-grid">
+                <Distribution title="По статусам" items={data.statuses} />
+                <Distribution title="По приоритетам" items={data.summary.priorities} />
+                <Distribution title="По категориям" items={data.categories} />
+                <Distribution title="По услугам" items={data.services} />
+              </div>
+              <OperationalAnalytics times={data.times} sla={data.sla} backlog={data.backlog} />
+              <PeopleAnalytics assignees={data.assignees} approvals={data.approvals} />
             </div>
-            <OperationalAnalytics times={data.times} sla={data.sla} backlog={data.backlog} />
-            <PeopleAnalytics assignees={data.assignees} approvals={data.approvals} />
           </>
         ) : null}
       </PageLayout>

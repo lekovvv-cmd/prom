@@ -24,7 +24,7 @@ export const emptyProjectForm: ProjectMutationPayload = {
   end_date: null,
   responsible_user_id: null,
   working_group_member_ids: [],
-  contact_email: "manager@utmn.ru",
+  contact_email: "project.manager@utmn.ru",
   required_competencies: "",
   competency_blocks: [createEmptyCompetencyBlock()],
   planned_tasks: ""

@@ -46,4 +46,17 @@ describe("createApiClient", () => {
       undefined
     );
   });
+
+  it("turns a browser network failure into a clear message for the user", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    const client = createApiClient("http://service-desk.local", {
+      getToken: () => null,
+      setToken: vi.fn()
+    });
+
+    await expect(client.request("/admin/dictionaries")).rejects.toMatchObject({
+      message: "Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.",
+      status: 0
+    });
+  });
 });

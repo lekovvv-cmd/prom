@@ -100,7 +100,7 @@ export function ServiceDeskAdminAccessPage() {
           if (active) setProjectUsers(items);
         })
         .catch((reason: unknown) => {
-          if (active) setError(reason instanceof Error ? reason.message : "Не удалось загрузить пользователей Projects");
+          if (active) setError(reason instanceof Error ? reason.message : "Не удалось загрузить пользователей UTMN");
         });
     }, 250);
     return () => {
@@ -149,7 +149,7 @@ export function ServiceDeskAdminAccessPage() {
     const data = new FormData(form);
     const projectUser = projectUsers.find((user) => user.id === selectedProjectUserId);
     if (!projectUser) {
-      setError("Выберите пользователя Projects");
+      setError("Выберите пользователя UTMN");
       return;
     }
     await mutate(async () => {
@@ -214,9 +214,9 @@ export function ServiceDeskAdminAccessPage() {
     <>
       <PageLayout title="Менеджеры и права">
         <Card>
-          <form className="filter-grid" onSubmit={(event) => void create(event)}>
-            <Input label="Поиск пользователя Projects" value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="Email или имя" />
-            <Select label="Пользователь Projects" value={selectedProjectUserId} onChange={(event) => setSelectedProjectUserId(event.target.value)} required>
+          <form className="service-desk-access-grant-form" onSubmit={(event) => void create(event)}>
+            <Input label="Поиск пользователя UTMN" value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="Email или имя" />
+            <Select label="Пользователь UTMN" value={selectedProjectUserId} onChange={(event) => setSelectedProjectUserId(event.target.value)} required>
               <option value="">Выберите пользователя</option>
               {projectUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name} · {user.email}</option>)}
             </Select>

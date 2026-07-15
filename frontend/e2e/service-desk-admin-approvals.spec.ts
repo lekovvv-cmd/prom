@@ -8,6 +8,22 @@ test.afterEach(async ({ page }) => {
   await catalogFixtures.cleanup(page);
 });
 
+test("загрузка услуг в согласованиях показывает понятную ошибку и повторяется", async ({ page }) => {
+  await loginAs(page, "Администратор Service Desk", "/admin/service-desk/approvals");
+  await page.route("**/service-desk-api/admin/services", async (route) => {
+    if (route.request().method() === "GET") await route.abort("failed");
+    else await route.continue();
+  });
+  await page.reload();
+  await expect(page.getByRole("alert")).toContainText("Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.");
+  await expect(page.getByRole("button", { name: "Повторить" })).toBeVisible();
+  await expect(page.getByRole("alert")).not.toContainText("Failed to fetch");
+  await page.unroute("**/service-desk-api/admin/services");
+  await page.getByRole("button", { name: "Повторить" }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect.poll(async () => page.getByLabel("Услуга").locator("option").count()).toBeGreaterThan(1);
+});
+
 test("администратор включает, изменяет и отключает согласование у услуги", async ({ page }) => {
   const diagnostics = watchPage(page);
   const suffix = Date.now();

@@ -25,8 +25,12 @@ type DraftStage = {
 };
 
 const defaultWorkflowName = "Согласование заявки";
+const networkErrorPattern = /failed to fetch|network(?:\s+request)?\s+failed|networkerror/i;
 
 function errorText(reason: unknown, fallback: string) {
+  if (reason instanceof Error && networkErrorPattern.test(reason.message)) {
+    return "Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.";
+  }
   return reason instanceof Error ? reason.message : fallback;
 }
 
@@ -41,20 +45,31 @@ export function ServiceDeskApprovalEditor() {
   const [newStageTitle, setNewStageTitle] = useState("");
   const [newStageRule, setNewStageRule] = useState<"any" | "all">("all");
   const [selectedApprovers, setSelectedApprovers] = useState<Record<string, string>>({});
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [canRetryOptions, setCanRetryOptions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const stageSequence = useRef(0);
 
-  useEffect(() => {
-    void Promise.all([listAdminServices(), getServiceDeskUserOptions("service_desk.approve")])
-      .then(([nextServices, nextUsers]) => {
-        setServices(nextServices);
-        setUsers(nextUsers);
-      })
-      .catch((reason) => setError(errorText(reason, "Не удалось загрузить данные согласований")));
-  }, []);
+  async function loadOptions() {
+    setError(null);
+    setCanRetryOptions(false);
+    setLoadingOptions(true);
+    try {
+      const [nextServices, nextUsers] = await Promise.all([listAdminServices(), getServiceDeskUserOptions("service_desk.approve")]);
+      setServices(nextServices);
+      setUsers(nextUsers);
+    } catch (reason) {
+      setCanRetryOptions(true);
+      setError(errorText(reason, "Не удалось загрузить данные согласований"));
+    } finally {
+      setLoadingOptions(false);
+    }
+  }
+
+  useEffect(() => { void loadOptions(); }, []);
 
   function hydrate(next: ServiceApprovalConfiguration) {
     setConfiguration(next);
@@ -168,10 +183,10 @@ export function ServiceDeskApprovalEditor() {
   }
 
   return <PageLayout title="Согласования" subtitle="Настройте процесс для услуги и примените его одной новой версией формы.">
-    {error ? <p className="form-error" role="alert">{error}</p> : null}
+    {error ? <div className="form-error config-error" role="alert"><span>{error}</span>{canRetryOptions ? <Button type="button" variant="ghost" onClick={() => void loadOptions()} disabled={loadingOptions}>Повторить</Button> : null}</div> : null}
     {success ? <p className="success-text" role="status">{success}</p> : null}
     <Card className="approval-apply-selector">
-      <Select label="Услуга" value={serviceId} onChange={(event) => void selectService(event.target.value)}>
+      <Select label="Услуга" value={serviceId} onChange={(event) => void selectService(event.target.value)} disabled={loadingOptions || canRetryOptions}>
         <option value="">Выберите услугу</option>
         {services.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}
       </Select>
@@ -226,11 +241,11 @@ export function ServiceDeskApprovalEditor() {
                 <option value="">Выберите согласующего</option>
                 {users.filter((user) => !stage.approverIds.includes(user.id)).map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
               </Select>
-              <Button variant="secondary" onClick={() => addApprover(stage.id)} disabled={!selectedApprovers[stage.id]}><Plus size={16} />Добавить согласующего</Button>
+              <Button className="approval-add-approver" variant="secondary" onClick={() => addApprover(stage.id)} disabled={!selectedApprovers[stage.id]}><Plus size={16} />Добавить согласующего</Button>
               <div className="approval-draft-approver-tags">
                 {stage.approverIds.map((userId) => {
                   const user = users.find((candidate) => candidate.id === userId);
-                  return <span className="tag" key={userId}>{user?.display_name ?? "Согласующий"}<button type="button" aria-label={`Удалить согласующего ${user?.display_name ?? ""}`} onClick={() => removeApprover(stage.id, userId)}>×</button></span>;
+                  return <span className="approval-approver-tag" key={userId}><span>{user?.display_name ?? "Согласующий"}</span><button type="button" aria-label={`Удалить согласующего ${user?.display_name ?? ""}`} onClick={() => removeApprover(stage.id, userId)}>×</button></span>;
                 })}
               </div>
             </div>

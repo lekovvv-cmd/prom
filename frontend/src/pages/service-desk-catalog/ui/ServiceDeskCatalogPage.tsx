@@ -5,13 +5,41 @@ import { Clock3, Search, Table2, Ticket } from "lucide-react";
 import { getServiceDeskCategories, getServiceDeskServices } from "../../../entities/service-desk-catalog/api/serviceDeskCatalogApi";
 import type { ServiceDeskCategory, ServiceDeskService } from "../../../entities/service-desk-catalog/model/types";
 import { Card } from "../../../shared/ui/Card";
+import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import { PageLayout } from "../../../shared/ui/PageLayout";
 import { Spinner } from "../../../shared/ui/Spinner";
 import { Header } from "../../../widgets/header/ui/Header";
 
+const uncategorizedGroupId = "__uncategorized__";
+
+type CatalogGroup = {
+  id: string;
+  title: string;
+  description: string | null;
+  services: ServiceDeskService[];
+};
+
+export function buildCatalogGroups(categories: ServiceDeskCategory[], services: ServiceDeskService[]): CatalogGroup[] {
+  const categoryIds = new Set(categories.map((category) => category.id));
+  const groups = categories
+    .map((category) => ({
+      id: category.id,
+      title: category.title,
+      description: category.description,
+      services: services.filter((service) => service.category_id === category.id)
+    }))
+    .filter((group) => group.services.length > 0);
+  const uncategorized = services.filter((service) => !categoryIds.has(service.category_id));
+
+  return uncategorized.length
+    ? [...groups, { id: uncategorizedGroupId, title: "Другие услуги", description: null, services: uncategorized }]
+    : groups;
+}
+
 export function ServiceDeskCatalogPage() {
   const [query, setQuery] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [categories, setCategories] = useState<ServiceDeskCategory[]>([]);
   const [services, setServices] = useState<ServiceDeskService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +49,7 @@ export function ServiceDeskCatalogPage() {
     let active = true;
     setLoading(true);
     setError(null);
-    Promise.all([getServiceDeskCategories(query), getServiceDeskServices("", query)])
+    Promise.all([getServiceDeskCategories(), getServiceDeskServices()])
       .then(([categoryItems, serviceItems]) => {
         if (!active) return;
         setCategories(categoryItems.filter((item) => item.is_active && !item.deleted_at));
@@ -36,37 +64,51 @@ export function ServiceDeskCatalogPage() {
     return () => {
       active = false;
     };
-  }, [query]);
+  }, []);
 
   const categoryMap = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
-  const groupedServices = useMemo(
-    () => categories.map((category) => ({
-      category,
-      services: services.filter((service) => service.category_id === category.id)
-    })),
-    [categories, services]
-  );
-  const uncategorized = services.filter((service) => !categoryMap.has(service.category_id));
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const filteredServices = useMemo(() => !normalizedQuery ? services : services.filter((service) => [
+    service.title,
+    service.short_description,
+    service.description,
+    categoryMap.get(service.category_id)?.title
+  ].filter(Boolean).join(" ").toLocaleLowerCase().includes(normalizedQuery)), [categoryMap, normalizedQuery, services]);
+  const allGroups = useMemo(() => buildCatalogGroups(categories, services), [categories, services]);
+  const matchingGroups = useMemo(() => buildCatalogGroups(categories, filteredServices), [categories, filteredServices]);
+  const shownGroups = selectedCategoryId
+    ? matchingGroups.filter((group) => group.id === selectedCategoryId)
+    : normalizedQuery ? matchingGroups : [];
+  const selectedGroup = allGroups.find((group) => group.id === selectedCategoryId);
+
+  function selectCategory(categoryId: string) {
+    setQuery("");
+    setSelectedCategoryId(categoryId);
+  }
 
   return (
     <>
       <Header />
       <PageLayout title="Каталог Service Desk" subtitle="Выберите услугу, чтобы создать заявку.">
         <div className="service-desk-catalog-toolbar">
-          <Input label="Поиск услуги или категории" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Например, доступ к системе" />
+          <Input label="Поиск услуги или категории" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedCategoryId(""); }} placeholder="Например, доступ к системе" />
           <Link className="button button-secondary" to="/service-desk/my-tickets"><Ticket size={16} aria-hidden="true" />Мои заявки</Link>
         </div>
-        {loading ? <Spinner label="Загружаем каталог" /> : error ? <Card><p className="form-error" role="alert">{error}</p></Card> : groupedServices.length || uncategorized.length ? (
+        {loading ? <Spinner label="Загружаем каталог" /> : error ? <Card><p className="form-error" role="alert">{error}</p></Card> : allGroups.length ? (
           <div className="service-desk-catalog-groups">
-            {groupedServices.map(({ category, services: categoryServices }) => (
-              <section key={category.id} className="service-desk-catalog-group" aria-labelledby={`category-${category.id}`}>
-                <div className="section-heading"><div><span className="service-desk-eyebrow"><Table2 size={14} aria-hidden="true" />Категория</span><h2 id={`category-${category.id}`}>{category.title}</h2></div><p>{category.description}</p></div>
-                {categoryServices.length ? <div className="service-desk-service-grid">{categoryServices.map((service) => <ServiceDeskCatalogServiceCard key={service.id} service={service} />)}</div> : <p className="service-desk-catalog-empty-group">В этой категории пока нет услуг.</p>}
-              </section>
-            ))}
-            {uncategorized.length ? <section className="service-desk-catalog-group"><div className="section-heading"><h2>Другие услуги</h2></div><div className="service-desk-service-grid">{uncategorized.map((service) => <ServiceDeskCatalogServiceCard key={service.id} service={service} />)}</div></section> : null}
+            <section className="service-desk-catalog-category-picker" aria-labelledby="catalog-categories-title">
+              <div className="service-desk-catalog-category-picker-heading"><div><span className="service-desk-eyebrow"><Table2 size={14} aria-hidden="true" />Категории</span><h2 id="catalog-categories-title">Куда нужна заявка?</h2><p>Выберите категорию — покажем только относящиеся к ней услуги.</p></div>{selectedCategoryId ? <Button variant="ghost" onClick={() => setSelectedCategoryId("")}>Все категории</Button> : null}</div>
+              <div className="service-desk-catalog-category-grid">
+                {allGroups.map((group) => <button key={group.id} type="button" className={`service-desk-catalog-category-button${selectedCategoryId === group.id ? " active" : ""}`} aria-pressed={selectedCategoryId === group.id} onClick={() => selectCategory(group.id)}><strong>{group.title}</strong><span>{group.services.length} {group.services.length === 1 ? "услуга" : group.services.length < 5 ? "услуги" : "услуг"}</span></button>)}
+              </div>
+            </section>
+
+            {shownGroups.length ? <div className="service-desk-catalog-results" aria-live="polite">
+              <div className="service-desk-catalog-results-heading"><div><span className="service-desk-eyebrow">{normalizedQuery ? "Результаты поиска" : "Выбранная категория"}</span><h2>{normalizedQuery ? `По запросу «${query.trim()}»` : selectedGroup?.title}</h2>{selectedGroup?.description && !normalizedQuery ? <p>{selectedGroup.description}</p> : null}</div>{selectedCategoryId ? <Button variant="ghost" onClick={() => setSelectedCategoryId("")}>Назад к категориям</Button> : null}</div>
+              {shownGroups.map((group) => <section key={group.id} className="service-desk-catalog-group" aria-labelledby={normalizedQuery ? `category-${group.id}` : undefined}>{normalizedQuery ? <h3 id={`category-${group.id}`} className="service-desk-catalog-result-group-title">{group.title}</h3> : null}<div className="service-desk-service-grid">{group.services.map((service) => <ServiceDeskCatalogServiceCard key={service.id} service={service} />)}</div></section>)}
+            </div> : normalizedQuery ? <Card><div className="empty-state"><Search size={22} aria-hidden="true" /><h3>Ничего не найдено</h3><p>Попробуйте другое название услуги или категории.</p></div></Card> : null}
           </div>
-        ) : <Card><div className="empty-state"><Search size={22} aria-hidden="true" /><h3>Ничего не найдено</h3><p>Измените запрос или попробуйте поискать позже.</p></div></Card>}
+        ) : <Card><div className="empty-state"><Search size={22} aria-hidden="true" /><h3>Услуг пока нет</h3><p>Когда услуги появятся в каталоге, их можно будет найти здесь.</p></div></Card>}
       </PageLayout>
     </>
   );

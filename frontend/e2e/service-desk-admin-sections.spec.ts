@@ -6,23 +6,31 @@ test("dictionaries support create, values, duplicate validation and activation t
   const diagnostics = watchPage(page);
   const suffix = Date.now();
   const title = `QA dictionary ${suffix}`;
-  const value = `qa_${suffix}`;
 
   await loginAs(page, "Администратор Service Desk", "/admin/service-desk/dictionaries");
   await expect(page.getByRole("heading", { name: "Справочники" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Создать" })).toBeDisabled();
-  await page.getByLabel("Код").fill(`qa_dictionary_${suffix}`);
+  await page.route("**/service-desk-api/admin/dictionaries", async (route) => {
+    if (route.request().method() === "GET") await route.abort("failed");
+    else await route.continue();
+  });
+  await page.reload();
+  await expect(page.getByRole("alert")).toContainText("Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.");
+  await expect(page.getByRole("button", { name: "Повторить" })).toBeVisible();
+  await page.unroute("**/service-desk-api/admin/dictionaries");
+  await page.getByRole("button", { name: "Повторить" }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(/системн|служебн|внутренн/i);
+  await expect(page.getByRole("button", { name: "Создать справочник" })).toBeDisabled();
   await page.getByLabel("Название").fill(title);
-  await page.getByRole("button", { name: "Создать" }).click();
-  await page.getByLabel("Подпись").fill("Первое значение");
-  await page.getByLabel("Значение").fill(value);
-  await page.getByRole("button", { name: "Добавить значение" }).click();
-  const itemRow = page.locator(".admin-config-row").filter({ hasText: `Первое значение · ${value}` });
+  await page.getByRole("button", { name: "Создать справочник" }).click();
+  await page.getByLabel("Вариант").fill("Первое значение");
+  await page.getByRole("button", { name: "Добавить вариант" }).click();
+  const itemRow = page.locator(".admin-config-row").filter({ hasText: "Первое значение" });
   await expect(itemRow).toBeVisible();
+  await expect(page.getByText(`qa_${suffix}`, { exact: true })).toHaveCount(0);
 
-  await page.getByLabel("Подпись").fill("Дубликат");
-  await page.getByLabel("Значение").fill(value);
-  await page.getByRole("button", { name: "Добавить значение" }).click();
+  await page.getByLabel("Вариант").fill("Первое значение");
+  await page.getByRole("button", { name: "Добавить вариант" }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   await itemRow.getByRole("button", { name: "Выключить" }).click();
   await expect(itemRow.getByRole("button", { name: "Включить" })).toBeVisible();
@@ -32,7 +40,7 @@ test("dictionaries support create, values, duplicate validation and activation t
   await page.getByRole("button", { name: "Включить справочник" }).click();
   await page.reload();
   await page.getByRole("button", { name: title }).click();
-  await expect(page.getByText(`Первое значение · ${value}`)).toBeVisible();
+  await expect(page.getByText("Первое значение", { exact: true })).toBeVisible();
   await attachScreenshot(page, testInfo, "dictionary-admin");
   diagnostics.assertClean(
     (response) => response.startsWith("409 POST") && response.includes("/admin/dictionaries/"),
