@@ -81,7 +81,7 @@ test("remaining admin sections satisfy direct-link page contract on desktop and 
   for (const [path, expectedUrl, heading] of [
     ["/admin/service-desk", /\/admin\/service-desk$/, "Service Desk - обзор"],
     ["/admin/service-desk/tickets", /\/admin\/service-desk\/tickets$/, "Рабочее место Service Desk"],
-    ["/admin/service-desk/calendars", /\/admin\/service-desk\/sla\?section=calendars$/, "SLA Service Desk"]
+    ["/admin/service-desk/calendars", /\/admin\/service-desk\/sla$/, "Настройка SLA"]
   ] as const) {
     await page.goto(path);
     await expect(page).toHaveURL(expectedUrl);

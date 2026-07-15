@@ -15,7 +15,6 @@ describe("ServiceDeskAdminNav", () => {
       "/admin/service-desk/approvals",
       "/admin/service-desk/routing",
       "/admin/service-desk/sla",
-      "/admin/service-desk/calendars",
       "/admin/service-desk/access"
     ]);
     expect(routes).not.toContain("/admin/service-desk/notifications");

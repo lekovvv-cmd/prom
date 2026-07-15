@@ -3260,6 +3260,78 @@ button.chip {
   gap: 12px;
 }
 
+.service-desk-sla-timezone-field {
+  display: grid;
+  gap: 6px;
+}
+
+.service-desk-sla-timezone-field p,
+.service-desk-sla-inline-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.service-desk-sla-advanced-settings {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-alt);
+}
+
+.service-desk-sla-advanced-settings summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.service-desk-sla-advanced-settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.service-desk-sla-advanced-settings summary > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.service-desk-sla-advanced-settings summary small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.service-desk-sla-advanced-action {
+  flex: 0 0 auto;
+  color: var(--color-primary, #007eb4);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.service-desk-sla-advanced-settings[open] {
+  background: #fff;
+}
+
+.service-desk-sla-advanced-settings[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.service-desk-sla-advanced-settings[open] .service-desk-sla-advanced-action {
+  color: var(--muted);
+}
+
+.service-desk-sla-advanced-content {
+  padding: 0 16px 16px;
+}
+
+.service-desk-sla-advanced-section {
+  margin-top: 0;
+}
+
 .service-desk-sla-interval-row,
 .service-desk-sla-condition-row,
 .service-desk-sla-exception-row {
@@ -3333,6 +3405,10 @@ button.chip {
 
   .service-desk-sla-card-heading {
     flex-direction: column;
+  }
+
+  .service-desk-sla-advanced-settings summary {
+    align-items: flex-start;
   }
 }
 

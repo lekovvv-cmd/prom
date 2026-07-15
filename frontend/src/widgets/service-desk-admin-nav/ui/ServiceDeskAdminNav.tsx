@@ -11,7 +11,6 @@ export const serviceDeskAdminNavItems = [
   ["Согласования", "/admin/service-desk/approvals", "service_desk.manage_approval_workflows"],
   ["Маршрутизация", "/admin/service-desk/routing", "service_desk.manage_routing"],
   ["SLA", "/admin/service-desk/sla", "service_desk.manage_sla"],
-  ["Рабочие календари", "/admin/service-desk/calendars", "service_desk.manage_sla"],
   ["Менеджеры и права", "/admin/service-desk/access", "service_desk.manage_access"]
 ] as const;
 
@@ -29,11 +28,8 @@ export function ServiceDeskAdminNav() {
             key={to}
             to={to}
             className={() => {
-              if (to === "/admin/service-desk/calendars") {
-                return location.pathname === "/admin/service-desk/sla" && new URLSearchParams(location.search).get("section") === "calendars" ? "active" : "";
-              }
               if (to === "/admin/service-desk/sla") {
-                return location.pathname === to && new URLSearchParams(location.search).get("section") !== "calendars" ? "active" : "";
+                return location.pathname === to ? "active" : "";
               }
               if (to === "/admin/service-desk") {
                 return location.pathname === to ? "active" : "";
