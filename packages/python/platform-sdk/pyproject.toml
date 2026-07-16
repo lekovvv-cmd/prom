@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=70.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prom-platform-sdk"
+version = "0.1.0"
+description = "Shared PROM platform infrastructure primitives"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi>=0.136.3,<0.137.0",
+  "PyJWT>=2.10.0,<3.0.0",
+  "pydantic>=2.11.0,<3.0.0",
+  "pydantic-settings>=2.8.0,<3.0.0",
+  "SQLAlchemy>=2.0.40,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.0,<1.0.0",
+  "pytest>=8.4.0,<9.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

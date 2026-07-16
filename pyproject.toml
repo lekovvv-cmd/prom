@@ -1,0 +1,18 @@
+[project]
+name = "prom-platform-workspace"
+version = "0.1.0"
+description = "PROM product-platform workspace"
+requires-python = ">=3.14"
+
+[tool.uv.workspace]
+members = [
+  "apps/access-service",
+  "apps/projects/backend",
+  "apps/service-desk/backend",
+  "packages/python/platform-sdk",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+

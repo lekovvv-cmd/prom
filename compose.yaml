@@ -1,0 +1,232 @@
+name: prom
+
+x-projects-environment: &projects-environment
+  DATABASE_URL: ${PROJECTS_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
+  JWT_SECRET: ${PROJECTS_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
+  FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
+  UPLOADS_DIR: ${PROJECTS_UPLOADS_DIR:-/workspace/backend/storage/projects}
+  ACCESS_JWKS_URL: ${ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
+
+x-service-desk-environment: &service-desk-environment
+  SERVICE_DESK_DATABASE_URL: ${SERVICE_DESK_DATABASE_URL:-postgresql+psycopg://service_desk:service_desk@service-desk-db:5432/service_desk}
+  SERVICE_DESK_JWT_SECRET: ${SERVICE_DESK_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
+  SERVICE_DESK_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
+  SERVICE_DESK_STORAGE_DIR: ${SERVICE_DESK_STORAGE_DIR:-/workspace/backend/storage/service-desk}
+  SERVICE_DESK_ACCESS_JWKS_URL: ${ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
+
+services:
+  access-db:
+    image: postgres:17.6-alpine
+    profiles: ["core", "full"]
+    environment:
+      POSTGRES_DB: prom_access
+      POSTGRES_USER: prom_access
+      POSTGRES_PASSWORD: ${ACCESS_DB_PASSWORD:-prom_access}
+    volumes: ["access_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prom_access -d prom_access"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  access-migrate:
+    image: prom-access-service:local
+    profiles: ["core", "full"]
+    environment:
+      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
+    depends_on:
+      access-db: { condition: service_healthy }
+    command: ["python", "scripts/init_db.py"]
+    restart: "no"
+
+  access-seed:
+    image: prom-access-service:local
+    profiles: ["core", "full"]
+    environment:
+      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
+    depends_on:
+      access-migrate: { condition: service_completed_successfully }
+    command: ["python", "scripts/seed.py"]
+    restart: "no"
+
+  access-service:
+    image: prom-access-service:local
+    build:
+      context: .
+      dockerfile: apps/access-service/Dockerfile
+    profiles: ["core", "full"]
+    environment:
+      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
+      ACCESS_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
+      ACCESS_ENVIRONMENT: ${PLATFORM_ENVIRONMENT:-development}
+      ACCESS_JWT_PRIVATE_KEY: ${ACCESS_JWT_PRIVATE_KEY:-}
+    depends_on:
+      access-seed: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  projects-db:
+    image: postgres:17.6-alpine
+    profiles: ["projects", "full"]
+    environment:
+      POSTGRES_DB: project_showcase
+      POSTGRES_USER: project_showcase
+      POSTGRES_PASSWORD: ${PROJECTS_DB_PASSWORD:-project_showcase}
+    volumes: ["projects_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U project_showcase -d project_showcase"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  projects-migrate:
+    image: prom-projects-backend:local
+    build: &projects-build
+      context: .
+      dockerfile: apps/projects/backend/Dockerfile
+    profiles: ["projects", "full"]
+    environment: *projects-environment
+    depends_on:
+      projects-db: { condition: service_healthy }
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    restart: "no"
+
+  projects-seed:
+    image: prom-projects-backend:local
+    profiles: ["projects", "full"]
+    environment: *projects-environment
+    depends_on:
+      projects-migrate: { condition: service_completed_successfully }
+    command: ["python", "scripts/seed.py"]
+    restart: "no"
+
+  projects-backend:
+    image: prom-projects-backend:local
+    profiles: ["projects", "full"]
+    environment: *projects-environment
+    volumes: ["projects_storage:/workspace/backend/storage/projects"]
+    depends_on:
+      projects-seed: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  service-desk-db:
+    image: postgres:17.6-alpine
+    profiles: ["service-desk", "full"]
+    environment:
+      POSTGRES_DB: service_desk
+      POSTGRES_USER: service_desk
+      POSTGRES_PASSWORD: ${SERVICE_DESK_DB_PASSWORD:-service_desk}
+    volumes: ["service_desk_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U service_desk -d service_desk"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  service-desk-migrate:
+    image: prom-service-desk-backend:local
+    build: &service-desk-build
+      context: .
+      dockerfile: apps/service-desk/backend/Dockerfile
+    profiles: ["service-desk", "full"]
+    environment: *service-desk-environment
+    depends_on:
+      service-desk-db: { condition: service_healthy }
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    restart: "no"
+
+  platform-bootstrap:
+    image: prom-service-desk-backend:local
+    profiles: ["service-desk", "full"]
+    environment: *service-desk-environment
+    depends_on:
+      service-desk-migrate: { condition: service_completed_successfully }
+    command: ["python", "scripts/bootstrap_identity.py"]
+    restart: "no"
+
+  service-desk-seed:
+    image: prom-service-desk-backend:local
+    profiles: ["service-desk", "full"]
+    environment: *service-desk-environment
+    depends_on:
+      platform-bootstrap: { condition: service_completed_successfully }
+    command: ["python", "scripts/seed.py"]
+    restart: "no"
+
+  service-desk-backend:
+    image: prom-service-desk-backend:local
+    profiles: ["service-desk", "full"]
+    environment: *service-desk-environment
+    volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
+    depends_on:
+      service-desk-seed: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  service-desk-sla-worker:
+    image: prom-service-desk-backend:local
+    profiles: ["service-desk", "full"]
+    environment: *service-desk-environment
+    command: ["python", "scripts/sla_worker.py"]
+    volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
+    depends_on:
+      service-desk-backend: { condition: service_healthy }
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  service-desk-notification-worker:
+    image: prom-service-desk-backend:local
+    profiles: ["service-desk", "full"]
+    environment: *service-desk-environment
+    command: ["python", "scripts/notification_worker.py"]
+    depends_on:
+      service-desk-backend: { condition: service_healthy }
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  platform-shell:
+    build:
+      context: .
+      dockerfile: apps/platform-shell/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_PROJECTS_API_BASE_URL:-/api/projects/v1}
+        VITE_SERVICE_DESK_API_BASE_URL: ${VITE_SERVICE_DESK_API_BASE_URL:-/api/service-desk/v1}
+        VITE_ACCESS_API_BASE_URL: ${VITE_ACCESS_API_BASE_URL:-/api/access/v1}
+    profiles: ["full"]
+    ports: ["5173:80"]
+    depends_on:
+      access-service: { condition: service_healthy }
+      projects-backend: { condition: service_healthy }
+      service-desk-backend: { condition: service_healthy }
+      service-desk-sla-worker: { condition: service_started }
+      service-desk-notification-worker: { condition: service_started }
+    restart: unless-stopped
+
+  projects-tests:
+    profiles: ["test"]
+    build:
+      <<: *projects-build
+      target: test
+    command: ["python", "-m", "pytest", "-q"]
+
+  service-desk-tests:
+    profiles: ["test"]
+    build:
+      <<: *service-desk-build
+      target: test
+    command: ["python", "-m", "pytest", "-q"]
+
+  frontend-tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: apps/platform-shell/Dockerfile
+      target: build
+    command: ["npm", "test"]
+
+volumes:
+  access_db_data:
+  projects_db_data:
+  projects_storage:
+  service_desk_db_data:
+  service_desk_storage:

@@ -1,0 +1,2 @@
+"""Access Service domain model."""
+

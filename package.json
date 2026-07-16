@@ -1,0 +1,17 @@
+{
+  "name": "prom-platform-workspace",
+  "private": true,
+  "packageManager": "npm@11.8.0",
+  "workspaces": [
+    "apps/platform-shell",
+    "apps/projects/frontend",
+    "apps/service-desk/frontend"
+  ],
+  "scripts": {
+    "test": "npm run test --workspace=@prom/platform-shell",
+    "build": "npm run build --workspace=@prom/platform-shell",
+    "lint": "npm run lint --workspace=@prom/platform-shell",
+    "generate:contracts": "node tools/contracts/generate.mjs",
+    "check:contracts": "node tools/contracts/check.mjs"
+  }
+}

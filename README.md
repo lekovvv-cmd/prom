@@ -1,156 +1,69 @@
-# PROM и Service Desk
+# PROM platform workspace
 
-В репозитории находятся два самостоятельных продукта ШПИУ:
+PROM is a modular university platform with a shared shell and three independently deployable backend services:
 
-- **PROM** — витрина и управление проектной деятельностью;
-- **Service Desk** — закрытая система обработки внутренних заявок.
+- `apps/access-service` — authentication, SSO adapters, JWT/JWKS and central RBAC;
+- `apps/projects/backend` — Projects domain and its PostgreSQL database;
+- `apps/service-desk/backend` — Service Desk domain and its separate PostgreSQL database;
+- `apps/platform-shell` — React platform shell; product routes are lazy-loaded from module manifests;
+- `packages/python/platform-sdk` — infrastructure-only Python helpers.
 
-Оба продукта запускаются одним Docker Compose, но имеют отдельные API, базы данных, доменные модели и пользовательские интерфейсы. Общими остаются стартовая страница, учётные записи и подписанный JWT.
+Services never access one another's databases. Browser traffic goes only through the platform-shell gateway.
 
-## PROM
+## Start locally
 
-PROM — модуль управления проектами ШПИУ. Он помогает сотрудникам находить проекты, откликаться на них, работать со своими проектами и сдавать отчётность.
-
-### Возможности
-
-- витрина активных и архивных проектов;
-- карточки проектов, этапы, задачи, компетенции и вложения;
-- отклики на проекты и управление откликами;
-- рабочее пространство пользователя: мои проекты и отчёты;
-- административное управление проектами, участниками, этапами, задачами и отчётными периодами.
-
-### Доступ
-
-| Роль | Назначение |
-| --- | --- |
-| `employee` | Просмотр витрины, отклики на проекты и работа со своими проектами. |
-| `project_manager` | Управление проектами и их рабочими пространствами. |
-| `platform_admin` | Полный доступ к PROM и Service Desk. |
-
-Адреса PROM после запуска:
-
-- интерфейс: `http://localhost:5173/projects`;
-- API и OpenAPI: `http://localhost:8000/docs`.
-
-## Service Desk
-
-Service Desk — отдельный закрытый модуль для внутренних заявок. В нём пользователь выбирает услугу из каталога, заполняет динамическую форму, сохраняет черновик или отправляет заявку. Номер присваивается только после отправки.
-
-### Возможности
-
-- каталог услуг с категориями, шаблонами и справочниками;
-- динамические формы с правилами отображения, обязательности и значениями по умолчанию;
-- черновики, вложения к заявке, полям и комментариям;
-- жизненный цикл заявок, согласования, маршрутизация, приоритеты и SLA;
-- уведомления, «Мои заявки» и рабочее место менеджера;
-- администрирование каталога, шаблонов, прав, SLA, календарей и маршрутизации.
-
-### Доступ
-
-| Роль | Назначение |
-| --- | --- |
-| `service_desk_manager` | Работа с заявками, рабочим местом и доступными операциями. |
-| `service_desk_admin` | Администрирование Service Desk. |
-| `platform_admin` | Полный доступ без отдельного локального профиля Service Desk. |
-
-Адреса Service Desk после запуска:
-
-- интерфейс: `http://localhost:5173/service-desk`;
-- API и OpenAPI: `http://localhost:8001/docs`.
-
-## Общий запуск
-
-Для локальной работы достаточно Docker Desktop и Docker Compose. Python и Node.js на хосте не требуются.
-
-Windows:
+Docker Desktop is the only required runtime.
 
 ```powershell
-.\dev.cmd
+.\dev.cmd up
 ```
 
-Linux:
+or:
 
 ```bash
-chmod +x ./dev.sh
-./dev.sh
+./dev.sh up
 ```
 
-Эквивалентная команда Docker Compose:
+The full profile starts databases, migrations, seeds, workers and the gateway. Open `http://localhost:5173/`.
 
-```bash
-docker compose up --build -d --wait
-```
-
-Во время запуска Compose поднимает две базы данных, применяет миграции, выполняет начальное заполнение и инициализацию учётных записей, затем запускает оба API, обработчик SLA и фронтенд.
-
-Стартовая страница: `http://localhost:5173/`.
-
-## Демо-учётные записи
-
-Код подтверждения для всех учётных записей: `000000`.
-
-| Учётная запись | Доступ |
+| Surface | URL |
 | --- | --- |
-| `employee@utmn.ru` | Сотрудник PROM, без доступа к Service Desk. |
-| `project.manager@utmn.ru` | Руководитель проектов, без доступа к Service Desk. |
-| `sd.manager@utmn.ru` | Менеджер Service Desk. |
-| `sd.admin@utmn.ru` | Администратор Service Desk. |
-| `admin@utmn.ru` | Администратор платформы с доступом к обоим продуктам. |
+| Platform shell | `http://localhost:5173/` |
+| Access API | `http://localhost:5173/api/access/v1/` |
+| Projects API | `http://localhost:5173/api/projects/v1/` |
+| Service Desk API | `http://localhost:5173/api/service-desk/v1/` |
 
-## Управление локальным окружением
+The previous `/api/` and `/service-desk-api/` gateway paths remain compatibility aliases during migration.
 
-| Действие | Windows | Linux |
-| --- | --- | --- |
-| Запустить | `.\dev.cmd up` | `./dev.sh up` |
-| Посмотреть состояние | `.\dev.cmd status` | `./dev.sh status` |
-| Смотреть логи сервиса | `.\dev.cmd logs service-desk-backend` | `./dev.sh logs service-desk-backend` |
-| Перезапустить сервис | `.\dev.cmd restart service-desk-sla-worker` | `./dev.sh restart service-desk-sla-worker` |
-| Остановить | `.\dev.cmd down` | `./dev.sh down` |
-| Пересоздать локальные данные | `.\dev.cmd reset` | `./dev.sh reset` |
-| Запустить проверки в контейнерах | `.\dev.cmd test` | `./dev.sh test` |
+## Common commands
 
-Команда `reset` удаляет локальные базы данных PROM и Service Desk, а также вложения Service Desk.
-
-## Проверки
-
-Полный набор проверок в Docker:
-
-```bash
-./dev.sh test
+```powershell
+.\dev.cmd status
+.\dev.cmd logs access-service
+.\dev.cmd test
+.\dev.cmd test-unit
+.\dev.cmd generate-contracts
+.\dev.cmd architecture-check
+.\dev.cmd create-module example-module
 ```
 
-Для запуска отдельных проверок на хосте:
+`reset` intentionally removes the local PostgreSQL volumes and uploaded files. `down` preserves them.
 
-```bash
-cd backend
-python -m pytest -q
+For host-side tooling, use Python 3.14 and Node 24:
 
-cd ../service-desk-backend
-python -m pytest -q
-
-cd ../frontend
-npm.cmd test
+```powershell
+npm.cmd ci
+npm.cmd run test
 npm.cmd run build
+npm.cmd run check:contracts
 ```
 
-Проверки интерфейса в браузере используют Docker Compose, приближённый к промышленному окружению: с PostgreSQL, миграциями, начальным заполнением, обработчиком SLA и Nginx. При ошибке сохраняются логи Compose, трассировки Playwright и снимки экрана.
+OpenAPI snapshots are committed in `contracts/openapi/`; regenerate them after an API change with `npm run generate:contracts`. The CI contract job rejects stale snapshots.
 
-## Фоновые процессы Service Desk
+## Local mock identities
 
-В Docker Compose обработчик SLA запускается автоматически отдельным сервисом `service-desk-sla-worker`. Для самостоятельного запуска:
+The development Access Service accepts code `000000` for the seeded accounts: `employee@utmn.ru`, `project.manager@utmn.ru`, `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, and `admin@utmn.ru`. This mock provider is blocked by the production configuration guard; production must use an OIDC adapter and real key material.
 
-```bash
-cd service-desk-backend
-python scripts/sla_worker.py
-```
+## Documentation
 
-Период опроса задаётся переменной `SERVICE_DESK_SLA_WORKER_POLL_INTERVAL_SECONDS`; по умолчанию — `60` секунд.
-
-Обработка очереди уведомлений запускается отдельной ограниченной командой:
-
-```bash
-cd service-desk-backend
-python scripts/process_notification_outbox.py
-```
-
-Её следует вызывать планировщиком развёртывания. За один запуск она обрабатывает не более `SERVICE_DESK_NOTIFICATION_OUTBOX_BATCH_SIZE` записей.
+Architecture, module boundaries and operational instructions are in [docs/architecture](docs/architecture/overview.md), [docs/development](docs/development/local-development.md), and [docs/operations](docs/operations/deployment.md). Architectural decisions are recorded in `docs/adr/`.

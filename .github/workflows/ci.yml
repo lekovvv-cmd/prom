@@ -5,141 +5,136 @@ on:
     branches: ["**"]
   pull_request:
 
+env:
+  DATABASE_URL: sqlite:///ci.db
+  JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
+  SERVICE_DESK_DATABASE_URL: sqlite:///ci_service_desk.db
+  SERVICE_DESK_JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
+  PLATFORM_FRONTEND_ORIGIN: http://localhost:5173
+
 jobs:
-  backend:
-    name: Backend tests
+  architecture:
+    name: Architecture boundaries
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    env:
-      DATABASE_URL: sqlite:///ci.db
-      JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
-      FRONTEND_ORIGIN: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+      - name: Check forbidden cross-module dependencies
+        run: python tools/architecture/check.py
 
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+  access-service:
+    name: Access Service tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e packages/python/platform-sdk -e "apps/access-service[dev]"
+      - run: python -m pytest -q apps/access-service/tests
+      - run: python -m ruff check packages/python/platform-sdk apps/access-service
 
+  projects-backend:
+    name: Projects backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e packages/python/platform-sdk -e "apps/projects/backend[dev]"
       - name: Run migrations and seed
+        working-directory: apps/projects/backend
         run: |
           alembic upgrade head
           python scripts/seed.py
-
-      - name: Run backend tests
-        run: pytest
+      - run: python -m pytest -q apps/projects/backend/tests
+      - run: python -m ruff check apps/projects/backend
 
   service-desk-backend:
     name: Service Desk backend tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: service-desk-backend
-    env:
-      SERVICE_DESK_DATABASE_URL: sqlite:///ci_service_desk.db
-      SERVICE_DESK_FRONTEND_ORIGIN: http://localhost:5173
-      SERVICE_DESK_JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-
-      - name: Install Service Desk backend dependencies
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e packages/python/platform-sdk -e "apps/service-desk/backend[dev]"
+      - name: Run migrations and seed
+        working-directory: apps/service-desk/backend
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Run Service Desk migrations
-        run: alembic upgrade head
-
-      - name: Seed Service Desk demo data
-        run: python scripts/seed.py
-
-      - name: Run Service Desk backend tests
-        run: pytest
-
-      - name: Lint Service Desk backend
-        run: ruff check .
+          alembic upgrade head
+          python scripts/bootstrap_identity.py
+          python scripts/seed.py
+      - run: python -m pytest -q apps/service-desk/backend/tests
+      - run: python -m ruff check apps/service-desk/backend
 
   service-desk-postgres:
     name: Service Desk PostgreSQL concurrency
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17.6-alpine
         env:
           POSTGRES_DB: service_desk_test
           POSTGRES_USER: service_desk
           POSTGRES_PASSWORD: service_desk
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U service_desk -d service_desk_test"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
-    defaults:
-      run:
-        working-directory: service-desk-backend
+          --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       SERVICE_DESK_TEST_DATABASE_URL: postgresql+psycopg://service_desk:service_desk@localhost:5432/service_desk_test
-      SERVICE_DESK_JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - run: pip install -e ".[dev]"
-      - name: Check parallel ticket numbers
-        run: pytest -q tests/test_postgres_concurrency.py
-      - name: Check notification outbox locking
-        run: pytest -q tests/test_notification_outbox.py
-      - name: Check SLA event idempotency
-        run: pytest -q tests/test_sla_worker.py
-      - name: Check last administrator guard
-        run: pytest -q tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
+      - run: python -m pip install -e packages/python/platform-sdk -e "apps/service-desk/backend[dev]"
+      - run: python -m pytest -q apps/service-desk/backend/tests/test_postgres_concurrency.py
+      - run: python -m pytest -q apps/service-desk/backend/tests/test_notification_outbox.py
+      - run: python -m pytest -q apps/service-desk/backend/tests/test_sla_worker.py
+      - run: python -m pytest -q apps/service-desk/backend/tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
 
   frontend:
-    name: Frontend tests and build
+    name: Platform shell tests and build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Run frontend tests
-        run: npm test
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Upload frontend build artifact
-        uses: actions/upload-artifact@v4
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
         with:
-          name: frontend-dist
-          path: frontend/dist
+          name: platform-shell-dist
+          path: apps/platform-shell/dist
+
+  contracts:
+    name: OpenAPI contract check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: python -m pip install -e packages/python/platform-sdk -e "apps/access-service[dev]" -e "apps/projects/backend[dev]" -e "apps/service-desk/backend[dev]"
+      - run: npm run check:contracts
 
   e2e:
-    name: Production Docker Compose e2e
+    name: Full Compose e2e
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -147,36 +142,30 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-      - name: Install Playwright browser
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm exec --workspace=@prom/platform-shell playwright install --with-deps chromium
       - name: Start production-like stack
-        run: docker compose up --build -d --wait
-      - name: Run Playwright through Nginx and PostgreSQL
-        working-directory: frontend
+        run: docker compose --profile full up --build -d --wait
+      - name: Run Playwright through the versioned gateway
         env:
           E2E_BASE_URL: http://127.0.0.1:5173
-          E2E_SERVICE_DESK_URL: http://127.0.0.1:5173/service-desk-api
-        run: npm run test:e2e
+          E2E_SERVICE_DESK_URL: http://127.0.0.1:5173/api/service-desk/v1
+        run: npm run test:e2e --workspace=@prom/platform-shell
       - name: Capture Docker diagnostics
         if: always()
         run: |
           docker compose ps --all > docker-compose-ps.txt
           docker compose logs --no-color > docker-compose.log
-      - name: Upload e2e diagnostics
+      - uses: actions/upload-artifact@v4
         if: failure()
-        uses: actions/upload-artifact@v4
         with:
           name: e2e-diagnostics
           path: |
             docker-compose-ps.txt
             docker-compose.log
-            frontend/playwright-report
-            frontend/test-results
+            apps/platform-shell/playwright-report
+            apps/platform-shell/test-results
       - name: Stop stack
         if: always()
-        run: docker compose down -v
+        run: docker compose down -v --remove-orphans
