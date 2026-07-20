@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import EntityNotFound, ValidationFailed
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -37,13 +37,11 @@ class AssigneePolicy:
     def require_eligible_assignee(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)
         if not user:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Исполнитель не найден")
+            raise EntityNotFound("Исполнитель не найден")
         if not user.is_active:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Исполнитель неактивен")
+            raise ValidationFailed("Исполнитель неактивен")
         capabilities = set(ServiceDeskAccessService.capabilities_for(user))
         if "service_desk.be_assignee" not in capabilities:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Пользователь не может быть назначен исполнителем Service Desk",
+            raise ValidationFailed("Пользователь не может быть назначен исполнителем Service Desk",
             )
         return user

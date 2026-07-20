@@ -6,8 +6,10 @@ const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
+  // Scenarios intentionally mutate the same seeded users and configuration.
+  workers: 1,
   expect: {
-    timeout: 10_000
+    timeout: 10_000,
   },
   fullyParallel: false,
   preserveOutput: "always",
@@ -18,15 +20,17 @@ export default defineConfig({
   use: {
     baseURL: frontendUrl,
     screenshot: "only-on-failure",
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
   },
   projects: [
     {
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        launchOptions: chromiumExecutablePath ? { executablePath: chromiumExecutablePath } : undefined
-      }
-    }
-  ]
+        launchOptions: chromiumExecutablePath
+          ? { executablePath: chromiumExecutablePath }
+          : undefined,
+      },
+    },
+  ],
 });

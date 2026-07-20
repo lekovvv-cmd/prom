@@ -4,78 +4,253 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
 
 env:
-  DATABASE_URL: sqlite:///ci.db
-  JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
+  UV_VERSION: 0.11.29
+  PYTHON_VERSION: 3.14.6
+  NODE_VERSION: 24.13.1
+  TRIVY_VERSION: 0.70.0
+  PROJECTS_DATABASE_URL: sqlite:///ci.db
+  PROJECTS_JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
   SERVICE_DESK_DATABASE_URL: sqlite:///ci_service_desk.db
   SERVICE_DESK_JWT_SECRET: ci-secret-with-at-least-thirty-two-bytes
   PLATFORM_FRONTEND_ORIGIN: http://localhost:5173
 
 jobs:
-  architecture:
+  detect-changes:
+    name: Detect affected modules
+    runs-on: ubuntu-latest
+    outputs:
+      access: ${{ steps.filter.outputs.access }}
+      projects: ${{ steps.filter.outputs.projects }}
+      service_desk: ${{ steps.filter.outputs.service_desk }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      sdk: ${{ steps.filter.outputs.sdk }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      infra: ${{ steps.filter.outputs.infra }}
+      python: ${{ steps.filter.outputs.python }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v4.0.1
+        id: filter
+        with:
+          filters: |
+            access:
+              - 'apps/access-service/**'
+            projects:
+              - 'apps/projects/**'
+            service_desk:
+              - 'apps/service-desk/**'
+            frontend:
+              - 'apps/platform-shell/**'
+              - 'apps/*/frontend/**'
+              - 'packages/frontend/**'
+              - 'contracts/generated/**'
+              - 'tools/frontend/**'
+              - 'eslint.config.mjs'
+              - 'knip.json'
+              - 'package.json'
+              - 'package-lock.json'
+            sdk:
+              - 'packages/python/platform-sdk/**'
+            contracts:
+              - 'contracts/**'
+              - 'tools/contracts/**'
+              - 'apps/access-service/src/access_service/api/**'
+              - 'apps/projects/backend/app/api/**'
+              - 'apps/service-desk/backend/app/api/**'
+              - 'package.json'
+              - 'package-lock.json'
+            infra:
+              - 'compose.yaml'
+              - '.env.example'
+              - 'apps/**/Dockerfile'
+              - 'apps/platform-shell/nginx.conf'
+              - 'tools/gateway/**'
+              - 'dev.sh'
+              - 'dev.ps1'
+              - 'dev.cmd'
+            python:
+              - 'apps/access-service/**'
+              - 'apps/projects/backend/**'
+              - 'apps/service-desk/backend/**'
+              - 'packages/python/platform-sdk/**'
+              - 'tools/**/*.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
+
+  architecture-check:
     name: Architecture boundaries
+    needs: detect-changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: "3.14"
-      - name: Check forbidden cross-module dependencies
-        run: python tools/architecture/check.py
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv lock --check
+      - run: python tools/architecture/check.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node tools/gateway/check.mjs
+      - run: docker compose config --quiet
 
-  access-service:
-    name: Access Service tests
+  python-lint:
+    name: Python lint
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
-          python-version: "3.14"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e packages/python/platform-sdk -e "apps/access-service[dev]"
-      - run: python -m pytest -q apps/access-service/tests
-      - run: python -m ruff check packages/python/platform-sdk apps/access-service
-
-  projects-backend:
-    name: Projects backend tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e packages/python/platform-sdk -e "apps/projects/backend[dev]"
-      - name: Run migrations and seed
-        working-directory: apps/projects/backend
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --all-packages --all-extras --group dev
+      - run: >
+          uv run --frozen --group dev ruff check
+          packages/python/platform-sdk
+          apps/access-service
+          apps/projects/backend
+          apps/service-desk/backend
+          tools
+      - name: Check Python dependency ownership
         run: |
-          alembic upgrade head
-          python scripts/seed.py
-      - run: python -m pytest -q apps/projects/backend/tests
-      - run: python -m ruff check apps/projects/backend
+          uv run --frozen --group dev deptry packages/python/platform-sdk/src --config packages/python/platform-sdk/pyproject.toml
+          uv run --frozen --group dev deptry apps/access-service/src --config apps/access-service/pyproject.toml
+          uv run --frozen --group dev deptry apps/projects/backend/app apps/projects/backend/scripts --config apps/projects/backend/pyproject.toml
+          uv run --frozen --group dev deptry apps/service-desk/backend/app apps/service-desk/backend/scripts --config apps/service-desk/backend/pyproject.toml
 
-  service-desk-backend:
-    name: Service Desk backend tests
+  python-type-check:
+    name: Python type check
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
-          python-version: "3.14"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e packages/python/platform-sdk -e "apps/service-desk/backend[dev]"
-      - name: Run migrations and seed
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --all-packages --all-extras --group dev
+      - working-directory: packages/python/platform-sdk
+        run: ../../../.venv/bin/mypy src
+      - working-directory: apps/access-service
+        run: ../../.venv/bin/mypy src
+      - working-directory: apps/projects/backend
+        run: ../../../.venv/bin/mypy app
+      - name: Type-check Service Desk
         working-directory: apps/service-desk/backend
-        run: |
-          alembic upgrade head
-          python scripts/bootstrap_identity.py
-          python scripts/seed.py
-      - run: python -m pytest -q apps/service-desk/backend/tests
-      - run: python -m ruff check apps/service-desk/backend
+        run: ../../../.venv/bin/mypy app
 
-  service-desk-postgres:
+  platform-sdk-tests:
+    name: Platform SDK tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package prom-platform-sdk --extra dev
+      - run: uv run --frozen --package prom-platform-sdk --extra dev python -m pytest -q packages/python/platform-sdk/tests
+
+  access-service-tests:
+    name: Access Service tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.access == 'true' || needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package prom-access-service --extra dev
+      - run: uv run --frozen --package prom-access-service --extra dev python -m pytest -q apps/access-service/tests
+
+  projects-tests:
+    name: Projects unit tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.projects == 'true' || needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package shpiu-project-showcase-backend --extra dev
+      - run: uv run --frozen --package shpiu-project-showcase-backend --extra dev python -m pytest -q apps/projects/backend/tests
+
+  service-desk-tests:
+    name: Service Desk unit tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.service_desk == 'true' || needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package shpiu-service-desk-backend --extra dev
+      - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests
+
+  projects-postgres-integration:
+    name: Projects PostgreSQL integration
+    needs: detect-changes
+    if: needs.detect-changes.outputs.projects == 'true' || needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_DB: projects_test
+          POSTGRES_USER: projects
+          POSTGRES_PASSWORD: projects
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U projects -d projects_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      PROJECTS_DATABASE_URL: postgresql+psycopg://projects:projects@localhost:5432/projects_test
+      PROJECTS_TEST_DATABASE_URL: postgresql+psycopg://projects:projects@localhost:5432/projects_test
+      PROJECTS_ALLOW_LEGACY_TOKENS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package shpiu-project-showcase-backend --extra dev
+      - name: Verify migrations on PostgreSQL
+        working-directory: apps/projects/backend
+        run: ../../../.venv/bin/alembic upgrade head
+      - run: uv run --frozen --package shpiu-project-showcase-backend --extra dev python -m pytest -q apps/projects/backend/tests/test_postgres_integration.py apps/projects/backend/tests/test_projects_integrity.py
+
+  service-desk-postgres-concurrency:
     name: Service Desk PostgreSQL concurrency
+    needs: detect-changes
+    if: needs.detect-changes.outputs.service_desk == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -89,58 +264,188 @@ jobs:
           --health-cmd "pg_isready -U service_desk -d service_desk_test"
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
+      SERVICE_DESK_DATABASE_URL: postgresql+psycopg://service_desk:service_desk@localhost:5432/service_desk_test
       SERVICE_DESK_TEST_DATABASE_URL: postgresql+psycopg://service_desk:service_desk@localhost:5432/service_desk_test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
-          python-version: "3.14"
-      - run: python -m pip install -e packages/python/platform-sdk -e "apps/service-desk/backend[dev]"
-      - run: python -m pytest -q apps/service-desk/backend/tests/test_postgres_concurrency.py
-      - run: python -m pytest -q apps/service-desk/backend/tests/test_notification_outbox.py
-      - run: python -m pytest -q apps/service-desk/backend/tests/test_sla_worker.py
-      - run: python -m pytest -q apps/service-desk/backend/tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package shpiu-service-desk-backend --extra dev
+      - name: Verify migrations and bootstrap on PostgreSQL
+        working-directory: apps/service-desk/backend
+        run: |
+          ../../../.venv/bin/alembic upgrade head
+          ../../../.venv/bin/python scripts/bootstrap_identity.py
+          ../../../.venv/bin/python scripts/seed.py
+      - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_postgres_concurrency.py
+      - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_notification_outbox.py
+      - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_sla_worker.py
+      - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
 
-  frontend:
-    name: Platform shell tests and build
+  frontend-tests:
+    name: Frontend quality gates
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
       - run: npm run test
-      - run: npm run build
+      - run: npm run check:styles
+      - run: npm run check:dead-code
+      - run: npm audit --omit=dev --audit-level=high
+
+  frontend-build:
+    name: Frontend production build
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build:check
       - uses: actions/upload-artifact@v4
         with:
           name: platform-shell-dist
           path: apps/platform-shell/dist
 
-  contracts:
-    name: OpenAPI contract check
+  contract-check:
+    name: OpenAPI and generated contracts
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.contracts == 'true' ||
+      needs.detect-changes.outputs.access == 'true' ||
+      needs.detect-changes.outputs.projects == 'true' ||
+      needs.detect-changes.outputs.service_desk == 'true'
     runs-on: ubuntu-latest
+    env:
+      PROM_PYTHON: .venv/bin/python
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
-          python-version: "3.14"
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
-      - run: python -m pip install -e packages/python/platform-sdk -e "apps/access-service[dev]" -e "apps/projects/backend[dev]" -e "apps/service-desk/backend[dev]"
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: uv sync --locked --all-packages --all-extras
+      - run: npm ci
       - run: npm run check:contracts
 
-  e2e:
-    name: Full Compose e2e
+  docker-build:
+    name: Docker build and image scan (${{ matrix.name }})
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.infra == 'true' ||
+      needs.detect-changes.outputs.access == 'true' ||
+      needs.detect-changes.outputs.projects == 'true' ||
+      needs.detect-changes.outputs.service_desk == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true' ||
+      needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: access-service
+            dockerfile: apps/access-service/Dockerfile
+          - name: projects-backend
+            dockerfile: apps/projects/backend/Dockerfile
+          - name: service-desk-backend
+            dockerfile: apps/service-desk/backend/Dockerfile
+          - name: platform-shell
+            dockerfile: apps/platform-shell/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SHA-tagged image
+        run: docker build --file "${{ matrix.dockerfile }}" --tag "prom/${{ matrix.name }}:${GITHUB_SHA}" .
+      - name: Scan image for fixed critical vulnerabilities
+        run: >
+          docker run --rm
+          -v /var/run/docker.sock:/var/run/docker.sock
+          "aquasec/trivy:${TRIVY_VERSION}"
+          image --exit-code 1 --ignore-unfixed --severity CRITICAL
+          "prom/${{ matrix.name }}:${GITHUB_SHA}"
+
+  module-e2e:
+    name: Module profile smoke (${{ matrix.module }})
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.infra == 'true' ||
+      needs.detect-changes.outputs.projects == 'true' ||
+      needs.detect-changes.outputs.service_desk == 'true' ||
+      needs.detect-changes.outputs.access == 'true' ||
+      needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [projects, service-desk]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start affected module profile through the gateway
+        run: docker compose --profile core --profile "${{ matrix.module }}" up --build -d --wait
+      - name: Verify canonical gateway health routes
+        run: |
+          curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:5173/healthz
+          curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:5173/api/access/v1/health/ready
+          if [ "${{ matrix.module }}" = "projects" ]; then
+            curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:5173/api/projects/v1/health
+          else
+            curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:5173/api/service-desk/v1/health/ready
+          fi
+      - name: Capture diagnostics
+        if: always()
+        run: |
+          docker compose ps --all > docker-compose-ps.txt
+          docker compose logs --no-color > docker-compose.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: module-e2e-${{ matrix.module }}
+          path: |
+            docker-compose-ps.txt
+            docker-compose.log
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+  full-stack-e2e:
+    name: Full stack Playwright
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.infra == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true' ||
+      needs.detect-changes.outputs.access == 'true' ||
+      needs.detect-changes.outputs.projects == 'true' ||
+      needs.detect-changes.outputs.service_desk == 'true' ||
+      needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
@@ -160,7 +465,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-diagnostics
+          name: full-stack-e2e-diagnostics
           path: |
             docker-compose-ps.txt
             docker-compose.log
@@ -169,3 +474,36 @@ jobs:
       - name: Stop stack
         if: always()
         run: docker compose down -v --remove-orphans
+
+  security-scan:
+    name: Dependency and repository security scan
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.python == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true' ||
+      needs.detect-changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: uv sync --locked --all-packages --all-extras --group dev
+      - run: uv run --frozen --group dev pip-audit --local --skip-editable
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Scan repository for critical vulnerabilities, secrets, and misconfiguration
+        run: >
+          docker run --rm
+          -v "${PWD}:/workspace"
+          "aquasec/trivy:${TRIVY_VERSION}"
+          fs --exit-code 1 --severity CRITICAL
+          --scanners vuln,secret,misconfig
+          /workspace

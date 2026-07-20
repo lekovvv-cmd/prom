@@ -10,6 +10,10 @@ def test_health_endpoints_are_available(client):
     assert ready.status_code == 200
     assert ready.json()["status"] == "ready"
     assert ready.json()["checks"] == {"database": "ok", "storage": "ok"}
+    assert ready.json()["database_pool"]["application_name"] == "prom-service-desk-api"
+    assert ready.json()["database_pool"]["configured_maximum_connections"] == 10
+    assert ready.json()["outbox"]["pending"] >= 0
+    assert "oldest_age_seconds" in ready.json()["outbox"]
 
     api_health = client.get("/api/health")
     assert api_health.status_code == 200

@@ -1,13 +1,13 @@
+from uuid import UUID
+
+from platform_sdk.auth import CurrentPrincipal
+from platform_sdk.error_types import AuthenticationRequired, EntityNotFound
 from sqlalchemy.orm import Session
 
-from app.core.enums import UserRole
-from app.core.exceptions import DomainError
-from app.core.security import create_access_token, ensure_utmn_email
+from app.core.permissions import bind_principal, compatibility_role
 from app.modules.users.models import User
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserProfileUpdate
-
-DEV_CODE = "000000"
 
 
 class UserService:
@@ -15,43 +15,46 @@ class UserService:
         self.db = db
         self.repo = UserRepository(db)
 
-    def request_code(self, email: str) -> dict[str, str]:
-        normalized = ensure_utmn_email(email)
-        return {
-            "email": normalized,
-            "dev_code": DEV_CODE,
-            "message": "Для MVP используйте dev-код 000000",
-        }
+    def sync_principal(self, principal: CurrentPrincipal) -> User:
+        try:
+            platform_user_id = UUID(principal.user_id)
+        except ValueError as exc:
+            raise AuthenticationRequired("Токен содержит некорректный идентификатор пользователя") from exc
 
-    def verify_code(self, email: str, code: str) -> tuple[User, str]:
-        normalized = ensure_utmn_email(email)
-        if code != DEV_CODE:
-            raise DomainError("Неверный код подтверждения")
+        user = self.repo.get_by_id(platform_user_id)
+        if user is None and principal.email:
+            user = self.repo.get_by_email(principal.email.strip().lower())
 
-        user = self.repo.get_by_email(normalized)
         if user is None:
+            if not principal.email:
+                raise AuthenticationRequired(
+                    "Токен нового пользователя должен содержать email для создания профильной проекции"
+                )
+            normalized_email = principal.email.strip().lower()
             user = self.repo.create(
-                email=normalized,
-                full_name=self._default_full_name(normalized),
-                role=self._role_for_email(normalized),
+                user_id=platform_user_id,
+                email=normalized_email,
+                full_name=principal.display_name or self._default_full_name(normalized_email),
+                role=compatibility_role(principal),
             )
         else:
-            expected_role = self._role_for_email(normalized)
-            if user.role != expected_role and normalized in {
-                "admin@utmn.ru",
-                "project.manager@utmn.ru",
-            }:
-                user.role = expected_role
+            if user.id != platform_user_id:
+                raise AuthenticationRequired(
+                    "Профиль с таким email уже связан с другим платформенным пользователем"
+                )
+            if principal.email:
+                user.email = principal.email.strip().lower()
+            if principal.display_name and not user.full_name.strip():
+                user.full_name = principal.display_name.strip()
+            user.role = compatibility_role(principal)
 
-        self.db.commit()
-        self.db.refresh(user)
-        token = create_access_token(str(user.id), user.role)
-        return user, token
+        self.db.flush()
+        return bind_principal(user, principal)
 
     def get_by_id(self, user_id: object) -> User:
         user = self.repo.get_by_id(user_id)
         if user is None:
-            raise DomainError("Пользователь не найден", status_code=404)
+            raise EntityNotFound("Пользователь не найден")
         return user
 
     def list_all(self) -> list[User]:
@@ -66,17 +69,9 @@ class UserService:
         current_user.position = payload.position
         current_user.competencies = payload.competencies
         current_user.about = payload.about
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(current_user)
         return current_user
-
-    @staticmethod
-    def _role_for_email(email: str) -> UserRole:
-        if email == "admin@utmn.ru":
-            return UserRole.PLATFORM_ADMIN
-        if email == "project.manager@utmn.ru":
-            return UserRole.PROJECT_MANAGER
-        return UserRole.EMPLOYEE
 
     @staticmethod
     def _default_full_name(email: str) -> str:

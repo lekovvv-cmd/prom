@@ -2,7 +2,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import (
+    ConflictDetected,
+    EntityNotFound,
+    PermissionDenied,
+    ValidationFailed,
+)
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -13,10 +18,10 @@ from app.core.enums import (
 )
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.service import ServiceDeskAccessService
-from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals import schemas as approval_schemas
 from app.modules.approvals.models import ServiceDeskTicketApprovalStage
 from app.modules.approvals.ticket_service import TicketApprovalService
+from app.modules.assignments.policy import AssigneePolicy
 from app.modules.attachments.service import AttachmentService
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.routing.service import RoutingService
@@ -51,7 +56,7 @@ class TicketService:
     ) -> schemas.TicketRead:
         service = self.catalog_repository.get_service(payload.service_id)
         if not service or not service.is_active or service.deleted_at is not None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
+            raise EntityNotFound("Услуга не найдена")
 
         template_version = (
             self.template_repository.get_version(payload.template_version_id)
@@ -59,7 +64,7 @@ class TicketService:
             else self.template_repository.get_published_version(payload.service_id)
         )
         if not template_version or template_version.service_id != payload.service_id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Шаблон услуги не найден")
+            raise EntityNotFound("Шаблон услуги не найден")
 
         ticket = ServiceDeskTicket(
             service_id=payload.service_id,
@@ -90,12 +95,10 @@ class TicketService:
     ) -> schemas.TicketRead:
         ticket = self._require_ticket(ticket_id)
         if ticket.requester_user_id != actor.id:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "Редактировать черновик может только заявитель"
+            raise PermissionDenied("Редактировать черновик может только заявитель"
             )
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "Редактировать можно только черновик заявки"
+            raise ConflictDetected("Редактировать можно только черновик заявки"
             )
         data = payload.model_dump(exclude_unset=True)
         for field, value in data.items():
@@ -113,26 +116,23 @@ class TicketService:
     def submit_draft(self, ticket_id: uuid.UUID, actor: ServiceDeskUser) -> schemas.TicketRead:
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         if ticket.requester_user_id != actor.id:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "Отправить черновик может только заявитель"
+            raise PermissionDenied("Отправить черновик может только заявитель"
             )
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Отправить можно только черновик заявки",
+            raise ConflictDetected("Отправить можно только черновик заявки",
             )
 
         service = self.catalog_repository.get_service(ticket.service_id)
         if not service or not service.is_active or service.deleted_at is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Услуга больше недоступна")
+            raise ConflictDetected("Услуга больше недоступна")
 
         template_version = self.template_repository.get_version(ticket.template_version_id)
         if not template_version or template_version.service_id != ticket.service_id:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Шаблон услуги больше недоступен")
+            raise ConflictDetected("Шаблон услуги больше недоступен")
         if template_version.status == TemplateVersionStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Форма услуги ещё не опубликована")
+            raise ConflictDetected("Форма услуги ещё не опубликована")
 
         field_values = self._field_values_with_uploaded_files(ticket, template_version)
         validation = validate_template_payload(
@@ -143,9 +143,7 @@ class TicketService:
         errors = self._validate_system_fields(ticket, template_version.system_settings)
         errors.extend(error.model_dump() for error in validation.errors)
         if errors:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={"message": "Проверьте заполнение формы", "errors": errors},
+            raise ValidationFailed(detail={"message": "Проверьте заполнение формы", "errors": errors},
             )
 
         default_title = template_version.system_settings.get("default_title")
@@ -179,13 +177,11 @@ class TicketService:
     ) -> schemas.TicketRead:
         capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
         if "service_desk.change_priority" not in capabilities:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "Недостаточно прав для изменения приоритета заявки",
+            raise PermissionDenied("Недостаточно прав для изменения приоритета заявки",
             )
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         if ticket.status in {
             ServiceDeskTicketStatus.DRAFT,
             ServiceDeskTicketStatus.REJECTED,
@@ -193,9 +189,7 @@ class TicketService:
             ServiceDeskTicketStatus.CLOSED,
             ServiceDeskTicketStatus.CANCELLED,
         }:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Приоритет заявки в текущем статусе изменить нельзя",
+            raise ConflictDetected("Приоритет заявки в текущем статусе изменить нельзя",
             )
 
         previous_priority = ticket.priority
@@ -224,7 +218,7 @@ class TicketService:
     ) -> schemas.TicketRead:
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         previous_status = ticket.status
         now = datetime.now(UTC)
         self.lifecycle.perform_transition(ticket, action, actor=actor, metadata=metadata, occurred_at=now)
@@ -242,7 +236,7 @@ class TicketService:
     ) -> schemas.TicketRead:
         ticket = self._require_ticket_for_update(ticket_id)
         if ticket.assignee_user_id is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "У заявки уже назначен исполнитель")
+            raise ConflictDetected("У заявки уже назначен исполнитель")
         assignee = AssigneePolicy(self.db).require_eligible_assignee(payload.assignee_user_id)
         self.lifecycle.perform_transition(
             ticket,
@@ -264,9 +258,9 @@ class TicketService:
     ) -> schemas.TicketRead:
         ticket = self._require_ticket_for_update(ticket_id)
         if ticket.assignee_user_id is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "У заявки нет назначенного исполнителя")
+            raise ConflictDetected("У заявки нет назначенного исполнителя")
         if ticket.assignee_user_id == payload.assignee_user_id:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Исполнитель уже назначен на заявку")
+            raise ConflictDetected("Исполнитель уже назначен на заявку")
         assignee = AssigneePolicy(self.db).require_eligible_assignee(payload.assignee_user_id)
         self.lifecycle.perform_transition(
             ticket,
@@ -309,9 +303,9 @@ class TicketService:
     ) -> ServiceDeskTicket:
         ticket = self._require_ticket(ticket_id)
         if ticket.requester_user_id != actor.id:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Редактировать черновик может только заявитель")
+            raise PermissionDenied("Редактировать черновик может только заявитель")
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Редактировать можно только черновик заявки")
+            raise ConflictDetected("Редактировать можно только черновик заявки")
         return ticket
 
     def get_approval_snapshot(
@@ -434,19 +428,19 @@ class TicketService:
     def _require_active_user(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)
         if not user or not user.is_active:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
+            raise PermissionDenied("Нет доступа к Service Desk")
         return user
 
     def _require_ticket_for_update(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         return ticket
 
     def _require_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         ticket = self.repository.get_ticket(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         return ticket
 
     def _dictionary_options(

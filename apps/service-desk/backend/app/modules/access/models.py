@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from typing import Any
-
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, JSON, String, Uuid
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Uuid
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
 from app.core.enums import ServiceDeskAccessType, enum_values
+
+if TYPE_CHECKING:
+    from platform_sdk.auth import CurrentPrincipal
 
 
 class ServiceDeskUser(Base):
@@ -40,6 +43,11 @@ class ServiceDeskUser(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    if TYPE_CHECKING:
+        _is_platform_admin: bool
+        _platform_permissions: frozenset[str]
+        _platform_principal: CurrentPrincipal
 
 
 class ServiceDeskUserCapability(Base):

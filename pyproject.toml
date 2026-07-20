@@ -7,8 +7,7 @@ requires-python = ">=3.14"
 [tool.uv.workspace]
 members = [
   "apps/access-service",
-  "apps/projects/backend",
-  "apps/service-desk/backend",
+  "apps/*/backend",
   "packages/python/platform-sdk",
 ]
 
@@ -16,3 +15,21 @@ members = [
 line-length = 100
 target-version = "py314"
 
+[dependency-groups]
+dev = [
+  "deptry==0.25.1",
+  "mypy==2.3.0",
+  "pip-audit==2.10.1",
+]
+
+[tool.mypy]
+python_version = "3.14"
+check_untyped_defs = true
+ignore_missing_imports = true
+namespace_packages = true
+show_error_codes = true
+warn_unused_configs = true
+exclude = [
+  "/alembic/",
+  "/tests/",
+]

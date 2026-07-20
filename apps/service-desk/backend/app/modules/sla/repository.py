@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.modules.access.models import ServiceDeskUser
 from app.modules.sla.models import (
     ServiceDeskBusinessCalendar,
+    ServiceDeskEscalationRule,
     ServiceDeskSlaBinding,
     ServiceDeskSlaPolicy,
-    ServiceDeskEscalationRule,
 )
 
 

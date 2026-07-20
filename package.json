@@ -4,14 +4,30 @@
   "packageManager": "npm@11.8.0",
   "workspaces": [
     "apps/platform-shell",
-    "apps/projects/frontend",
-    "apps/service-desk/frontend"
+    "apps/*/frontend",
+    "contracts/generated",
+    "packages/frontend/*"
   ],
   "scripts": {
     "test": "npm run test --workspace=@prom/platform-shell",
     "build": "npm run build --workspace=@prom/platform-shell",
-    "lint": "npm run lint --workspace=@prom/platform-shell",
+    "build:check": "npm run build && npm run check:bundle",
+    "format:check": "prettier --check apps/platform-shell/src apps/platform-shell/e2e apps/platform-shell/playwright.config.ts apps/platform-shell/vite.config.ts apps/projects/frontend apps/service-desk/frontend packages/frontend tools/frontend tools/contracts tools/gateway eslint.config.mjs knip.json package.json",
+    "typecheck": "tsc -p apps/platform-shell/tsconfig.json",
+    "lint": "eslint apps/platform-shell/src apps/projects/frontend apps/service-desk/frontend packages/frontend --max-warnings=0",
+    "check:dead-code": "knip --no-progress",
+    "check:bundle": "node tools/frontend/check-bundle.mjs",
+    "check:styles": "node tools/frontend/check-styles.mjs",
+    "check:gateway": "node tools/gateway/check.mjs",
     "generate:contracts": "node tools/contracts/generate.mjs",
     "check:contracts": "node tools/contracts/check.mjs"
+  },
+  "devDependencies": {
+    "eslint": "10.7.0",
+    "knip": "6.27.0",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.9.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.64.0"
   }
 }

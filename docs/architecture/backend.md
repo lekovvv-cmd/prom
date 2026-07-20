@@ -10,3 +10,7 @@ the same entity.
 The platform SDK contains only shared infrastructure primitives: auth, Problem
 Details errors, request context/logging, storage port, and health/outbox helpers.
 
+All maintained Python service source trees are checked by `mypy` in CI:
+`platform-sdk/src`, Access Service `src`, Projects `app`, and Service Desk
+`app`. Type-checking a hand-picked infrastructure subset is not an accepted
+quality gate.

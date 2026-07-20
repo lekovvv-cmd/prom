@@ -35,6 +35,22 @@ The full profile starts databases, migrations, seeds, workers and the gateway. O
 
 The previous `/api/` and `/service-desk-api/` gateway paths remain compatibility aliases during migration.
 
+## Compose profiles
+
+| Profile | Contents |
+| --- | --- |
+| `core` | gateway/platform shell, Access Service, Access PostgreSQL, local SSO mock |
+| `projects` | Projects PostgreSQL, migrations, seed, API and workers |
+| `service-desk` | Service Desk PostgreSQL, migrations, seed, API and workers |
+| `full` | complete local platform |
+| `test` | isolated backend and frontend test images |
+
+```powershell
+docker compose --profile core --profile projects up --build
+docker compose --profile core --profile service-desk up --build
+docker compose --profile full up --build
+```
+
 ## Common commands
 
 ```powershell
@@ -63,6 +79,19 @@ OpenAPI snapshots are committed in `contracts/openapi/`; regenerate them after a
 ## Local mock identities
 
 The development Access Service accepts code `000000` for the seeded accounts: `employee@utmn.ru`, `project.manager@utmn.ru`, `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, and `admin@utmn.ru`. This mock provider is blocked by the production configuration guard; production must use an OIDC adapter and real key material.
+
+## Production configuration
+
+Copy `.env.example` only as a local inventory; inject production values from a
+secret manager. Production startup rejects default signing material, empty
+PostgreSQL passwords, mock SSO, debug mode, wildcard credentialed CORS,
+missing issuer/audience values, legacy tokens, and disabled antivirus scanning.
+
+The primary prefixes are `PLATFORM_`, `ACCESS_`, `PROJECTS_`,
+`SERVICE_DESK_`, `SSO_`, `OTEL_`, and `S3_`. See
+[secrets and configuration](docs/operations/secrets.md),
+[deployment](docs/operations/deployment.md), and
+[SSO operation](docs/operations/sso.md).
 
 ## Documentation
 

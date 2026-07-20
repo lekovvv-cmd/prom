@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { attachScreenshot, createCatalogFixtureCleaner, loginAs, watchPage } from "./helpers";
+import {
+  attachScreenshot,
+  createCatalogFixtureCleaner,
+  loginAs,
+  watchPage,
+} from "./helpers";
 
 const catalogFixtures = createCatalogFixtureCleaner();
 
@@ -8,7 +13,9 @@ test.afterEach(async ({ page }) => {
   await catalogFixtures.cleanup(page);
 });
 
-test("draft field attachment survives reload, downloads, deletes and is replaced through UI", async ({ page }, testInfo) => {
+test("draft field attachment survives reload, downloads, deletes and is replaced through UI", async ({
+  page,
+}, testInfo) => {
   const diagnostics = watchPage(page);
   const suffix = Date.now();
   const categoryTitle = `Attachment QA category ${suffix}`;
@@ -16,12 +23,23 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
   const fieldLabel = `QA evidence ${suffix}`;
   const ticketTitle = `Attachment QA ticket ${suffix}`;
 
-  await loginAs(page, "Администратор Service Desk", "/admin/service-desk/catalog");
-  await catalogFixtures.track(page, { categoryTitles: [categoryTitle], serviceTitles: [serviceTitle] });
-  const categories = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Категории" }) });
+  await loginAs(
+    page,
+    "Администратор Service Desk",
+    "/admin/service-desk/catalog",
+  );
+  await catalogFixtures.track(page, {
+    categoryTitles: [categoryTitle],
+    serviceTitles: [serviceTitle],
+  });
+  const categories = page
+    .locator(".card")
+    .filter({ has: page.getByRole("heading", { name: "Категории" }) });
   await categories.getByLabel("Новая категория").fill(categoryTitle);
   await categories.getByRole("button", { name: "Создать" }).click();
-  const services = page.locator(".card").filter({ has: page.getByRole("heading", { name: "Услуги" }) });
+  const services = page
+    .locator(".card")
+    .filter({ has: page.getByRole("heading", { name: "Услуги" }) });
   await services.getByLabel("Новая услуга").fill(serviceTitle);
   await services.getByLabel("Категория").selectOption({ label: categoryTitle });
   await services.getByRole("button", { name: "Создать" }).click();
@@ -38,20 +56,39 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
 
   await page.goto("/service-desk");
   await page.getByPlaceholder("Например, доступ к системе").fill(serviceTitle);
-  await page.locator(".service-desk-service-card").filter({ hasText: serviceTitle })
-    .getByRole("link", { name: "Открыть услугу" }).click();
+  await page
+    .locator(".service-desk-service-card")
+    .filter({ hasText: serviceTitle })
+    .getByRole("link", { name: "Открыть услугу" })
+    .click();
   await page.getByLabel("Тема заявки").fill(ticketTitle);
-  await page.getByLabel("Описание").fill("Проверка файлового поля через production UI.");
+  await page
+    .getByLabel("Описание")
+    .fill("Проверка файлового поля через production UI.");
   await page.getByLabel(fieldLabel).setInputFiles({
     name: "draft-evidence.txt",
     mimeType: "text/plain",
-    buffer: Buffer.from("draft attachment evidence")
+    buffer: Buffer.from("draft attachment evidence"),
   });
   await page.getByRole("button", { name: "Сохранить черновик" }).click();
-  await expect(page.getByText("Черновик сохранён", { exact: false })).toBeVisible();
-  await expect(page.getByRole("list", { name: "Сохранённые файлы" }).getByText("draft-evidence.txt")).toBeVisible();
-  await page.getByRole("banner").getByRole("link", { name: "Мои заявки" }).click();
-  await page.getByRole("row").filter({ hasText: ticketTitle }).getByRole("link").first().click();
+  await expect(
+    page.getByText("Черновик сохранён", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("list", { name: "Сохранённые файлы" })
+      .getByText("draft-evidence.txt"),
+  ).toBeVisible();
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "Мои заявки" })
+    .click();
+  await page
+    .getByRole("row")
+    .filter({ hasText: ticketTitle })
+    .getByRole("link")
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/service-desk\/tickets\/[^/]+\/edit$/);
   await page.reload();
   const savedFiles = page.getByRole("list", { name: "Сохранённые файлы" });
@@ -65,7 +102,7 @@ test("draft field attachment survives reload, downloads, deletes and is replaced
   await page.getByLabel(fieldLabel).setInputFiles({
     name: "replacement.txt",
     mimeType: "text/plain",
-    buffer: Buffer.from("replacement attachment evidence")
+    buffer: Buffer.from("replacement attachment evidence"),
   });
   await page.getByRole("button", { name: "Отправить заявку" }).click();
   await expect(page).toHaveURL(/\/service-desk\/tickets\//);

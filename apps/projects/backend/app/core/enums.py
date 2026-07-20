@@ -50,8 +50,18 @@ class ProjectMemberRole(StrEnum):
 
 class AttachmentOwnerType(StrEnum):
     PROJECT = "project"
+    STAGE = "stage"
     RESPONSE = "response"
     TASK = "task"
+    REPORT = "report"
+
+
+class AttachmentStatus(StrEnum):
+    PENDING = "pending"
+    QUARANTINED = "quarantined"
+    AVAILABLE = "available"
+    REJECTED = "rejected"
+    DELETED = "deleted"
 
 
 class ReportPeriodStatus(StrEnum):

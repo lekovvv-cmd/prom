@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -69,6 +70,9 @@ class ServiceDeskService(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     category: Mapped[ServiceDeskCategory] = relationship(back_populates="services")
+
+    if TYPE_CHECKING:
+        _request_form_available: bool
 
     @property
     def request_form_available(self) -> bool:

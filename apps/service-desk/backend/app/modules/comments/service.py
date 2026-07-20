@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import ConflictDetected, EntityNotFound, PermissionDenied
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -16,12 +16,11 @@ from app.modules.access.models import ServiceDeskUser
 from app.modules.comments import schemas
 from app.modules.comments.models import ServiceDeskTicketComment
 from app.modules.comments.repository import TicketCommentRepository
+from app.modules.sla.service import SlaService
 from app.modules.tickets.lifecycle import TicketLifecycleService
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.policy import TicketPolicyService
 from app.modules.tickets.repository import TicketRepository
-from app.modules.sla.service import SlaService
-
 
 FINAL_COMMENT_STATUSES = {
     ServiceDeskTicketStatus.CLOSED,
@@ -138,18 +137,18 @@ class TicketCommentService:
             self.policy.require_view(ticket, actor)
         if actor.id == comment.author_user_id or actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
             return
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Изменять комментарий может только автор или администратор")
+        raise PermissionDenied("Изменять комментарий может только автор или администратор")
 
     def _require_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         ticket = self.ticket_repository.get_ticket(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         return ticket
 
     def _require_ticket_for_update(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         ticket = self.ticket_repository.get_ticket_for_update(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         return ticket
 
     def _require_comment_for_ticket(
@@ -159,13 +158,13 @@ class TicketCommentService:
     ) -> ServiceDeskTicketComment:
         comment = self.repository.get_for_update(comment_id)
         if not comment or comment.ticket_id != ticket_id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Комментарий не найден")
+            raise EntityNotFound("Комментарий не найден")
         return comment
 
     @staticmethod
     def _ensure_ticket_accepts_comments(ticket: ServiceDeskTicket) -> None:
         if ticket.status in FINAL_COMMENT_STATUSES:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Закрытую заявку нельзя комментировать")
+            raise ConflictDetected("Закрытую заявку нельзя комментировать")
 
     def _write_history(
         self,

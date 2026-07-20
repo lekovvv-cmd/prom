@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import PermissionDenied, ValidationFailed
 from sqlalchemy import Select, and_, exists, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
@@ -25,17 +25,16 @@ from app.modules.sla.projection import (
 from app.modules.tickets.models import ServiceDeskTicket
 from app.modules.tickets.policy import TicketPolicyService
 from app.modules.workbench.schemas import (
-    WorkbenchEntitySummary,
     WorkbenchCounters,
+    WorkbenchEntitySummary,
     WorkbenchQuickView,
     WorkbenchSlaState,
     WorkbenchSlaSummary,
     WorkbenchTicketPage,
     WorkbenchTicketRow,
-    WorkbenchUserSummary,
     WorkbenchUserOption,
+    WorkbenchUserSummary,
 )
-
 
 OPERATIONAL_CAPABILITIES = frozenset({
     "service_desk.be_assignee",
@@ -55,7 +54,7 @@ class WorkbenchAccessService:
 
     def require_access(self, actor: ServiceDeskUser) -> None:
         if not self.can_access(actor):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к рабочему месту Service Desk")
+            raise PermissionDenied("Нет доступа к рабочему месту Service Desk")
 
 
 def workbench_visibility(actor: ServiceDeskUser):
@@ -190,7 +189,7 @@ class WorkbenchService:
     ) -> WorkbenchTicketPage:
         WorkbenchAccessService().require_access(actor)
         if created_from and created_to and created_from > created_to:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "created_from позже created_to")
+            raise ValidationFailed("created_from позже created_to")
         now = datetime.now(UTC)
         filters = [ServiceDeskTicket.deleted_at.is_(None), workbench_visibility(actor)]
         if quick_view:
@@ -291,7 +290,15 @@ class WorkbenchService:
                     *base_filters, self.quick_view_predicate(quick_view, actor, now)
                 )
             ) or 0
-        return WorkbenchCounters(**values)
+        return WorkbenchCounters(
+            waiting_approval=int(values[WorkbenchQuickView.WAITING_APPROVAL.value] or 0),
+            assigned_to_me=int(values[WorkbenchQuickView.ASSIGNED_TO_ME.value] or 0),
+            in_progress=int(values[WorkbenchQuickView.IN_PROGRESS.value] or 0),
+            waiting_requester=int(values[WorkbenchQuickView.WAITING_REQUESTER.value] or 0),
+            waiting_external=int(values[WorkbenchQuickView.WAITING_EXTERNAL.value] or 0),
+            resolved=int(values[WorkbenchQuickView.RESOLVED.value] or 0),
+            sla_breached=values[WorkbenchQuickView.SLA_BREACHED.value],
+        )
 
     def user_options(
         self, actor: ServiceDeskUser, *, eligible_assignees: bool

@@ -1,33 +1,46 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
-import { getPlatformModule } from "../modules/registry";
+import {
+  getPlatformModule,
+  getPlatformModuleForPath,
+  platformModules,
+} from "../modules/registry";
 import { LoginPage } from "../../pages/login/ui/LoginPage";
 import { ModuleSelectorPage } from "../../pages/module-selector/ui/ModuleSelectorPage";
-import { ProfilePage } from "../../pages/profile/ui/ProfilePage";
-import { Spinner } from "../../shared/ui/Spinner";
+import { ModuleErrorBoundary } from "@prom/ui/ModuleErrorBoundary";
+import { Spinner } from "@prom/ui/Spinner";
+
+const moduleRoutes = new Map(
+  platformModules.map((manifest) => [manifest.id, lazy(manifest.loadRoutes)]),
+);
 
 function ModuleRoute({ moduleId }: { moduleId: string }) {
   const manifest = getPlatformModule(moduleId);
-  if (!manifest) return <Navigate to="/" replace />;
-  const RoutesComponent = lazy(manifest.loadRoutes);
-  return <Suspense fallback={<Spinner label={`Загружаем модуль ${manifest.title}`} />}><RoutesComponent /></Suspense>;
+  const RoutesComponent = moduleRoutes.get(moduleId);
+  if (!manifest || !RoutesComponent) return <Navigate to="/" replace />;
+  return (
+    <ModuleErrorBoundary
+      key={moduleId}
+      moduleId={moduleId}
+      moduleName={manifest.title}
+    >
+      <Suspense
+        fallback={<Spinner label={`Загружаем модуль ${manifest.title}`} />}
+      >
+        <RoutesComponent />
+      </Suspense>
+    </ModuleErrorBoundary>
+  );
 }
 
 export function AppRouter() {
-  return <Routes>
-    <Route path="/" element={<ModuleSelectorPage />} />
-    <Route path="/login" element={<LoginPage />} />
-    <Route path="/profile" element={<ProfilePage />} />
-    <Route path="/projects/*" element={<ModuleRoute moduleId="projects" />} />
-    <Route path="/my/projects/*" element={<ModuleRoute moduleId="projects" />} />
-    <Route path="/my/responses" element={<ModuleRoute moduleId="projects" />} />
-    <Route path="/admin" element={<ModuleRoute moduleId="projects" />} />
-    <Route path="/admin/projects/*" element={<ModuleRoute moduleId="projects" />} />
-    <Route path="/admin/responses" element={<ModuleRoute moduleId="projects" />} />
-    <Route path="/admin/stats" element={<ModuleRoute moduleId="projects" />} />
-    <Route path="/service-desk/*" element={<ModuleRoute moduleId="service-desk" />} />
-    <Route path="/admin/service-desk/*" element={<ModuleRoute moduleId="service-desk" />} />
-    <Route path="*" element={<Navigate to="/projects" replace />} />
-  </Routes>;
+  const location = useLocation();
+  if (location.pathname === "/") return <ModuleSelectorPage />;
+  if (location.pathname === "/login") return <LoginPage />;
+
+  const manifest = getPlatformModuleForPath(location.pathname);
+  if (manifest) return <ModuleRoute moduleId={manifest.id} />;
+
+  return <Navigate to={platformModules[0]?.basePath ?? "/"} replace />;
 }

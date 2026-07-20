@@ -1,0 +1,13 @@
+{
+  "name": "@prom/utils",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./date": "./src/date.ts",
+    "./email": "./src/email.ts"
+  },
+  "devDependencies": {
+    "vitest": "4.1.9"
+  }
+}

@@ -10,3 +10,10 @@ Trusted headers are disabled by default; OIDC is a disabled adapter until
 issuer and client configuration are supplied. Central permissions gate module
 entry; object policies stay inside each product module.
 
+Tokens have `kid`, `jti`, `iat`, `exp`, issuer, and explicit module audiences.
+Access Service persists a per-user session version. Logout or administrative
+revocation increments that version; Access rejects a token whose session
+version is stale. Product modules verify signatures locally from cached JWKS
+and may use a stale key only within the configured stale-if-error window.
+After that window authentication fails closed. Short token lifetime bounds
+exposure without adding an online Access call to every product request.

@@ -1,0 +1,14 @@
+{
+  "name": "@prom/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client.ts",
+    "./env": "./src/env.ts",
+    "./token-storage": "./src/authTokenStorage.ts"
+  },
+  "devDependencies": {
+    "vitest": "4.1.9"
+  }
+}

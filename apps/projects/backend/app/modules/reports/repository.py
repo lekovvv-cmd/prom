@@ -24,6 +24,9 @@ class ReportRepository:
     def get_period(self, period_id: UUID) -> ReportPeriod | None:
         return self.db.get(ReportPeriod, period_id)
 
+    def get_report(self, report_id: UUID) -> HalfYearReport | None:
+        return self.db.get(HalfYearReport, report_id)
+
     def list_periods(self) -> list[ReportPeriod]:
         query = select(ReportPeriod).order_by(ReportPeriod.opened_at.desc())
         return list(self.db.scalars(query))

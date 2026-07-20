@@ -12,17 +12,32 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       input: {
-        main: indexHtml
-      }
-    }
+        main: indexHtml,
+      },
+    },
   },
   test: {
-    exclude: ["e2e/**", "node_modules/**", "dist/**"]
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "../../packages/frontend/api-client/src/**/*.test.{ts,tsx}",
+      "../../packages/frontend/auth/src/**/*.test.{ts,tsx}",
+      "../../packages/frontend/ui/src/**/*.test.{ts,tsx}",
+      "../../packages/frontend/layout/src/**/*.test.{ts,tsx}",
+      "../../packages/frontend/utils/src/**/*.test.{ts,tsx}",
+      "../projects/frontend/**/*.test.{ts,tsx}",
+      "../service-desk/frontend/**/*.test.{ts,tsx}",
+    ],
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
   },
   server: {
     port: 5173,
     fs: {
-      allow: [rootDir, fileURLToPath(new URL("../projects/frontend", import.meta.url)), fileURLToPath(new URL("../service-desk/frontend", import.meta.url))]
-    }
-  }
+      allow: [
+        rootDir,
+        fileURLToPath(new URL("../projects/frontend", import.meta.url)),
+        fileURLToPath(new URL("../service-desk/frontend", import.meta.url)),
+        fileURLToPath(new URL("../../packages/frontend", import.meta.url)),
+      ],
+    },
+  },
 });

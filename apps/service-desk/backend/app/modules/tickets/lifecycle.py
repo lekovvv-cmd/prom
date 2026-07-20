@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import ConflictDetected, PermissionDenied, ValidationFailed
 
 from app.core.enums import (
     ServiceDeskTicketAction,
@@ -14,9 +14,8 @@ from app.modules.access.models import ServiceDeskUser
 from app.modules.notifications.domain import NotificationEventType
 from app.modules.notifications.service import NotificationDispatcher, ticket_notification
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
-from app.modules.tickets.repository import TicketRepository
 from app.modules.tickets.policy import TicketPolicyService
-
+from app.modules.tickets.repository import TicketRepository
 
 REASSIGNABLE_STATUSES = {
     ServiceDeskTicketStatus.ASSIGNED,
@@ -188,9 +187,7 @@ class TicketLifecycleService:
     ) -> ServiceDeskTicket:
         target_status = transition_target(ticket.status, action)
         if target_status is None:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"Действие {action.value} недоступно для статуса {ticket.status.value}",
+            raise ConflictDetected(f"Действие {action.value} недоступно для статуса {ticket.status.value}",
             )
 
         payload = {key: value for key, value in (metadata or {}).items() if value is not None}
@@ -232,9 +229,9 @@ class TicketLifecycleService:
         if actor is None:
             if action in SYSTEM_ACTIONS:
                 return
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Для действия требуется пользователь")
+            raise PermissionDenied("Для действия требуется пользователь")
         if not actor.is_active:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
+            raise PermissionDenied("Нет доступа к Service Desk")
         TicketPolicyService().require_action(ticket, action, actor)
 
     @staticmethod
@@ -250,9 +247,7 @@ class TicketLifecycleService:
         }
         field = required_fields.get(action)
         if field and (not isinstance(payload.get(field), str) or not payload[field].strip()):
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                f"Для действия {action.value} требуется поле {field}",
+            raise ValidationFailed(f"Для действия {action.value} требуется поле {field}",
             )
 
     @staticmethod

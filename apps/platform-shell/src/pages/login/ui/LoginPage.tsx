@@ -1,5 +1,5 @@
-import { Header } from "../../../widgets/header/ui/Header";
-import { LoginForm } from "../../../features/auth-by-email/ui/LoginForm";
+import { Header } from "@prom/layout";
+import { LoginForm } from "@prom/auth/login";
 
 export function LoginPage() {
   return (
@@ -9,7 +9,10 @@ export function LoginPage() {
         <section className="login-shell" aria-labelledby="login-title">
           <div className="login-copy">
             <h1 id="login-title">Вход в PROM</h1>
-            <p>Выберите демонстрационную роль или введите корпоративный адрес электронной почты.</p>
+            <p>
+              Выберите демонстрационную роль или введите корпоративный адрес
+              электронной почты.
+            </p>
           </div>
           <LoginForm />
         </section>

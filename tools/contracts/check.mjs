@@ -6,24 +6,60 @@ import { tmpdir } from "node:os";
 const root = resolve(import.meta.dirname, "..", "..");
 const expectedDirectory = resolve(root, "contracts/openapi");
 const temporaryDirectory = mkdtempSync(resolve(tmpdir(), "prom-contracts-"));
-const expectedFiles = ["access-service.openapi.json", "projects.openapi.json", "service-desk.openapi.json"];
+const temporaryOpenApiDirectory = resolve(temporaryDirectory, "openapi");
+const temporaryGeneratedDirectory = resolve(temporaryDirectory, "generated");
+const expectedGeneratedDirectory = resolve(root, "contracts/generated/src");
+const expectedFiles = [
+  "access-service.openapi.json",
+  "projects.openapi.json",
+  "service-desk.openapi.json",
+];
+const expectedGeneratedFiles = ["access.ts", "projects.ts", "serviceDesk.ts"];
 
 try {
-  const generate = spawnSync(process.execPath, [resolve(root, "tools/contracts/generate.mjs"), "--output", temporaryDirectory], {
-    cwd: root,
-    encoding: "utf8",
-    env: process.env,
-  });
-  if (generate.status !== 0) throw new Error(generate.stderr || generate.stdout);
+  const generate = spawnSync(
+    process.execPath,
+    [
+      resolve(root, "tools/contracts/generate.mjs"),
+      "--output",
+      temporaryOpenApiDirectory,
+      "--generated-output",
+      temporaryGeneratedDirectory,
+    ],
+    { cwd: root, encoding: "utf8", env: process.env },
+  );
+  if (generate.status !== 0)
+    throw new Error(generate.stderr || generate.stdout);
 
-  const unexpectedFiles = readdirSync(expectedDirectory).filter((file) => !expectedFiles.includes(file));
-  if (unexpectedFiles.length) throw new Error(`Unexpected contract files: ${unexpectedFiles.join(", ")}`);
+  const unexpectedFiles = readdirSync(expectedDirectory).filter(
+    (file) => !expectedFiles.includes(file),
+  );
+  if (unexpectedFiles.length)
+    throw new Error(`Unexpected contract files: ${unexpectedFiles.join(", ")}`);
 
   for (const file of expectedFiles) {
-    const committed = JSON.parse(readFileSync(resolve(expectedDirectory, file), "utf8"));
-    const generated = JSON.parse(readFileSync(resolve(temporaryDirectory, file), "utf8"));
-    if (!committed.openapi?.startsWith("3.")) throw new Error(`${file} is not OpenAPI v3`);
+    const committed = JSON.parse(
+      readFileSync(resolve(expectedDirectory, file), "utf8"),
+    );
+    const generated = JSON.parse(
+      readFileSync(resolve(temporaryOpenApiDirectory, file), "utf8"),
+    );
+    if (!committed.openapi?.startsWith("3."))
+      throw new Error(`${file} is not OpenAPI v3`);
     if (JSON.stringify(committed) !== JSON.stringify(generated)) {
+      throw new Error(`${file} is stale; run npm run generate:contracts`);
+    }
+  }
+  for (const file of expectedGeneratedFiles) {
+    const committed = readFileSync(
+      resolve(expectedGeneratedDirectory, file),
+      "utf8",
+    );
+    const generated = readFileSync(
+      resolve(temporaryGeneratedDirectory, file),
+      "utf8",
+    );
+    if (committed !== generated) {
       throw new Error(`${file} is stale; run npm run generate:contracts`);
     }
   }

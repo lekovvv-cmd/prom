@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 
 class ServiceDeskAccessType(StrEnum):
@@ -78,6 +78,14 @@ class ServiceDeskAttachmentOwnerType(StrEnum):
     FIELD_VALUE = "service_desk_field_value"
 
 
+class ServiceDeskAttachmentStatus(StrEnum):
+    PENDING = "pending"
+    QUARANTINED = "quarantined"
+    AVAILABLE = "available"
+    REJECTED = "rejected"
+    DELETED = "deleted"
+
+
 class ServiceDeskTicketAction(StrEnum):
     SUBMIT = "submit"
     START_APPROVAL = "start_approval"
@@ -112,5 +120,5 @@ SERVICE_DESK_CAPABILITIES: tuple[str, ...] = (
 )
 
 
-def enum_values(enum_class: type) -> list[str]:
+def enum_values(enum_class: type[Enum]) -> list[str]:
     return [item.value for item in enum_class]

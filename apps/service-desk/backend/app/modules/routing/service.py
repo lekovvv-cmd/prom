@@ -4,7 +4,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import (
+    ConflictDetected,
+    EntityNotFound,
+    PermissionDenied,
+    ValidationFailed,
+)
 from sqlalchemy.orm import Session
 
 from app.core.enums import ServiceDeskAccessType, ServiceDeskTicketAction
@@ -85,9 +90,9 @@ class RoutingService:
 
         if "name" in data:
             rule.name = payload.name.strip() if payload.name else rule.name
-        if "priority" in data:
+        if "priority" in data and payload.priority is not None:
             rule.priority = payload.priority
-        if "is_active" in data:
+        if "is_active" in data and payload.is_active is not None:
             rule.is_active = payload.is_active
         rule.conditions = self._conditions_json(definition.conditions)
         rule.action = definition.action.model_dump(mode="json")
@@ -108,9 +113,7 @@ class RoutingService:
         rules = self.repository.list_rules()
         current_ids = {rule.id for rule in rules}
         if len(payload.rule_ids) != len(set(payload.rule_ids)) or set(payload.rule_ids) != current_ids:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Передайте полный список правил без повторов",
+            raise ValidationFailed("Передайте полный список правил без повторов",
             )
         by_id = {rule.id: rule for rule in rules}
         for position, rule_id in enumerate(payload.rule_ids):
@@ -137,8 +140,11 @@ class RoutingService:
             rule_snapshot = self._rule_snapshot(rule, conditions, action)
 
             if action.type == "set_priority":
+                priority = action.priority
+                if priority is None:
+                    raise ValidationFailed("Routing set_priority action requires priority")
                 previous_priority = ticket.priority
-                ticket.priority = action.priority
+                ticket.priority = priority
                 rule_snapshot["outcome"] = "priority_set"
                 rule_snapshot["previous_priority"] = previous_priority.value
                 self.ticket_repository.add_history(
@@ -151,7 +157,7 @@ class RoutingService:
                             "routing_rule_id": str(rule.id),
                             "routing_rule_name": rule.name,
                             "previous_priority": previous_priority.value,
-                            "priority": action.priority.value,
+                            "priority": priority.value,
                         },
                     )
                 )
@@ -182,7 +188,7 @@ class RoutingService:
 
         action = schemas.RoutingAction.model_validate(assignment_rule["action"])
         if action.user_id is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "В snapshot отсутствует исполнитель")
+            raise ConflictDetected("В snapshot отсутствует исполнитель")
         assignee = self.assignee_policy.get_eligible_assignee(action.user_id)
         if not assignee:
             self.ticket_repository.add_history(
@@ -266,7 +272,7 @@ class RoutingService:
     def _require_rule(self, rule_id: uuid.UUID) -> ServiceDeskRoutingRule:
         rule = self.repository.get_rule(rule_id)
         if not rule:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Правило маршрутизации не найдено")
+            raise EntityNotFound("Правило маршрутизации не найдено")
         return rule
 
     @staticmethod
@@ -275,4 +281,4 @@ class RoutingService:
             return
         if any(item.capability == "service_desk.manage_routing" for item in actor.capabilities):
             return
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для настройки маршрутизации Service Desk")
+        raise PermissionDenied("Недостаточно прав для настройки маршрутизации Service Desk")

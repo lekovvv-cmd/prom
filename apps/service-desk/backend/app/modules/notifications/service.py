@@ -3,17 +3,25 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import EntityNotFound
+from platform_sdk.outbox import mark_outbox_processed
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.modules.access.models import ServiceDeskUser
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
-from app.modules.notifications.domain import NotificationChannel, NotificationEvent, NotificationEventType
+from app.modules.notifications.domain import (
+    NotificationChannel,
+    NotificationEvent,
+    NotificationEventType,
+)
 from app.modules.notifications.models import ServiceDeskNotification, ServiceDeskNotificationOutbox
-from app.modules.notifications.repository import NotificationOutboxRepository, NotificationRepository
+from app.modules.notifications.repository import (
+    NotificationOutboxRepository,
+    NotificationRepository,
+)
 from app.modules.tickets.models import ServiceDeskTicket
-from app.core.config import settings
 
 
 class InAppChannel:
@@ -44,6 +52,9 @@ class EmailChannel:
     def enqueue(self, event: NotificationEvent, recipient_email: str) -> None:
         self.repository.get_or_add(ServiceDeskNotificationOutbox(
             event_id=event.event_id,
+            event_type=event.event_type.value,
+            aggregate_type="service_desk_ticket",
+            aggregate_id=str(event.ticket_id or event.event_id),
             channel="email",
             recipient=recipient_email,
             payload={
@@ -68,14 +79,19 @@ class NotificationDispatcher:
         for recipient_id in self._recipient_ids(event):
             if NotificationChannel.IN_APP in event.channels:
                 record = self.outbox.get_or_add(ServiceDeskNotificationOutbox(
-                    event_id=event.event_id, channel="in_app", recipient=str(recipient_id),
-                    payload=self._outbox_payload(event), status="pending",
+                    event_id=event.event_id,
+                    event_type=event.event_type.value,
+                    aggregate_type="service_desk_ticket",
+                    aggregate_id=str(event.ticket_id or event.event_id),
+                    channel="in_app",
+                    recipient=str(recipient_id),
+                    payload=self._outbox_payload(event),
+                    payload_version=1,
+                    status="pending",
                 ))
-                if record.status != "sent":
+                if record.status != "processed":
                     self.in_app.deliver(event, recipient_id)
-                    record.status = "sent"
-                    record.processed_at = datetime.now(UTC)
-                    record.last_error = None
+                    mark_outbox_processed(record, now=datetime.now(UTC))
             if NotificationChannel.EMAIL in event.channels:
                 recipient = self.db.get(ServiceDeskUser, recipient_id)
                 if recipient:
@@ -229,7 +245,7 @@ class NotificationService:
     def mark_read(self, notification_id: uuid.UUID, actor: ServiceDeskUser):
         notification = self.repository.get_owned(notification_id, actor.id)
         if notification is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Уведомление не найдено")
+            raise EntityNotFound("Уведомление не найдено")
         if not notification.is_read:
             notification.is_read = True
             notification.read_at = datetime.now(UTC)

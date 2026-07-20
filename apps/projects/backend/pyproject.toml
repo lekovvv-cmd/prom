@@ -9,11 +9,11 @@ description = "FastAPI backend for SHPIU project showcase MVP"
 requires-python = ">=3.14"
 dependencies = [
   "alembic>=1.17.0",
-  "cryptography>=46.0.0,<47.0.0",
   "fastapi>=0.136.3,<0.137.0",
   "psycopg[binary]>=3.2.0",
   "pydantic>=2.11.0",
   "pydantic-settings>=2.8.0",
+  "prom-platform-sdk>=0.1.0",
   "PyJWT>=2.10.0",
   "python-multipart>=0.0.20",
   "SQLAlchemy>=2.0.40",
@@ -23,7 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.28.0",
-  "pytest>=8.4.0",
+  "pytest>=9.0.3,<10.0.0",
   "ruff>=0.14.0"
 ]
 
@@ -34,3 +34,12 @@ target-version = "py314"
 [tool.setuptools.packages.find]
 include = ["app*"]
 exclude = ["alembic*", "scripts*", "tests*"]
+
+[tool.deptry]
+known_first_party = ["app"]
+package_module_name_map = { PyJWT = "jwt", prom-platform-sdk = "platform_sdk" }
+optional_dependencies_dev_groups = ["dev"]
+per_rule_ignores = { DEP002 = ["alembic", "psycopg", "python-multipart", "uvicorn"] }
+
+[tool.uv.sources]
+prom-platform-sdk = { workspace = true }

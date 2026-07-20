@@ -1,6 +1,5 @@
 from app.modules.competencies.schemas import CompetencyRead
 
-
 DEFAULT_COMPETENCIES: tuple[CompetencyRead, ...] = (
     CompetencyRead(name="Аналитика данных", group="Данные"),
     CompetencyRead(name="SQL", group="Данные"),

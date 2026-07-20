@@ -1,22 +1,40 @@
-FROM python:3.14.2-slim AS base
+FROM python:3.14.6-slim@sha256:d3400aa122fa42cf0af0dbe8ec3091b047eac5c8f7e3539f7135e86d855dc015 AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PATH="/workspace/.venv/bin:$PATH" \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0
+
+COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /uvx /bin/
 
 WORKDIR /workspace
 
-COPY packages/python/platform-sdk /workspace/platform-sdk
-COPY apps/projects/backend /workspace/backend
-RUN python -m pip install --upgrade pip \
-    && python -m pip install /workspace/platform-sdk /workspace/backend
+COPY pyproject.toml uv.lock ./
+COPY packages/python/platform-sdk packages/python/platform-sdk
+COPY apps/access-service/pyproject.toml apps/access-service/pyproject.toml
+COPY apps/service-desk/backend/pyproject.toml apps/service-desk/backend/pyproject.toml
+COPY apps/projects/backend apps/projects/backend
 
-FROM base AS test
-RUN python -m pip install "/workspace/backend[dev]"
-WORKDIR /workspace/backend
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --package shpiu-project-showcase-backend --no-editable
+
+FROM builder AS test
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --package shpiu-project-showcase-backend --extra dev --no-editable
+WORKDIR /workspace/apps/projects/backend
 CMD ["python", "-m", "pytest", "-q"]
 
-FROM base AS runtime
+FROM python:3.14.6-slim@sha256:d3400aa122fa42cf0af0dbe8ec3091b047eac5c8f7e3539f7135e86d855dc015 AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/workspace/.venv/bin:$PATH"
+
+COPY --from=builder /workspace/.venv /workspace/.venv
+COPY --from=builder /workspace/apps/projects/backend /workspace/backend
+
 RUN addgroup --system app && adduser --system --ingroup app app \
     && mkdir -p /workspace/backend/storage/projects \
     && chown -R app:app /workspace/backend

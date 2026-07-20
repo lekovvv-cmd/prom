@@ -1,0 +1,22 @@
+{
+  "name": "@prom/layout",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/Header.tsx",
+    "./styles.css": "./src/styles.css"
+  },
+  "dependencies": {
+    "@prom/auth": "0.1.0",
+    "@prom/ui": "0.1.0",
+    "lucide-react": "1.23.0"
+  },
+  "peerDependencies": {
+    "react": "19.2.7",
+    "react-router-dom": "7.18.1"
+  },
+  "devDependencies": {
+    "vitest": "4.1.9"
+  }
+}

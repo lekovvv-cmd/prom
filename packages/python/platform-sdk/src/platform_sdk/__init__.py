@@ -1,14 +1,101 @@
 """Infrastructure-only building blocks shared by PROM product modules."""
 
-from .auth import CurrentPrincipal, require_permission
-from .config import PlatformSettings
-from .errors import PlatformError, install_problem_details_handlers
+from .auth import CachedJwksVerifier, CurrentPrincipal, require_permission
+from .config import (
+    PlatformSettings,
+    has_cors_wildcard,
+    is_insecure_secret,
+    is_production_environment,
+    parse_nonempty_csv,
+    validate_production_database_url,
+)
+from .database import DatabasePoolConfig, create_platform_engine, pool_metrics
+from .error_types import (
+    AssigneeUnavailable,
+    AuthenticationRequired,
+    ConflictDetected,
+    EntityNotFound,
+    InvalidRequest,
+    InvalidStateTransition,
+    PermissionDenied,
+    PlatformError,
+    ValidationFailed,
+)
+from .errors import install_problem_details_handlers
+from .observability import (
+    ServiceMetrics,
+    get_request_id,
+    get_service_metrics,
+    install_metrics_endpoint,
+    start_worker_metrics_server,
+)
+from .outbox import (
+    AuditEventMixin,
+    IdempotencyRecordMixin,
+    OutboxEventMixin,
+    claim_outbox_batch,
+    cleanup_outbox_records,
+    mark_outbox_failed,
+    mark_outbox_processed,
+    outbox_metrics,
+)
+from .storage import (
+    ClamAvTcpScanner,
+    FileDownload,
+    IncomingFile,
+    LocalFilesystemStorage,
+    NoopAntivirusScanner,
+    S3CompatibleStorage,
+    StoredObject,
+    safe_file_name,
+    stream_incoming_file,
+)
+from .unit_of_work import SqlAlchemyUnitOfWork
 
 __all__ = [
+    "AssigneeUnavailable",
+    "AuthenticationRequired",
+    "AuditEventMixin",
+    "CachedJwksVerifier",
+    "ClamAvTcpScanner",
+    "ConflictDetected",
     "CurrentPrincipal",
+    "DatabasePoolConfig",
+    "EntityNotFound",
+    "FileDownload",
+    "IncomingFile",
+    "IdempotencyRecordMixin",
+    "InvalidRequest",
+    "InvalidStateTransition",
+    "PermissionDenied",
     "PlatformError",
     "PlatformSettings",
+    "LocalFilesystemStorage",
+    "NoopAntivirusScanner",
+    "OutboxEventMixin",
+    "SqlAlchemyUnitOfWork",
+    "S3CompatibleStorage",
+    "ServiceMetrics",
+    "StoredObject",
+    "ValidationFailed",
+    "create_platform_engine",
+    "get_request_id",
+    "get_service_metrics",
+    "has_cors_wildcard",
+    "claim_outbox_batch",
+    "cleanup_outbox_records",
     "install_problem_details_handlers",
+    "install_metrics_endpoint",
+    "is_insecure_secret",
+    "is_production_environment",
+    "mark_outbox_failed",
+    "mark_outbox_processed",
+    "outbox_metrics",
+    "parse_nonempty_csv",
+    "pool_metrics",
     "require_permission",
+    "safe_file_name",
+    "stream_incoming_file",
+    "start_worker_metrics_server",
+    "validate_production_database_url",
 ]
-

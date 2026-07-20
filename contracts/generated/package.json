@@ -1,0 +1,11 @@
+{
+  "name": "@prom/generated-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./access": "./src/access.ts",
+    "./projects": "./src/projects.ts",
+    "./service-desk": "./src/serviceDesk.ts"
+  }
+}

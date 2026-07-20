@@ -6,7 +6,6 @@ from typing import Literal
 from app.core.enums import ServiceDeskTicketStatus
 from app.modules.tickets.models import ServiceDeskTicket
 
-
 SlaMetric = Literal["first_response", "resolution"]
 
 TERMINAL_SLA_STATUSES = frozenset({

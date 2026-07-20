@@ -10,9 +10,20 @@ case "$COMMAND" in
   *) printf 'Usage: ./dev.sh {up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module} [service]\n' >&2; exit 2 ;;
 esac
 
-command -v docker >/dev/null 2>&1 || { printf 'Docker is required.\n' >&2; exit 1; }
-docker info >/dev/null 2>&1 || { printf 'Docker is not running.\n' >&2; exit 1; }
 cd "$ROOT_DIR"
+
+case "$COMMAND" in
+  up|down|restart|logs|status|reset|test|test-integration)
+    command -v docker >/dev/null 2>&1 || { printf 'Docker is required for %s.\n' "$COMMAND" >&2; exit 1; }
+    docker info >/dev/null 2>&1 || { printf 'Docker is not running.\n' >&2; exit 1; }
+    ;;
+esac
+
+if [[ -x .venv/bin/python ]]; then
+  PROM_PYTHON=.venv/bin/python
+else
+  PROM_PYTHON=python3
+fi
 
 case "$COMMAND" in
   up)
@@ -50,9 +61,9 @@ case "$COMMAND" in
     ;;
   test-e2e) npm run test:e2e --workspace=@prom/platform-shell ;;
   generate-contracts) npm run generate:contracts ;;
-  architecture-check) python3 tools/architecture/check.py ;;
+  architecture-check) "$PROM_PYTHON" tools/architecture/check.py ;;
   create-module)
     [[ $# -eq 1 ]] || { printf 'Usage: ./dev.sh create-module <module-name>\n' >&2; exit 2; }
-    python3 tools/generators/create_module.py "$1"
+    "$PROM_PYTHON" tools/generators/create_module.py "$1"
     ;;
 esac

@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, date, datetime, timedelta
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import ValidationFailed
 from pydantic import BaseModel
 
 from app.core.enums import ServiceDeskPriority
@@ -17,9 +17,7 @@ class StatsFilters(BaseModel):
 
     def validate_period(self) -> None:
         if self.date_from and self.date_to and self.date_from > self.date_to:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "date_from не может быть позже date_to",
+            raise ValidationFailed("date_from не может быть позже date_to",
             )
 
     def boundaries(self) -> tuple[datetime | None, datetime | None]:

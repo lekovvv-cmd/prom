@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from platform_sdk.observability import get_service_metrics
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.enums import ServiceDeskTicketStatus
-from app.core.enums import ServiceDeskAccessType
+from app.core.enums import ServiceDeskAccessType, ServiceDeskTicketStatus
 from app.modules.access.models import ServiceDeskUser
 from app.modules.notifications.domain import NotificationChannel, NotificationEventType
 from app.modules.notifications.service import NotificationDispatcher, sla_notification
@@ -22,7 +22,6 @@ from app.modules.sla.models import (
 from app.modules.sla.projection import utc as _utc
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 
-
 ACTIVE_STATUSES = {
     ServiceDeskTicketStatus.SUBMITTED,
     ServiceDeskTicketStatus.PENDING_APPROVAL,
@@ -36,6 +35,10 @@ ACTIVE_STATUSES = {
 class SlaWorker:
     def __init__(self, db: Session) -> None:
         self.db = db
+        self.metrics = get_service_metrics(
+            service="service-desk-sla-worker",
+            module="service-desk",
+        )
 
     def run_once(self, *, now: datetime | None = None) -> dict[str, int]:
         occurred_at = now or datetime.now(UTC)
@@ -78,6 +81,9 @@ class SlaWorker:
         return counts
 
     def _evaluate_escalations(self, ticket: ServiceDeskTicket, occurred_at: datetime) -> None:
+        snapshot = ticket.sla_snapshot
+        if snapshot is None:
+            return
         rules = self.db.scalars(select(ServiceDeskEscalationRule).where(
             ServiceDeskEscalationRule.sla_policy_id == ticket.sla_policy_id,
             ServiceDeskEscalationRule.is_active.is_(True),
@@ -85,7 +91,7 @@ class SlaWorker:
         existing = set(self.db.scalars(select(ServiceDeskSlaEscalationEvent.rule_id).where(
             ServiceDeskSlaEscalationEvent.ticket_id == ticket.id
         )).all())
-        selected_at = _utc(datetime.fromisoformat(ticket.sla_snapshot["selected_at"]))
+        selected_at = _utc(datetime.fromisoformat(snapshot["selected_at"]))
         occurred_at = _utc(occurred_at)
         resolution_elapsed_seconds: int | None = None
         for rule in rules:
@@ -95,11 +101,12 @@ class SlaWorker:
                 continue
             if rule.metric == "resolution" and ticket.resolved_at is not None:
                 continue
-            minutes = ticket.sla_snapshot[f"{rule.metric}_minutes"]
+            minutes = snapshot[f"{rule.metric}_minutes"]
             if rule.metric == "resolution":
                 if resolution_elapsed_seconds is None:
                     resolution_elapsed_seconds = self._resolution_elapsed_seconds(
                         ticket,
+                        snapshot,
                         selected_at,
                         occurred_at,
                     )
@@ -109,7 +116,7 @@ class SlaWorker:
                 elapsed_seconds = business_seconds_between(
                     selected_at,
                     occurred_at,
-                    ticket.sla_snapshot,
+                    snapshot,
                 )
             if elapsed_seconds * 100 < minutes * 60 * rule.threshold_percent:
                 continue
@@ -130,6 +137,10 @@ class SlaWorker:
                 actor_user_id=None, message="SLA escalation threshold reached",
                 payload={"metric": rule.metric, "threshold_percent": rule.threshold_percent, "rule_id": str(rule.id)},
             ))
+            if rule.threshold_percent < 100:
+                self.metrics.record_sla_warning(rule.metric)
+            else:
+                self.metrics.record_sla_breach(rule.metric)
             if rule.action_type in {"create_in_app_notification", "email_notification_when_available"}:
                 recipient_ids = [recipient_user_id] if recipient_user_id else []
                 if rule.recipient_type == "service_desk_admin":
@@ -154,6 +165,7 @@ class SlaWorker:
     def _resolution_elapsed_seconds(
         self,
         ticket: ServiceDeskTicket,
+        snapshot: dict[str, object],
         selected_at: datetime,
         occurred_at: datetime,
     ) -> int:
@@ -173,7 +185,7 @@ class SlaWorker:
         return effective_business_seconds_between(
             selected_at,
             occurred_at,
-            ticket.sla_snapshot,
+            snapshot,
             pause_intervals,
         )
 
@@ -186,6 +198,7 @@ class SlaWorker:
         ) is not None
 
     def _history(self, ticket: ServiceDeskTicket, metric: str, occurred_at: datetime) -> None:
+        self.metrics.record_sla_breach(metric)
         self.db.add(ServiceDeskTicketHistory(
             ticket_id=ticket.id,
             event_type="sla_breached",

@@ -6,10 +6,11 @@ from app.api.routes import (
     admin_stats,
     admin_users,
     attachments,
+    audit,
     auth,
     competencies,
-    projects,
     project_tasks,
+    projects,
     reports,
     users,
 )
@@ -18,6 +19,7 @@ api_router = APIRouter()
 
 for router in (
     auth.router,
+    audit.router,
     competencies.router,
     projects.router,
     reports.router,

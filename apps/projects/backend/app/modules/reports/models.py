@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from app.modules.users.models import User
 
 
-def enum_values(enum_class: type) -> list[str]:
+def enum_values(enum_class: type[Enum]) -> list[str]:
     return [item.value for item in enum_class]
 
 
@@ -50,8 +52,18 @@ class HalfYearReport(Base):
     __table_args__ = (UniqueConstraint("period_id", "user_id", name="uq_half_year_report_period_user"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    period_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("report_periods.id"), nullable=False)
-    user_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    period_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("report_periods.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
     completed_work: Mapped[str] = mapped_column(Text, nullable=False)
     project_results: Mapped[str | None] = mapped_column(Text, nullable=True)
     competencies_used: Mapped[str | None] = mapped_column(Text, nullable=True)

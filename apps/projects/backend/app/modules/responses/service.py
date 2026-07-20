@@ -1,14 +1,22 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest, PermissionDenied
 from sqlalchemy.orm import Session
 
-from app.core.enums import AttachmentOwnerType, ProjectResponseStatus, ProjectStatus, UserRole
-from app.core.exceptions import DomainError
+from app.core.enums import AttachmentOwnerType, ProjectResponseStatus, ProjectStatus
+from app.core.permissions import (
+    PROJECTS_MANAGE_RESPONSES,
+    can_manage_all_projects,
+    can_manage_own_projects,
+    has_permission,
+    is_platform_admin,
+)
 from app.core.schemas.common import PaginatedResponse
 from app.core.security import ensure_utmn_email
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
+from app.modules.platform.events import ProjectEventRecorder
 from app.modules.projects.service import ProjectService
 from app.modules.responses.models import ProjectResponse
 from app.modules.responses.repository import ProjectResponseRepository
@@ -18,6 +26,7 @@ from app.modules.responses.schemas import (
     ProjectResponseRead,
     UserProjectResponseRead,
 )
+from app.modules.responses.workflows import ensure_response_transition
 from app.modules.users.models import User
 
 
@@ -25,6 +34,7 @@ class ProjectResponseService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repo = ProjectResponseRepository(db)
+        self.events = ProjectEventRecorder(db)
 
     def create_for_project(
         self,
@@ -35,15 +45,15 @@ class ProjectResponseService:
     ) -> ProjectResponseRead:
         project = ProjectService(self.db).get_existing_project(project_id)
         if project.status not in {ProjectStatus.ACTIVE, ProjectStatus.PAUSED} or project.archived_at is not None:
-            raise DomainError("Отклики доступны только для активных и приостановленных проектов")
+            raise InvalidRequest("Отклики доступны только для активных и приостановленных проектов")
 
         email = ensure_utmn_email(payload.email)
-        if current_user.role == UserRole.PLATFORM_ADMIN:
-            raise DomainError("Администратор не может отправлять отклики на проекты", status_code=403)
+        if is_platform_admin(current_user):
+            raise PermissionDenied("Администратор не может отправлять отклики на проекты")
         if email != current_user.email:
-            raise DomainError("Отклик можно отправить только от своего email", status_code=403)
+            raise PermissionDenied("Отклик можно отправить только от своего email")
         if self.repo.exists_for_project_email(project_id, email):
-            raise DomainError("Вы уже откликнулись на этот проект", status_code=409)
+            raise ConflictDetected("Вы уже откликнулись на этот проект")
         data = payload.model_dump()
         data["competencies"] = current_user.competencies
         response = self.repo.create(
@@ -55,7 +65,24 @@ class ProjectResponseService:
                 "status": ProjectResponseStatus.NEW,
             }
         )
-        self.db.commit()
+        self.events.audit(
+            actor=current_user,
+            action="project.response_submitted",
+            object_type="project_response",
+            object_id=response.id,
+            after=self._audit_snapshot(response),
+        )
+        self.events.publish(
+            event_type="ProjectResponseSubmitted",
+            aggregate_type="project_response",
+            aggregate_id=response.id,
+            payload={
+                "response_id": str(response.id),
+                "project_id": str(project_id),
+                "user_id": str(current_user.id),
+            },
+        )
+        self.db.flush()
         self.db.refresh(response)
         return ProjectResponseRead.model_validate(response)
 
@@ -136,45 +163,89 @@ class ProjectResponseService:
     ) -> AdminProjectResponseRead:
         response = self.repo.get_by_id(response_id)
         if response is None or response.deleted_at is not None:
-            raise DomainError("Отклик не найден", status_code=404)
+            raise EntityNotFound("Отклик не найден")
         self._ensure_can_manage_project(response.project_id, current_user)
+        before = self._audit_snapshot(response)
+        ensure_response_transition(response.status, status)
         response.status = status
         response.processed_by = current_user.id
         response.processed_at = datetime.now(UTC)
-        self.db.commit()
+        self.db.flush()
+        self.events.audit(
+            actor=current_user,
+            action="project.response_status_changed",
+            object_type="project_response",
+            object_id=response.id,
+            before=before,
+            after=self._audit_snapshot(response),
+        )
+        if status == ProjectResponseStatus.ACCEPTED:
+            self.events.publish(
+                event_type="ProjectResponseAccepted",
+                aggregate_type="project_response",
+                aggregate_id=response.id,
+                payload={
+                    "response_id": str(response.id),
+                    "project_id": str(response.project_id),
+                    "user_id": str(response.user_id) if response.user_id else None,
+                },
+            )
         self.db.refresh(response)
         return self._to_admin_read(response)
 
     def withdraw_current_user(self, response_id: UUID, current_user: User) -> UserProjectResponseRead:
         response = self.repo.get_user_response(response_id, current_user.id)
         if response is None:
-            raise DomainError("Отклик не найден", status_code=404)
+            raise EntityNotFound("Отклик не найден")
         if response.status in {ProjectResponseStatus.ACCEPTED, ProjectResponseStatus.REJECTED}:
-            raise DomainError("Нельзя отозвать отклик после финального решения", status_code=400)
+            raise InvalidRequest("Нельзя отозвать отклик после финального решения")
+        before = self._audit_snapshot(response)
+        ensure_response_transition(response.status, ProjectResponseStatus.CANCELLED)
         response.status = ProjectResponseStatus.CANCELLED
-        self.db.commit()
+        self.db.flush()
+        self.events.audit(
+            actor=current_user,
+            action="project.response_withdrawn",
+            object_type="project_response",
+            object_id=response.id,
+            before=before,
+            after=self._audit_snapshot(response),
+        )
         self.db.refresh(response)
         return self._to_user_read(response)
 
     def delete_admin(self, response_id: UUID, current_user: User) -> None:
         response = self.repo.get_by_id(response_id)
         if response is None or response.deleted_at is not None:
-            raise DomainError("Отклик не найден", status_code=404)
+            raise EntityNotFound("Отклик не найден")
         self._ensure_can_manage_project(response.project_id, current_user)
+        before = self._audit_snapshot(response)
         self.repo.soft_delete(response)
-        self.db.commit()
+        self.db.flush()
+        self.events.audit(
+            actor=current_user,
+            action="project.response_deleted",
+            object_type="project_response",
+            object_id=response.id,
+            before=before,
+            after=self._audit_snapshot(response),
+        )
 
     @staticmethod
     def _manager_scope_user_id(current_user: User) -> UUID | None:
-        if current_user.role == UserRole.PLATFORM_ADMIN:
+        if can_manage_all_projects(current_user):
             return None
         return current_user.id
 
     def _ensure_can_manage_project(self, project_id: UUID, current_user: User) -> None:
-        if current_user.role == UserRole.PLATFORM_ADMIN:
+        if can_manage_all_projects(current_user):
             return
-        if not self.repo.user_can_manage_project(project_id, current_user.id):
-            raise DomainError("Недостаточно прав для работы с откликами этого проекта", status_code=403)
+        if (
+            not can_manage_own_projects(current_user)
+            or not has_permission(current_user, PROJECTS_MANAGE_RESPONSES)
+            or not self.repo.user_can_manage_project(project_id, current_user.id)
+        ):
+            raise PermissionDenied("Недостаточно прав для работы с откликами этого проекта")
 
     def _to_admin_read(self, response: ProjectResponse) -> AdminProjectResponseRead:
         attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.RESPONSE, response.id)
@@ -231,3 +302,12 @@ class ProjectResponseService:
             status=response.status,
             created_at=response.created_at,
         )
+
+    @staticmethod
+    def _audit_snapshot(response: ProjectResponse) -> dict[str, str | None]:
+        return {
+            "project_id": str(response.project_id),
+            "user_id": str(response.user_id) if response.user_id else None,
+            "status": response.status.value,
+            "deleted_at": response.deleted_at.isoformat() if response.deleted_at else None,
+        }

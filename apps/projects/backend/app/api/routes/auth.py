@@ -10,28 +10,10 @@ from app.modules.projects.schemas import ProjectDetails, ProjectSummary
 from app.modules.projects.service import ProjectService
 from app.modules.responses.schemas import UserProjectResponseRead
 from app.modules.responses.service import ProjectResponseService
-from app.modules.users.schemas import (
-    AuthCodeResponse,
-    AuthEmailRequest,
-    AuthVerifyRequest,
-    TokenResponse,
-    UserProfileUpdate,
-    UserRead,
-)
+from app.modules.users.schemas import UserProfileUpdate, UserRead
 from app.modules.users.service import UserService
 
 router = APIRouter(tags=["auth"])
-
-
-@router.post("/auth/request-code", response_model=AuthCodeResponse)
-def request_code(payload: AuthEmailRequest, db: DbSession) -> dict[str, str]:
-    return UserService(db).request_code(payload.email)
-
-
-@router.post("/auth/verify-code", response_model=TokenResponse)
-def verify_code(payload: AuthVerifyRequest, db: DbSession) -> TokenResponse:
-    user, token = UserService(db).verify_code(payload.email, payload.code)
-    return TokenResponse(access_token=token, user=UserRead.model_validate(user))
 
 
 @router.get("/me", response_model=UserRead)

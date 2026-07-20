@@ -132,6 +132,7 @@ class ProjectUpdate(BaseModel):
 
 class ProjectSummary(BaseModel):
     id: UUID
+    version: int
     title: str
     short_description: str
     goal: str

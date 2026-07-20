@@ -240,7 +240,7 @@
           "position": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -331,7 +331,7 @@
           "position": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -758,8 +758,8 @@
             "type": "string"
           },
           "weekday": {
-            "maximum": 6.0,
-            "minimum": 0.0,
+            "maximum": 6,
+            "minimum": 0,
             "title": "Weekday",
             "type": "integer"
           }
@@ -795,8 +795,8 @@
             "type": "string"
           },
           "weekday": {
-            "maximum": 6.0,
-            "minimum": 0.0,
+            "maximum": 6,
+            "minimum": 0,
             "title": "Weekday",
             "type": "integer"
           }
@@ -1511,7 +1511,7 @@
             "title": "Recipient User Id"
           },
           "threshold_percent": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Threshold Percent",
             "type": "integer"
           }
@@ -1581,7 +1581,7 @@
             "type": "string"
           },
           "threshold_percent": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Threshold Percent",
             "type": "integer"
           }
@@ -1672,7 +1672,7 @@
           "threshold_percent": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "integer"
               },
               {
@@ -1963,8 +1963,8 @@
           },
           "priority": {
             "default": 100,
-            "maximum": 1000000.0,
-            "minimum": 0.0,
+            "maximum": 1000000,
+            "minimum": 0,
             "title": "Priority",
             "type": "integer"
           }
@@ -2081,8 +2081,8 @@
           "priority": {
             "anyOf": [
               {
-                "maximum": 1000000.0,
-                "minimum": 0.0,
+                "maximum": 1000000,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -2241,6 +2241,17 @@
       },
       "ServiceDeskAttachmentRead": {
         "properties": {
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum"
+          },
           "content_type": {
             "anyOf": [
               {
@@ -2251,6 +2262,17 @@
               }
             ],
             "title": "Content Type"
+          },
+          "content_type_detected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type Detected"
           },
           "created_at": {
             "format": "date-time",
@@ -2289,6 +2311,9 @@
             "title": "Size Bytes",
             "type": "integer"
           },
+          "status": {
+            "$ref": "#/components/schemas/ServiceDeskAttachmentStatus"
+          },
           "ticket_id": {
             "format": "uuid",
             "title": "Ticket Id",
@@ -2308,12 +2333,26 @@
           "field_key",
           "file_name",
           "content_type",
+          "content_type_detected",
           "size_bytes",
+          "checksum",
+          "status",
           "uploaded_by_user_id",
           "created_at"
         ],
         "title": "ServiceDeskAttachmentRead",
         "type": "object"
+      },
+      "ServiceDeskAttachmentStatus": {
+        "enum": [
+          "pending",
+          "quarantined",
+          "available",
+          "rejected",
+          "deleted"
+        ],
+        "title": "ServiceDeskAttachmentStatus",
+        "type": "string"
       },
       "ServiceDeskCapabilitiesRead": {
         "properties": {
@@ -2792,8 +2831,8 @@
           },
           "priority": {
             "default": 100,
-            "maximum": 1000000.0,
-            "minimum": 0.0,
+            "maximum": 1000000,
+            "minimum": 0,
             "title": "Priority",
             "type": "integer"
           }
@@ -2844,8 +2883,8 @@
           },
           "priority": {
             "default": 100,
-            "maximum": 1000000.0,
-            "minimum": 0.0,
+            "maximum": 1000000,
+            "minimum": 0,
             "title": "Priority",
             "type": "integer"
           },
@@ -2922,8 +2961,8 @@
           "priority": {
             "anyOf": [
               {
-                "maximum": 1000000.0,
-                "minimum": 0.0,
+                "maximum": 1000000,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -2956,7 +2995,7 @@
             "title": "Description"
           },
           "first_response_minutes": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "First Response Minutes",
             "type": "integer"
           },
@@ -2983,7 +3022,7 @@
             "type": "array"
           },
           "resolution_minutes": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Resolution Minutes",
             "type": "integer"
           }
@@ -3034,7 +3073,7 @@
             "title": "Description"
           },
           "first_response_minutes": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "First Response Minutes",
             "type": "integer"
           },
@@ -3066,7 +3105,7 @@
             "type": "array"
           },
           "resolution_minutes": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Resolution Minutes",
             "type": "integer"
           },
@@ -3118,7 +3157,7 @@
           "first_response_minutes": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "integer"
               },
               {
@@ -3172,7 +3211,7 @@
           "resolution_minutes": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "integer"
               },
               {
@@ -12592,6 +12631,11 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
             "description": "Successful Response"
           },
           "422": {

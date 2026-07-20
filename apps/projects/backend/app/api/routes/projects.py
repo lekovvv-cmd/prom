@@ -1,11 +1,12 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 
 from app.api.deps import CurrentUser, DbSession
 from app.core.enums import ProjectStatus, ProjectType
 from app.core.schemas.common import PaginatedResponse
+from app.modules.platform.idempotency import IdempotencyStore, request_fingerprint
 from app.modules.projects.schemas import ProjectDetails, ProjectRecommendationRead, ProjectSummary
 from app.modules.projects.service import ProjectService
 from app.modules.responses.schemas import ProjectResponseCreate, ProjectResponseRead
@@ -56,5 +57,24 @@ def create_project_response(
     payload: ProjectResponseCreate,
     current_user: CurrentUser,
     db: DbSession,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> ProjectResponseRead:
-    return ProjectResponseService(db).create_for_project(project_id, payload, current_user=current_user)
+    scope = f"SubmitProjectResponse:{project_id}:{current_user.id}"
+    request_hash = request_fingerprint(payload.model_dump(mode="json"))
+    store = IdempotencyStore(db)
+    replay = store.replay(scope=scope, key=idempotency_key, request_hash=request_hash)
+    if replay is not None:
+        return ProjectResponseRead.model_validate(replay[1])
+    result = ProjectResponseService(db).create_for_project(
+        project_id,
+        payload,
+        current_user=current_user,
+    )
+    store.save(
+        scope=scope,
+        key=idempotency_key,
+        request_hash=request_hash,
+        response_status=201,
+        response_body=result.model_dump(mode="json"),
+    )
+    return result

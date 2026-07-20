@@ -7,7 +7,15 @@ module pages. Generic transport has no product side effects. Query state belongs
 to module-scoped query-key factories.
 
 Tailwind 4.3.3 is integrated through the official Vite plugin. New shared UI
-uses semantic token utilities and CVA/Radix primitives where variants or
-accessible overlay behavior are needed. Existing legacy CSS is migrated by
-vertical screen slices and must not gain new module selectors.
+uses semantic tokens and CVA variants. Dialog, Popover, Tabs, Select,
+Dropdown, Tooltip, Checkbox, Switch, and the searchable combobox use Radix
+Primitives for focus, keyboard, dismissal, and ARIA behavior. The platform
+global stylesheet contains only Tailwind import, tokens, reset, and base
+typography. Shared UI and layout styles live with their packages; product
+selectors live only in the owning module.
 
+The style gate enforces source-size budgets and rejects component or product
+selectors in the global layer. Bundle checks separately cap initial JavaScript,
+initial CSS, the largest lazy JavaScript chunk, and the largest lazy CSS chunk.
+CSS Modules remain reserved for genuinely complex local layout or interaction
+cases; shared visual patterns belong in `@prom/ui`.

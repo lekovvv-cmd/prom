@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from platform_sdk.error_types import PermissionDenied
 
 from app.core.enums import (
     ServiceDeskAccessType,
@@ -26,7 +26,7 @@ class TicketPolicyService:
 
     def require_view(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> None:
         if not self.can_view(ticket, actor):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к заявке")
+            raise PermissionDenied("Нет доступа к заявке")
 
     def can_view_internal_comments(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> bool:
         if actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
@@ -38,7 +38,7 @@ class TicketPolicyService:
 
     def require_internal_comments(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> None:
         if not self.can_view_internal_comments(ticket, actor):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к внутренним комментариям")
+            raise PermissionDenied("Нет доступа к внутренним комментариям")
 
     def allowed_actions(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> list[str]:
         capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
@@ -143,4 +143,4 @@ class TicketPolicyService:
         actor: ServiceDeskUser,
     ) -> None:
         if not self.can_perform(ticket, action, actor):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Действие недоступно пользователю")
+            raise PermissionDenied("Действие недоступно пользователю")

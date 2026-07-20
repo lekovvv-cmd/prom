@@ -1,13 +1,13 @@
 import uuid
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
 from app.core.enums import TemplateVersionStatus
-from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals.service import ApprovalWorkflowService
+from app.modules.assignments.policy import AssigneePolicy
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.templates import schemas
 from app.modules.templates.models import (
@@ -91,12 +91,16 @@ class TemplateService:
         self._require_service(service_id)
         version = self.repository.get_published_version(service_id)
         if not version:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Опубликованный шаблон услуги не найден")
+            raise EntityNotFound("Опубликованный шаблон услуги не найден")
         fields = [
             self._build_field_preview(field)
             for field in sorted(version.fields, key=lambda field: (field.position, field.label))
         ]
-        return schemas.PublishedTemplateRead(service_id=service_id, template_version=version, fields=fields)
+        return schemas.PublishedTemplateRead(
+            service_id=service_id,
+            template_version=schemas.TemplateVersionRead.model_validate(version),
+            fields=fields,
+        )
 
     def get_version_form(self, version_id: uuid.UUID) -> schemas.PublishedTemplateRead:
         """Return the saved form contract for a draft, including archived versions."""
@@ -105,7 +109,11 @@ class TemplateService:
             self._build_field_preview(field)
             for field in sorted(version.fields, key=lambda field: (field.position, field.label))
         ]
-        return schemas.PublishedTemplateRead(service_id=version.service_id, template_version=version, fields=fields)
+        return schemas.PublishedTemplateRead(
+            service_id=version.service_id,
+            template_version=schemas.TemplateVersionRead.model_validate(version),
+            fields=fields,
+        )
 
     def preview_version(self, version_id: uuid.UUID) -> schemas.TemplatePreviewRead:
         version = self._require_version(version_id)
@@ -113,7 +121,10 @@ class TemplateService:
             self._build_field_preview(field)
             for field in sorted(version.fields, key=lambda item: (item.position, item.label))
         ]
-        return schemas.TemplatePreviewRead(template_version=version, fields=fields)
+        return schemas.TemplatePreviewRead(
+            template_version=schemas.TemplateVersionRead.model_validate(version),
+            fields=fields,
+        )
 
     def create_field(
         self,
@@ -123,7 +134,7 @@ class TemplateService:
         version = self._require_version(version_id)
         self._ensure_draft(version)
         if self.repository.get_field_by_key(version_id, payload.key):
-            raise HTTPException(status.HTTP_409_CONFLICT, "Поле с таким ключом уже есть в шаблоне")
+            raise ConflictDetected("Поле с таким ключом уже есть в шаблоне")
         self._ensure_dictionary_exists(payload.dictionary_code)
         field = ServiceDeskTemplateField(template_version_id=version_id, **payload.model_dump())
         self.repository.add_field(field)
@@ -142,7 +153,7 @@ class TemplateService:
         if "key" in data:
             duplicate = self.repository.get_field_by_key(field.template_version_id, data["key"])
             if duplicate and duplicate.id != field.id:
-                raise HTTPException(status.HTTP_409_CONFLICT, "Поле с таким ключом уже есть в шаблоне")
+                raise ConflictDetected("Поле с таким ключом уже есть в шаблоне")
         if "dictionary_code" in data:
             self._ensure_dictionary_exists(data["dictionary_code"])
         for item, value in data.items():
@@ -166,7 +177,7 @@ class TemplateService:
         self._ensure_draft(version)
         fields_by_id = {field.id: field for field in version.fields}
         if set(fields_by_id) != set(payload.field_ids):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Передайте все поля шаблона в новом порядке")
+            raise InvalidRequest("Передайте все поля шаблона в новом порядке")
         for position, field_id in enumerate(payload.field_ids):
             fields_by_id[field_id].position = position
         self.db.commit()
@@ -185,7 +196,7 @@ class TemplateService:
 
     def create_dictionary(self, payload: schemas.DictionaryCreate) -> ServiceDeskDictionary:
         if self.repository.get_dictionary_by_code(payload.code):
-            raise HTTPException(status.HTTP_409_CONFLICT, "Справочник с таким кодом уже существует")
+            raise ConflictDetected("Справочник с таким кодом уже существует")
         dictionary = ServiceDeskDictionary(**payload.model_dump())
         self.repository.add_dictionary(dictionary)
         self.db.commit()
@@ -202,7 +213,7 @@ class TemplateService:
         if "code" in data:
             duplicate = self.repository.get_dictionary_by_code(data["code"])
             if duplicate and duplicate.id != dictionary.id:
-                raise HTTPException(status.HTTP_409_CONFLICT, "Справочник с таким кодом уже существует")
+                raise ConflictDetected("Справочник с таким кодом уже существует")
         for item, value in data.items():
             setattr(dictionary, item, value)
         self.db.commit()
@@ -218,9 +229,7 @@ class TemplateService:
         label = payload.label.strip()
         value = payload.value.strip()
         if self.repository.dictionary_item_value_exists(dictionary_id, value):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Значение с таким кодом уже есть в справочнике",
+            raise ConflictDetected("Значение с таким кодом уже есть в справочнике",
             )
         item = ServiceDeskDictionaryItem(
             dictionary_id=dictionary_id,
@@ -235,9 +244,7 @@ class TemplateService:
             self.db.commit()
         except IntegrityError as error:
             self.db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Значение с таким кодом уже есть в справочнике",
+            raise ConflictDetected("Значение с таким кодом уже есть в справочнике",
             ) from error
         self.db.refresh(item)
         return item
@@ -258,9 +265,7 @@ class TemplateService:
                 data["value"],
                 exclude_id=item.id,
             ):
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT,
-                    "Значение с таким кодом уже есть в справочнике",
+                raise ConflictDetected("Значение с таким кодом уже есть в справочнике",
                 )
         if "metadata" in data:
             item.metadata_json = data.pop("metadata")
@@ -270,48 +275,46 @@ class TemplateService:
             self.db.commit()
         except IntegrityError as error:
             self.db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Значение с таким кодом уже есть в справочнике",
+            raise ConflictDetected("Значение с таким кодом уже есть в справочнике",
             ) from error
         self.db.refresh(item)
         return item
 
     def _require_service(self, service_id: uuid.UUID) -> None:
         if not self.catalog_repository.get_service(service_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
+            raise EntityNotFound("Услуга не найдена")
 
     def _require_version(self, version_id: uuid.UUID) -> ServiceDeskTemplateVersion:
         version = self.repository.get_version(version_id)
         if not version:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Версия шаблона не найдена")
+            raise EntityNotFound("Версия шаблона не найдена")
         return version
 
     def _ensure_draft(self, version: ServiceDeskTemplateVersion) -> None:
         if version.status != TemplateVersionStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Редактировать можно только черновик шаблона")
+            raise ConflictDetected("Редактировать можно только черновик шаблона")
 
     def _require_field(self, field_id: uuid.UUID) -> ServiceDeskTemplateField:
         field = self.repository.get_field(field_id)
         if not field:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Поле шаблона не найдено")
+            raise EntityNotFound("Поле шаблона не найдено")
         return field
 
     def _require_dictionary(self, dictionary_id: uuid.UUID) -> ServiceDeskDictionary:
         dictionary = self.repository.get_dictionary(dictionary_id)
         if not dictionary:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Справочник не найден")
+            raise EntityNotFound("Справочник не найден")
         return dictionary
 
     def _require_dictionary_item(self, item_id: uuid.UUID) -> ServiceDeskDictionaryItem:
         item = self.repository.get_dictionary_item(item_id)
         if not item:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Значение справочника не найдено")
+            raise EntityNotFound("Значение справочника не найдено")
         return item
 
     def _ensure_dictionary_exists(self, dictionary_code: str | None) -> None:
         if dictionary_code and not self.repository.get_dictionary_by_code(dictionary_code):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Справочник поля не найден")
+            raise EntityNotFound("Справочник поля не найден")
 
     def _build_field_preview(self, field: ServiceDeskTemplateField) -> schemas.TemplateFieldPreviewRead:
         payload = schemas.TemplateFieldRead.model_validate(field).model_dump()

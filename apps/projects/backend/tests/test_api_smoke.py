@@ -1,13 +1,13 @@
 def auth_headers(client, email="admin@utmn.ru"):
-    request_code = client.post("/api/auth/request-code", json={"email": email})
-    assert request_code.status_code == 200
+    from app.core.database import SessionLocal
+    from app.core.security import create_access_token
+    from app.modules.users.repository import UserRepository
 
-    verify = client.post(
-        "/api/auth/verify-code",
-        json={"email": email, "code": "000000"},
-    )
-    assert verify.status_code == 200
-    return {"Authorization": f"Bearer {verify.json()['access_token']}"}
+    with SessionLocal() as db:
+        user = UserRepository(db).get_by_email(email)
+        assert user is not None
+        token = create_access_token(str(user.id), user.role)
+    return {"Authorization": f"Bearer {token}"}
 
 
 def admin_headers(client):
@@ -46,17 +46,19 @@ def test_health_checks_database_and_upload_storage(client):
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ready",
-        "checks": {"database": "ok", "storage": "ok"},
-    }
+    body = response.json()
+    assert body["status"] == "ready"
+    assert body["checks"] == {"database": "ok", "storage": "ok"}
+    assert body["database_pool"]["application_name"] == "prom-projects-api"
+    assert body["database_pool"]["configured_maximum_connections"] == 10
 
 
 def test_rejects_non_utmn_email(client):
-    response = client.post("/api/auth/request-code", json={"email": "user@example.com"})
-
-    assert response.status_code == 400
-    assert "@utmn.ru" in response.json()["detail"]
+    assert client.post("/api/auth/request-code", json={"email": "user@example.com"}).status_code == 404
+    assert client.post(
+        "/api/auth/verify-code",
+        json={"email": "user@example.com", "code": "000000"},
+    ).status_code == 404
 
 
 def test_public_projects_hide_archived_seed_project(client):
@@ -1020,7 +1022,7 @@ def test_full_mvp_flow(client):
     text_attachment = next(
         attachment for attachment in details.json()["attachments"] if attachment["file_name"] == "brief.txt"
     )
-    download = client.get(text_attachment["download_url"])
+    download = client.get(text_attachment["download_url"], headers=headers)
     assert download.status_code == 200
     assert download.content == b"project brief"
 

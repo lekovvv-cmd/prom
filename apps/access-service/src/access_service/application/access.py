@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from access_service.domain.models import AccessAuditEvent, PlatformUser, Role, UserRoleAssignment
+from access_service.infrastructure.identity import ExternalPrincipal
 
 
 def find_user_by_email(session: Session, email: str) -> PlatformUser | None:
@@ -68,3 +69,40 @@ def mark_login(session: Session, user: PlatformUser) -> None:
     user.last_login_at = datetime.now(timezone.utc)
     session.flush()
 
+
+def sync_external_principal(
+    session: Session,
+    principal: ExternalPrincipal,
+) -> PlatformUser:
+    user = session.scalar(
+        select(PlatformUser)
+        .where(PlatformUser.external_subject == principal.subject)
+        .options(
+            selectinload(PlatformUser.assignments)
+            .selectinload(UserRoleAssignment.role)
+            .selectinload(Role.permissions)
+        )
+    )
+    if user is None:
+        user = find_user_by_email(session, principal.email)
+    if user is None:
+        user = PlatformUser(
+            external_subject=principal.subject,
+            email=principal.email.lower(),
+            display_name=principal.display_name,
+            department=principal.department,
+        )
+        session.add(user)
+        session.flush()
+    else:
+        user.external_subject = principal.subject
+        user.email = principal.email.lower()
+        user.display_name = principal.display_name
+        user.department = principal.department
+    mark_login(session, user)
+    return user
+
+
+def revoke_sessions(session: Session, user: PlatformUser) -> None:
+    user.session_version += 1
+    session.flush()

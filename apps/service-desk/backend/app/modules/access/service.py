@@ -1,9 +1,15 @@
 import uuid
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import (
+    ConflictDetected,
+    EntityNotFound,
+    PermissionDenied,
+    ValidationFailed,
+)
 from sqlalchemy import exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.enums import SERVICE_DESK_CAPABILITIES, ServiceDeskAccessType
 from app.modules.access.models import (
@@ -26,10 +32,17 @@ class ServiceDeskAccessService:
 
     @staticmethod
     def capabilities_for(user: ServiceDeskUser) -> list[str]:
-        if (
-            getattr(user, "_is_platform_admin", False)
-            or user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+        if getattr(user, "_is_platform_admin", False):
+            return list(SERVICE_DESK_CAPABILITIES)
+        platform_permissions = getattr(user, "_platform_permissions", None)
+        principal = getattr(user, "_platform_principal", None)
+        if platform_permissions is not None and (
+            principal is None or "legacy" not in principal.audiences
         ):
+            return sorted(
+                set(SERVICE_DESK_CAPABILITIES).intersection(platform_permissions)
+            )
+        if user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
             return list(SERVICE_DESK_CAPABILITIES)
         allowed = set(SERVICE_DESK_CAPABILITIES)
         return sorted({item.capability for item in user.capabilities if item.capability in allowed})
@@ -54,10 +67,12 @@ class ServiceDeskAccessService:
 
     def list_options(self, *, capability: str | None = None):
         assert self.db is not None
-        filters = [ServiceDeskUser.is_active.is_(True)]
+        filters: list[ColumnElement[bool]] = [
+            ServiceDeskUser.is_active.is_(True)
+        ]
         if capability:
             if capability not in SERVICE_DESK_CAPABILITIES:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Указаны неизвестные права доступа")
+                raise ValidationFailed("Указаны неизвестные права доступа")
             filters.append(
                 or_(
                     ServiceDeskUser.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN,
@@ -82,8 +97,7 @@ class ServiceDeskAccessService:
 
     def require_manage_access(self, actor: ServiceDeskUser) -> None:
         if "service_desk.manage_access" not in self.capabilities_for(actor):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "Недостаточно прав для управления доступом Service Desk"
+            raise PermissionDenied("Недостаточно прав для управления доступом Service Desk"
             )
 
     def list_users(self, actor, *, q, access_type, is_active, page, page_size):
@@ -125,9 +139,7 @@ class ServiceDeskAccessService:
         unique = sorted(set(values))
         unknown = set(unique) - set(SERVICE_DESK_CAPABILITIES)
         if unknown:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Указаны неизвестные права доступа",
+            raise ValidationFailed("Указаны неизвестные права доступа",
             )
         return unique
 
@@ -162,7 +174,7 @@ class ServiceDeskAccessService:
             .where(ServiceDeskUser.id == user_id)
         )
         if not user:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Пользователь Service Desk не найден")
+            raise EntityNotFound("Пользователь Service Desk не найден")
         return user
 
     def create_user(self, actor, payload: AccessUserCreate):
@@ -183,8 +195,7 @@ class ServiceDeskAccessService:
             self.db.refresh(user)
         except IntegrityError as exc:
             self.db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "Пользователь с таким идентификатором уже существует"
+            raise ConflictDetected("Пользователь с таким идентификатором уже существует"
             ) from exc
         return self.user_read(self._get(user.id))
 
@@ -221,6 +232,7 @@ class ServiceDeskAccessService:
         return self.user_read(self._get(user.id))
 
     def _replace_rows(self, user, capabilities, actor):
+        assert self.db is not None
         user.capabilities.clear()
         self.db.flush()
         user.capabilities.extend(
@@ -233,8 +245,7 @@ class ServiceDeskAccessService:
         assert self.db is not None
         user = self._get(user_id)
         if user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "Администратор Service Desk всегда имеет все права"
+            raise ConflictDetected("Администратор Service Desk всегда имеет все права"
             )
         before = self._state(user)
         self._replace_rows(user, self._validate_capabilities(capabilities), actor)
@@ -277,7 +288,5 @@ class ServiceDeskAccessService:
             .with_for_update()
         ).all()
         if not any(user_id != excluded_user_id for user_id in active_admin_ids):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Нельзя отключить последнего активного администратора Service Desk",
+            raise ConflictDetected("Нельзя отключить последнего активного администратора Service Desk",
             )

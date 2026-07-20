@@ -1,12 +1,14 @@
 from uuid import UUID
 
+from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest, PermissionDenied
 from sqlalchemy.orm import Session
 
 from app.core.enums import AttachmentOwnerType, ProjectStatus, ProjectType, UserRole
-from app.core.exceptions import DomainError
+from app.core.permissions import can_manage_all_projects, can_manage_own_projects, is_platform_admin
 from app.core.schemas.common import PaginatedResponse
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
+from app.modules.platform.events import ProjectEventRecorder, project_snapshot
 from app.modules.projects.models import Project
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.schemas import (
@@ -20,8 +22,9 @@ from app.modules.projects.schemas import (
     ProjectSummary,
     ProjectUpdate,
 )
-from app.modules.users.repository import UserRepository
+from app.modules.projects.workflows import ensure_project_transition
 from app.modules.users.models import User
+from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserShort
 
 UNSET = object()
@@ -32,6 +35,7 @@ class ProjectService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repo = ProjectRepository(db)
+        self.events = ProjectEventRecorder(db)
 
     def list_public(
         self,
@@ -106,7 +110,7 @@ class ProjectService:
         )
 
     def list_recommendations(self, current_user: User, limit: int | None = None) -> list[ProjectRecommendationRead]:
-        if current_user.role == UserRole.PLATFORM_ADMIN:
+        if is_platform_admin(current_user):
             return []
 
         rows, _, _, _ = self.repo.list_projects(
@@ -144,7 +148,7 @@ class ProjectService:
             or project.archived_at is not None
             or project.deleted_at is not None
         ):
-            raise DomainError("Проект не найден", status_code=404)
+            raise EntityNotFound("Проект не найден")
         return self._to_details(project, count)
 
     def get_admin_details(self, project_id: UUID, current_user: User | None = None) -> ProjectDetails:
@@ -155,55 +159,153 @@ class ProjectService:
     def get_current_user_project_details(self, project_id: UUID, current_user: User) -> ProjectDetails:
         project, count = self._get_existing_with_count(project_id)
         if not self.repo.user_can_view_project(project_id, current_user.id, current_user.email):
-            raise DomainError("Недостаточно прав для просмотра этого проекта", status_code=403)
+            raise PermissionDenied("Недостаточно прав для просмотра этого проекта")
         return self._to_details(project, count)
 
     def get_existing_project(self, project_id: UUID) -> Project:
         project = self.repo.get_by_id(project_id)
         if project is None or project.deleted_at is not None:
-            raise DomainError("Проект не найден", status_code=404)
+            raise EntityNotFound("Проект не найден")
         return project
 
-    def create(self, payload: ProjectCreate, created_by: UUID) -> ProjectDetails:
+    def create(self, payload: ProjectCreate, actor: User) -> ProjectDetails:
         data = self._normalize_competency_data(payload.model_dump())
         member_ids = self._ensure_users_exist(data.pop("working_group_member_ids", []))
         self._ensure_responsible_exists(payload.responsible_user_id)
-        project = self.repo.create(data=data, created_by=created_by)
+        project = self.repo.create(data=data, created_by=actor.id)
         self.repo.replace_working_group(project, member_ids)
-        self.db.commit()
+        after = project_snapshot(project)
+        self.events.audit(
+            actor=actor,
+            action="project.created",
+            object_type="project",
+            object_id=project.id,
+            after=after,
+        )
+        self.events.publish(
+            event_type="ProjectCreated",
+            aggregate_type="project",
+            aggregate_id=project.id,
+            payload={"project_id": str(project.id), "status": project.status.value},
+        )
+        if project.status == ProjectStatus.ACTIVE:
+            self.events.publish(
+                event_type="ProjectPublished",
+                aggregate_type="project",
+                aggregate_id=project.id,
+                payload={"project_id": str(project.id), "version": project.version},
+            )
+        self.db.flush()
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
 
-    def update(self, project_id: UUID, payload: ProjectUpdate, current_user: User | None = None) -> ProjectDetails:
+    def update(
+        self,
+        project_id: UUID,
+        payload: ProjectUpdate,
+        current_user: User | None = None,
+        expected_version: int | None = None,
+    ) -> ProjectDetails:
         self._ensure_can_manage_project(project_id, current_user)
         project = self.get_existing_project(project_id)
+        before = project_snapshot(project)
         data = self._normalize_competency_data(payload.model_dump(exclude_unset=True))
+        target_status = data.get("status")
+        if target_status is not None:
+            ensure_project_transition(project.status, target_status)
+        if self.repo.claim_version(project, expected_version) != 1:
+            raise ConflictDetected("Проект был изменён другим пользователем; обновите данные")
         member_ids = data.pop("working_group_member_ids", UNSET)
         self._ensure_responsible_exists(data.get("responsible_user_id"))
         if member_ids is not UNSET:
             normalized_member_ids = self._ensure_users_exist(member_ids or [])
             self.repo.replace_working_group(project, normalized_member_ids)
         self.repo.update(project, data)
-        self.db.commit()
+        self.db.flush()
+        after = project_snapshot(project)
+        action = "project.status_changed" if before["status"] != after["status"] else "project.updated"
+        self.events.audit(
+            actor=current_user,
+            action=action,
+            object_type="project",
+            object_id=project.id,
+            before=before,
+            after=after,
+        )
+        if before["status"] != ProjectStatus.ACTIVE.value and after["status"] == ProjectStatus.ACTIVE.value:
+            self.events.publish(
+                event_type="ProjectPublished",
+                aggregate_type="project",
+                aggregate_id=project.id,
+                payload={"project_id": str(project.id), "version": project.version},
+            )
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
 
-    def archive(self, project_id: UUID, current_user: User | None = None) -> None:
+    def archive(
+        self,
+        project_id: UUID,
+        current_user: User | None = None,
+        expected_version: int | None = None,
+    ) -> None:
         self._ensure_can_manage_project(project_id, current_user)
         project = self.get_existing_project(project_id)
+        before = project_snapshot(project)
+        if self.repo.claim_version(project, expected_version) != 1:
+            raise ConflictDetected("Проект был изменён другим пользователем; обновите данные")
         if project.status == ProjectStatus.ARCHIVED or project.archived_at is not None:
             self.repo.soft_delete(project)
+            action = "project.deleted"
         else:
+            ensure_project_transition(project.status, ProjectStatus.ARCHIVED)
             self.repo.archive(project)
-        self.db.commit()
+            action = "project.archived"
+            self.events.publish(
+                event_type="ProjectArchived",
+                aggregate_type="project",
+                aggregate_id=project.id,
+                payload={"project_id": str(project.id), "version": project.version},
+            )
+        self.db.flush()
+        self.events.audit(
+            actor=current_user,
+            action=action,
+            object_type="project",
+            object_id=project.id,
+            before=before,
+            after=project_snapshot(project),
+        )
 
-    def restore(self, project_id: UUID, current_user: User | None = None) -> ProjectDetails:
+    def restore(
+        self,
+        project_id: UUID,
+        current_user: User | None = None,
+        expected_version: int | None = None,
+    ) -> ProjectDetails:
         self._ensure_can_manage_project(project_id, current_user)
         project = self.get_existing_project(project_id)
         if project.status != ProjectStatus.ARCHIVED and project.archived_at is None:
-            raise DomainError("Проект не находится в архиве")
+            raise InvalidRequest("Проект не находится в архиве")
+        before = project_snapshot(project)
+        if self.repo.claim_version(project, expected_version) != 1:
+            raise ConflictDetected("Проект был изменён другим пользователем; обновите данные")
+        ensure_project_transition(project.status, ProjectStatus.ACTIVE)
         self.repo.restore_from_archive(project)
-        self.db.commit()
+        self.db.flush()
+        self.events.audit(
+            actor=current_user,
+            action="project.restored",
+            object_type="project",
+            object_id=project.id,
+            before=before,
+            after=project_snapshot(project),
+        )
+        self.events.publish(
+            event_type="ProjectPublished",
+            aggregate_type="project",
+            aggregate_id=project.id,
+            payload={"project_id": str(project.id), "version": project.version},
+        )
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
 
@@ -228,7 +330,7 @@ class ProjectService:
         candidates = [
             self._to_candidate(user, blocks, response_user_ids, member_user_ids)
             for user in users
-            if user.id != current_user.id or current_user.role == UserRole.PLATFORM_ADMIN
+            if user.id != current_user.id or is_platform_admin(current_user)
         ]
         if competency:
             candidates = [
@@ -264,9 +366,26 @@ class ProjectService:
         project, _ = self._get_existing_with_count(project_id)
         user = UserRepository(self.db).get_by_id(user_id)
         if user is None or user.role == UserRole.PLATFORM_ADMIN:
-            raise DomainError("Сотрудник не найден", status_code=404)
+            raise EntityNotFound("Сотрудник не найден")
+        before = project_snapshot(project)
+        if self.repo.claim_version(project) != 1:
+            raise ConflictDetected("Проект был изменён другим пользователем; обновите данные")
         self.repo.add_working_group_member(project, user.id)
-        self.db.commit()
+        self.db.flush()
+        self.events.audit(
+            actor=current_user,
+            action="project.member_added",
+            object_type="project",
+            object_id=project.id,
+            before=before,
+            after={**project_snapshot(project), "member_user_id": str(user.id)},
+        )
+        self.events.publish(
+            event_type="ProjectMemberAdded",
+            aggregate_type="project",
+            aggregate_id=project.id,
+            payload={"project_id": str(project.id), "user_id": str(user.id)},
+        )
         project, count = self._get_existing_with_count(project.id)
         return self._to_details(project, count)
 
@@ -550,27 +669,29 @@ class ProjectService:
 
     @staticmethod
     def _manager_scope_user_id(current_user: User | None) -> UUID | None:
-        if current_user is None or current_user.role == UserRole.PLATFORM_ADMIN:
+        if current_user is None or can_manage_all_projects(current_user):
             return None
         return current_user.id
 
     def _ensure_can_manage_project(self, project_id: UUID, current_user: User | None) -> None:
-        if current_user is None or current_user.role == UserRole.PLATFORM_ADMIN:
+        if current_user is None or can_manage_all_projects(current_user):
             return
-        if not self.repo.user_can_manage_project(project_id, current_user.id):
-            raise DomainError("Недостаточно прав для управления этим проектом", status_code=403)
+        if not can_manage_own_projects(current_user) or not self.repo.user_can_manage_project(
+            project_id, current_user.id
+        ):
+            raise PermissionDenied("Недостаточно прав для управления этим проектом")
 
     def _get_existing_with_count(self, project_id: UUID) -> tuple[Project, int]:
         row = self.repo.get_with_counts(project_id)
         if row is None or row[0].deleted_at is not None:
-            raise DomainError("Проект не найден", status_code=404)
+            raise EntityNotFound("Проект не найден")
         return row
 
     def _ensure_responsible_exists(self, responsible_user_id: UUID | None) -> None:
         if responsible_user_id is None:
             return
         if UserRepository(self.db).get_by_id(responsible_user_id) is None:
-            raise DomainError("Ответственный не найден")
+            raise InvalidRequest("Ответственный не найден")
 
     def _ensure_users_exist(self, user_ids: list[UUID]) -> list[UUID]:
         repo = UserRepository(self.db)
@@ -580,7 +701,7 @@ class ProjectService:
             if user_id in seen:
                 continue
             if repo.get_by_id(user_id) is None:
-                raise DomainError("Участник рабочей группы не найден")
+                raise InvalidRequest("Участник рабочей группы не найден")
             seen.add(user_id)
             unique_user_ids.append(user_id)
         return unique_user_ids
@@ -597,6 +718,7 @@ class ProjectService:
     def _to_summary(self, project: Project, responses_count: int) -> ProjectSummary:
         return ProjectSummary(
             id=project.id,
+            version=project.version,
             title=project.title,
             short_description=project.short_description,
             goal=project.goal,

@@ -10,9 +10,13 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mktemp(prefix='shpiu_test_', suffix='.db')}"
-os.environ["JWT_SECRET"] = "test-secret-with-at-least-thirty-two-bytes"
-os.environ["UPLOADS_DIR"] = tempfile.mkdtemp(prefix="shpiu_uploads_")
+TEST_DATABASE_URL = os.getenv("PROJECTS_TEST_DATABASE_URL")
+os.environ["PROJECTS_DATABASE_URL"] = TEST_DATABASE_URL or (
+    f"sqlite:///{tempfile.mktemp(prefix='shpiu_test_', suffix='.db')}"
+)
+os.environ["PROJECTS_JWT_SECRET"] = "test-secret-with-at-least-thirty-two-bytes"
+os.environ["PROJECTS_ALLOW_LEGACY_TOKENS"] = "true"
+os.environ["PROJECTS_UPLOADS_DIR"] = tempfile.mkdtemp(prefix="shpiu_uploads_")
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,6 +24,7 @@ from fastapi.testclient import TestClient
 from app.core.database import Base, engine
 from app.main import app
 from app.modules.attachments import models as attachment_models  # noqa: F401
+from app.modules.platform import models as platform_models  # noqa: F401
 from app.modules.projects import models as project_models  # noqa: F401
 from app.modules.reports import models as report_models  # noqa: F401
 from app.modules.responses import models as response_models  # noqa: F401
@@ -34,9 +39,10 @@ def database():
     seed_main()
     yield
     engine.dispose()
-    db_path = os.environ["DATABASE_URL"].replace("sqlite:///", "")
-    Path(db_path).unlink(missing_ok=True)
-    shutil.rmtree(os.environ["UPLOADS_DIR"], ignore_errors=True)
+    if os.environ["PROJECTS_DATABASE_URL"].startswith("sqlite:///"):
+        db_path = os.environ["PROJECTS_DATABASE_URL"].replace("sqlite:///", "")
+        Path(db_path).unlink(missing_ok=True)
+    shutil.rmtree(os.environ["PROJECTS_UPLOADS_DIR"], ignore_errors=True)
 
 
 @pytest.fixture()

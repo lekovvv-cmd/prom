@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import PermissionDenied
 from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.enums import ServiceDeskApprovalStatus, ServiceDeskPriority, ServiceDeskTicketStatus
 from app.modules.access.models import ServiceDeskUser
@@ -24,8 +26,8 @@ from app.modules.stats.schemas import (
     TimeMetricsRead,
 )
 from app.modules.tickets.models import ServiceDeskTicket
-from app.modules.workbench.service import sla_state_predicate
 from app.modules.workbench.schemas import WorkbenchSlaState
+from app.modules.workbench.service import sla_state_predicate
 
 TERMINAL_STATUSES = (
     ServiceDeskTicketStatus.REJECTED,
@@ -48,10 +50,10 @@ class StatsService:
     @staticmethod
     def require_access(actor: ServiceDeskUser) -> None:
         if "service_desk.view_reports" not in ServiceDeskAccessService.capabilities_for(actor):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к отчётам Service Desk")
+            raise PermissionDenied("Нет доступа к отчётам Service Desk")
 
-    def _dimension_filters(self, filters: StatsFilters):
-        values = [ServiceDeskTicket.deleted_at.is_(None)]
+    def _dimension_filters(self, filters: StatsFilters) -> list[ColumnElement[bool]]:
+        values: list[ColumnElement[bool]] = [ServiceDeskTicket.deleted_at.is_(None)]
         if filters.service_id:
             values.append(ServiceDeskTicket.service_id == filters.service_id)
         if filters.category_id:
@@ -124,18 +126,17 @@ class StatsService:
         )
 
     def _enum_distribution(self, filters, column, enum_type):
-        rows = dict(
-            self.db.execute(
-                select(column, func.count(ServiceDeskTicket.id))
-                .join(ServiceDeskTicket.service)
-                .where(
-                    *self._dimension_filters(filters),
-                    ServiceDeskTicket.status != ServiceDeskTicketStatus.DRAFT,
-                    *self._period(ServiceDeskTicket.submitted_at, filters),
-                )
-                .group_by(column)
-            ).all()
+        result = self.db.execute(
+            select(column, func.count(ServiceDeskTicket.id))
+            .join(ServiceDeskTicket.service)
+            .where(
+                *self._dimension_filters(filters),
+                ServiceDeskTicket.status != ServiceDeskTicketStatus.DRAFT,
+                *self._period(ServiceDeskTicket.submitted_at, filters),
+            )
+            .group_by(column)
         )
+        rows: dict[Any, int] = {row[0]: int(row[1]) for row in result.all()}
         return [
             DistributionItem(id=item.value, label=item.value, count=rows.get(item, 0))
             for item in enum_type

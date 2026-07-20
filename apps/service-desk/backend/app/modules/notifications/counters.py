@@ -1,12 +1,12 @@
-from sqlalchemy import distinct, func, or_, select
+from sqlalchemy import distinct, func, or_, select, true
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.enums import ServiceDeskApprovalStatus, ServiceDeskTicketStatus
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.service import ServiceDeskAccessService
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.tickets.models import ServiceDeskTicket
-
 
 ACTIVE_ASSIGNEE_STATUSES = (
     ServiceDeskTicketStatus.ASSIGNED,
@@ -45,7 +45,7 @@ class ServiceDeskCounterService:
         )
         sla_breaches = None
         if "service_desk.manage_sla" in capabilities:
-            access_filter = True
+            access_filter: ColumnElement[bool] = true()
             if "service_desk.view_all_tickets" not in capabilities:
                 access_filter = or_(
                     ServiceDeskTicket.requester_user_id == actor.id,

@@ -11,6 +11,7 @@ class UserOut(BaseModel):
     department: str | None
     position: str | None
     is_active: bool
+    session_version: int
 
 
 class ModuleOut(BaseModel):

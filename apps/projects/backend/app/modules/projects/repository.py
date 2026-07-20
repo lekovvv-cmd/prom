@@ -1,11 +1,17 @@
-from datetime import UTC, datetime
 import re
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import Select, case, func, or_, select
+from sqlalchemy import Select, case, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.enums import ProjectMemberRole, ProjectPriority, ProjectResponseStatus, ProjectStatus, ProjectType
+from app.core.enums import (
+    ProjectMemberRole,
+    ProjectPriority,
+    ProjectResponseStatus,
+    ProjectStatus,
+    ProjectType,
+)
 from app.core.pagination import clamp_limit, clamp_offset
 from app.modules.projects.models import Project, ProjectMember
 from app.modules.responses.models import ProjectResponse
@@ -181,6 +187,21 @@ class ProjectRepository:
             project.deleted_at = None
         self.db.flush()
         return project
+
+    def claim_version(self, project: Project, expected_version: int | None = None) -> int:
+        current_version = project.version
+        if expected_version is not None and expected_version != current_version:
+            return 0
+        result = self.db.execute(
+            update(Project)
+            .where(Project.id == project.id, Project.version == current_version)
+            .values(version=current_version + 1)
+            .execution_options(synchronize_session=False)
+        )
+        rowcount = int(getattr(result, "rowcount", 0) or 0)
+        if rowcount == 1:
+            project.version = current_version + 1
+        return rowcount
 
     def replace_working_group(self, project: Project, user_ids: list[UUID]) -> None:
         project.members[:] = [

@@ -4,6 +4,11 @@ import logging
 import signal
 from threading import Event
 
+from platform_sdk.observability import (
+    get_service_metrics,
+    start_worker_metrics_server,
+)
+
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.modules.approvals import models as approval_models  # noqa: F401
@@ -24,11 +29,17 @@ def main() -> None:
 
     signal.signal(signal.SIGINT, request_stop)
     signal.signal(signal.SIGTERM, request_stop)
+    metrics = get_service_metrics(
+        service="service-desk-sla-worker",
+        module="service-desk",
+    )
+    start_worker_metrics_server(metrics, port=settings.worker_metrics_port)
     SlaWorkerRunner(
         SessionLocal,
         poll_interval_seconds=settings.sla_worker_poll_interval_seconds,
         wait=stop_event.wait,
         stop_requested=stop_event.is_set,
+        metrics=metrics,
     ).run_forever()
 
 

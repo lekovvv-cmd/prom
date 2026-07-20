@@ -47,10 +47,10 @@ def open_report_period(
 @router.patch("/admin/reports/periods/{period_id}/close", response_model=ReportPeriodRead)
 def close_report_period(
     period_id: UUID,
-    _current_user: StrictAdminUser,
+    current_user: StrictAdminUser,
     db: DbSession,
 ) -> ReportPeriodRead:
-    return ReportService(db).close_period(period_id)
+    return ReportService(db).close_period(period_id, current_user)
 
 
 @router.get("/admin/reports", response_model=list[AdminHalfYearReportRead])

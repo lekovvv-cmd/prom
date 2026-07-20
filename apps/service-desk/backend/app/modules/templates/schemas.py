@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import ApprovalMode, TemplateFieldType, TemplateVersionStatus
 
-
 DEFAULT_SYSTEM_SETTINGS = {
     "default_title": None,
     "is_title_editable": True,

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["tools/**/*.mjs"],
+      "project": ["tools/**/*.{js,mjs,ts}"]
+    },
+    "apps/platform-shell": {
+      "entry": ["e2e/**/*.spec.ts"],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
+      "ignoreDependencies": ["tailwindcss"]
+    },
+    "apps/projects/frontend": {
+      "entry": ["manifest.ts", "routes.tsx"],
+      "project": ["**/*.{ts,tsx}"]
+    },
+    "apps/service-desk/frontend": {
+      "entry": ["manifest.ts", "routes.tsx"],
+      "project": ["**/*.{ts,tsx}"]
+    },
+    "packages/frontend/*": {
+      "entry": ["src/**/*.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "contracts/generated": {
+      "entry": ["src/*.ts"],
+      "project": ["src/*.ts"]
+    }
+  }
+}

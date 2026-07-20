@@ -2,24 +2,29 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
+from datetime import time
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import EntityNotFound, PermissionDenied, ValidationFailed
 from sqlalchemy.orm import Session
 
 from app.modules.access.models import ServiceDeskUser
 from app.modules.access.service import ServiceDeskAccessService
 from app.modules.sla import schemas
+from app.modules.sla.engine import (
+    add_business_minutes,
+    add_business_seconds,
+    business_seconds_between,
+)
 from app.modules.sla.models import (
     ServiceDeskBusinessCalendar,
     ServiceDeskBusinessHours,
     ServiceDeskCalendarException,
+    ServiceDeskEscalationRule,
     ServiceDeskSlaBinding,
     ServiceDeskSlaPolicy,
     ServiceDeskTicketSlaPause,
-    ServiceDeskEscalationRule,
 )
 from app.modules.sla.repository import SlaRepository
-from app.modules.sla.engine import add_business_minutes, add_business_seconds, business_seconds_between
 
 
 class SlaService:
@@ -62,9 +67,9 @@ class SlaService:
         data = payload.model_dump(exclude_unset=True)
         if "name" in data:
             calendar.name = payload.name.strip() if payload.name else calendar.name
-        if "timezone" in data:
+        if "timezone" in data and payload.timezone is not None:
             calendar.timezone = payload.timezone
-        if "is_active" in data:
+        if "is_active" in data and payload.is_active is not None:
             calendar.is_active = payload.is_active
         if "business_hours" in data:
             self._validate_business_hours(payload.business_hours or [])
@@ -144,7 +149,7 @@ class SlaService:
         self._require_manage_sla(actor)
         rule = self.db.get(ServiceDeskEscalationRule, rule_id)
         if not rule:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Правило эскалации не найдено")
+            raise EntityNotFound("Правило эскалации не найдено")
         data = payload.model_dump(exclude_unset=True)
         definition = schemas.EscalationRuleCreate.model_validate(
             {
@@ -167,7 +172,7 @@ class SlaService:
         self._require_manage_sla(actor)
         rule = self.db.get(ServiceDeskEscalationRule, rule_id)
         if not rule:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Правило эскалации не найдено")
+            raise EntityNotFound("Правило эскалации не найдено")
         self.db.delete(rule)
         self.db.commit()
 
@@ -176,7 +181,7 @@ class SlaService:
             return
         recipient = self.db.get(ServiceDeskUser, payload.recipient_user_id)
         if not recipient or not recipient.is_active:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Escalation recipient is unavailable")
+            raise ValidationFailed("Escalation recipient is unavailable")
 
     def snapshot_ticket(self, ticket, service, *, occurred_at) -> None:
         for binding in self.repository.list_bindings(active_only=True):
@@ -316,9 +321,7 @@ class SlaService:
                 current.end_time > following.start_time
                 for current, following in zip(ordered, ordered[1:], strict=False)
             ):
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    "Business hour intervals for one weekday must not overlap",
+                raise ValidationFailed("Business hour intervals for one weekday must not overlap",
                 )
 
     @staticmethod
@@ -331,42 +334,45 @@ class SlaService:
             if len(types) != 1 or (
                 schemas.CalendarExceptionType.CUSTOM_HOURS not in types and len(date_exceptions) > 1
             ):
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    "One date must have either one day exception or custom hour intervals",
+                raise ValidationFailed("One date must have either one day exception or custom hour intervals",
                 )
             if schemas.CalendarExceptionType.CUSTOM_HOURS not in types:
                 continue
-            ordered = sorted(date_exceptions, key=lambda exception: exception.start_time)
+            intervals: list[tuple[time, time]] = []
+            for exception in date_exceptions:
+                if exception.start_time is None or exception.end_time is None:
+                    raise ValidationFailed(
+                        "Custom hour intervals require start_time and end_time"
+                    )
+                intervals.append((exception.start_time, exception.end_time))
+            ordered = sorted(intervals)
             if any(
-                current.end_time > following.start_time
+                current[1] > following[0]
                 for current, following in zip(ordered, ordered[1:], strict=False)
             ):
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    "Custom hour intervals for one date must not overlap",
+                raise ValidationFailed("Custom hour intervals for one date must not overlap",
                 )
 
     def _require_calendar(self, calendar_id: uuid.UUID) -> ServiceDeskBusinessCalendar:
         calendar = self.repository.get_calendar(calendar_id)
         if not calendar:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Рабочий календарь не найден")
+            raise EntityNotFound("Рабочий календарь не найден")
         return calendar
 
     def _require_policy(self, policy_id: uuid.UUID) -> ServiceDeskSlaPolicy:
         policy = self.repository.get_policy(policy_id)
         if not policy:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Политика SLA не найдена")
+            raise EntityNotFound("Политика SLA не найдена")
         return policy
 
     def _require_binding(self, binding_id: uuid.UUID) -> ServiceDeskSlaBinding:
         binding = self.repository.get_binding(binding_id)
         if not binding:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Правило применения SLA не найдено")
+            raise EntityNotFound("Правило применения SLA не найдено")
         return binding
 
     @staticmethod
     def _require_manage_sla(actor: ServiceDeskUser) -> None:
         if "service_desk.manage_sla" in ServiceDeskAccessService.capabilities_for(actor):
             return
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для настройки SLA Service Desk")
+        raise PermissionDenied("Недостаточно прав для настройки SLA Service Desk")

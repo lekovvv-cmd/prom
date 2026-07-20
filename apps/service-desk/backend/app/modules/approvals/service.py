@@ -1,7 +1,7 @@
 import uuid
 from copy import deepcopy
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import ConflictDetected, EntityNotFound, ValidationFailed
 from sqlalchemy.orm import Session
 
 from app.core.database import utc_now
@@ -33,7 +33,11 @@ class ApprovalWorkflowService:
         return schemas.ApprovalWorkflowConfigurationRead(
             template_version_id=version.id,
             approval_mode=version.approval_mode,
-            workflow=workflow,
+            workflow=(
+                schemas.ApprovalWorkflowRead.model_validate(workflow)
+                if workflow is not None
+                else None
+            ),
         )
 
     def get_service_configuration(
@@ -42,16 +46,18 @@ class ApprovalWorkflowService:
     ) -> schemas.ServiceApprovalWorkflowConfigurationRead:
         version = self.template_repository.get_published_version(service_id)
         if not version:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                "Для услуги нет опубликованной версии формы",
+            raise EntityNotFound("Для услуги нет опубликованной версии формы",
             )
         workflow = self.repository.get_workflow_by_version(version.id)
         return schemas.ServiceApprovalWorkflowConfigurationRead(
-            template_version=version,
+            template_version=schemas.TemplateVersionRead.model_validate(version),
             template_version_id=version.id,
             approval_mode=version.approval_mode,
-            workflow=workflow,
+            workflow=(
+                schemas.ApprovalWorkflowRead.model_validate(workflow)
+                if workflow is not None
+                else None
+            ),
         )
 
     def apply_for_service(
@@ -61,9 +67,7 @@ class ApprovalWorkflowService:
     ) -> schemas.ServiceApprovalWorkflowConfigurationRead:
         source = self.template_repository.get_published_version(service_id)
         if not source:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                "Для услуги нет опубликованной версии формы",
+            raise EntityNotFound("Для услуги нет опубликованной версии формы",
             )
         self._validate_apply_payload(payload)
 
@@ -212,7 +216,7 @@ class ApprovalWorkflowService:
         version = self._require_draft_version(workflow.template_version_id)
         existing_ids = {stage.id for stage in workflow.stages}
         if len(payload.stage_ids) != len(set(payload.stage_ids)) or set(payload.stage_ids) != existing_ids:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Передайте все этапы без повторов")
+            raise ValidationFailed("Передайте все этапы без повторов")
         by_id = {stage.id: stage for stage in workflow.stages}
         for position, stage_id in enumerate(payload.stage_ids):
             by_id[stage_id].position = position
@@ -228,7 +232,7 @@ class ApprovalWorkflowService:
         version = self._require_draft_version(stage.workflow.template_version_id)
         user = self._require_eligible_approver(payload.service_desk_user_id)
         if self.repository.get_stage_approver(stage.id, user.id):
-            raise HTTPException(status.HTTP_409_CONFLICT, "Пользователь уже добавлен в этап")
+            raise ConflictDetected("Пользователь уже добавлен в этап")
         self.repository.add_approver(
             ServiceDeskApprovalStageApprover(
                 stage_id=stage.id,
@@ -241,7 +245,7 @@ class ApprovalWorkflowService:
     def delete_approver(self, approver_id: uuid.UUID) -> None:
         approver = self.repository.get_approver(approver_id)
         if not approver:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Согласующий этапа не найден")
+            raise EntityNotFound("Согласующий этапа не найден")
         stage = self._require_stage(approver.stage_id)
         self._require_draft_version(stage.workflow.template_version_id)
         self.db.delete(approver)
@@ -252,78 +256,68 @@ class ApprovalWorkflowService:
             return
         workflow = self.repository.get_workflow_by_version(version.id)
         if not workflow or not workflow.is_active:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Настройте активный процесс согласования")
+            raise ValidationFailed("Настройте активный процесс согласования")
         if not workflow.stages:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Добавьте этап согласования")
+            raise ValidationFailed("Добавьте этап согласования")
         for stage in workflow.stages:
             if not stage.approvers:
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    f"Добавьте согласующего в этап «{stage.title}»",
+                raise ValidationFailed(f"Добавьте согласующего в этап «{stage.title}»",
                 )
             if any(not approver.user.is_active or not self._can_approve(approver.user) for approver in stage.approvers):
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    f"В этапе «{stage.title}» есть недоступный согласующий",
+                raise ValidationFailed(f"В этапе «{stage.title}» есть недоступный согласующий",
                 )
 
     def _require_version(self, version_id: uuid.UUID) -> ServiceDeskTemplateVersion:
         version = self.template_repository.get_version(version_id)
         if not version:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Версия шаблона не найдена")
+            raise EntityNotFound("Версия шаблона не найдена")
         return version
 
     def _require_draft_version(self, version_id: uuid.UUID) -> ServiceDeskTemplateVersion:
         version = self._require_version(version_id)
         if version.status != TemplateVersionStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Согласование настраивается только для черновой версии")
+            raise ConflictDetected("Согласование настраивается только для черновой версии")
         return version
 
     def _require_workflow(self, workflow_id: uuid.UUID) -> ServiceDeskApprovalWorkflow:
         workflow = self.repository.get_workflow(workflow_id)
         if not workflow:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Процесс согласования не найден")
+            raise EntityNotFound("Процесс согласования не найден")
         return workflow
 
     def _require_stage(self, stage_id: uuid.UUID) -> ServiceDeskApprovalStage:
         stage = self.repository.get_stage(stage_id)
         if not stage:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Этап согласования не найден")
+            raise EntityNotFound("Этап согласования не найден")
         return stage
 
     @staticmethod
     def _validate_apply_payload(payload: schemas.ApprovalWorkflowApply) -> None:
         if payload.approval_mode == ApprovalMode.NONE:
             if payload.stages:
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    "Для отключённого согласования этапы не передаются",
+                raise ValidationFailed("Для отключённого согласования этапы не передаются",
                 )
             return
         if not payload.stages:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Добавьте этап согласования")
+            raise ValidationFailed("Добавьте этап согласования")
         for stage in payload.stages:
             if len(stage.approver_user_ids) != len(set(stage.approver_user_ids)):
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    f"В этапе «{stage.title}» есть повторяющиеся согласующие",
+                raise ValidationFailed(f"В этапе «{stage.title}» есть повторяющиеся согласующие",
                 )
 
     def _require_eligible_approver(self, user_id: uuid.UUID) -> ServiceDeskUser:
         user = self.db.get(ServiceDeskUser, user_id)
         if not user or not user.is_active:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Согласующий неактивен или не найден")
+            raise ValidationFailed("Согласующий неактивен или не найден")
         if not self._can_approve(user):
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "У пользователя нет права согласовывать заявки Service Desk",
+            raise ValidationFailed("У пользователя нет права согласовывать заявки Service Desk",
             )
         return user
 
     @staticmethod
     def _ensure_workflow_mode(version: ServiceDeskTemplateVersion) -> None:
         if version.approval_mode != ApprovalMode.WORKFLOW:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Для версии не включён процесс согласования")
+            raise ConflictDetected("Для версии не включён процесс согласования")
 
     @staticmethod
     def _can_approve(user: ServiceDeskUser) -> bool:

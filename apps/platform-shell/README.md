@@ -1,26 +1,28 @@
-# Frontend
+# Platform shell
 
-React + TypeScript frontend для MVP «Витрина проектов ШПИУ».
+The shell owns platform navigation, authentication/session providers, module
+registration, routing, and shared layout. Projects and Service Desk UI code is
+owned by their packages under `apps/*/frontend`.
 
-## Запуск
-
-```bash
-cp .env.example .env
-npm install
-npm run dev
-```
-
-Приложение будет доступно на `http://localhost:5173`.
-
-## Проверки
+Install and run a frontend-only development server from the repository root:
 
 ```bash
-npm test
-npm run build
+npm ci
+npm run dev --workspace=@prom/platform-shell
 ```
 
-E2E-тесты требуют запущенные backend на `http://localhost:8000` и frontend на `http://localhost:5173`:
+Run the production-like platform locally:
+
+```powershell
+.\dev.ps1 up
+.\dev.ps1 test-e2e
+```
 
 ```bash
-npm run test:e2e
+./dev.sh up
+./dev.sh test-e2e
 ```
+
+Playwright targets `E2E_BASE_URL` when set and otherwise uses
+`http://127.0.0.1:5173`. The full CI job starts `compose.yaml` with the `full`
+profile before invoking the same `npm run test:e2e` command.

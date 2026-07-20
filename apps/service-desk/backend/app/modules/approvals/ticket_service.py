@@ -2,7 +2,12 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import (
+    ConflictDetected,
+    EntityNotFound,
+    PermissionDenied,
+    ValidationFailed,
+)
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -14,10 +19,10 @@ from app.core.enums import (
     ServiceDeskTicketStatus,
 )
 from app.modules.access.models import ServiceDeskUser
-from app.modules.assignments.policy import AssigneePolicy
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.approvals.repository import ApprovalWorkflowRepository
 from app.modules.approvals.service import ApprovalWorkflowService
+from app.modules.assignments.policy import AssigneePolicy
 from app.modules.notifications.domain import NotificationEventType
 from app.modules.notifications.service import NotificationDispatcher, ticket_notification
 from app.modules.routing.service import RoutingService
@@ -54,7 +59,7 @@ class TicketApprovalService:
         occurred_at: datetime | None = None,
     ) -> None:
         if self.repository.list_ticket_stages(ticket.id):
-            raise HTTPException(status.HTTP_409_CONFLICT, "Процесс согласования заявки уже создан")
+            raise ConflictDetected("Процесс согласования заявки уже создан")
 
         now = occurred_at or datetime.now(UTC)
         if template_version.approval_mode == ApprovalMode.NONE:
@@ -71,7 +76,7 @@ class TicketApprovalService:
         self.workflow_service.validate_for_publish(template_version)
         workflow = self.repository.get_workflow_by_version(template_version.id)
         if workflow is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Процесс согласования не найден")
+            raise ConflictDetected("Процесс согласования не найден")
 
         for index, source_stage in enumerate(sorted(workflow.stages, key=lambda stage: stage.position)):
             ticket_stage = self.repository.add_ticket_stage(
@@ -102,7 +107,7 @@ class TicketApprovalService:
 
     def get_snapshot(self, ticket_id: uuid.UUID) -> list[ServiceDeskTicketApprovalStage]:
         if not self.ticket_repository.get_ticket(ticket_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         return self.repository.list_ticket_stages(ticket_id)
 
     def approve(
@@ -146,7 +151,7 @@ class TicketApprovalService:
         now = datetime.now(UTC)
         normalized_comment = comment.strip()
         if not normalized_comment:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Укажите причину отклонения")
+            raise ValidationFailed("Укажите причину отклонения")
 
         context.approval.status = ServiceDeskApprovalStatus.REJECTED
         context.approval.decision_comment = normalized_comment
@@ -188,33 +193,33 @@ class TicketApprovalService:
     ) -> _DecisionContext:
         ids = self.repository.get_ticket_approval_context_ids(approval_id)
         if ids is None or ids[1] != ticket_id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Решение согласования не найдено")
+            raise EntityNotFound("Решение согласования не найдено")
         stage_id, _ = ids
 
         ticket = self.ticket_repository.get_ticket_for_update(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         stage = self.repository.get_ticket_stage_for_update(stage_id)
         if not stage:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Этап согласования не найден")
+            raise EntityNotFound("Этап согласования не найден")
         stage_approvals = self.repository.list_stage_approvals_for_update(stage.id)
         approval = next((item for item in stage_approvals if item.id == approval_id), None)
         if approval is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Решение согласования не найдено")
+            raise EntityNotFound("Решение согласования не найдено")
 
         actor = self.db.get(ServiceDeskUser, actor_user_id)
         if not actor or not actor.is_active:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к Service Desk")
+            raise PermissionDenied("Нет доступа к Service Desk")
         if actor.id != approval.approver_user_id:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Решение доступно только назначенному согласующему")
+            raise PermissionDenied("Решение доступно только назначенному согласующему")
         if not self._can_approve(actor):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для согласования заявки Service Desk")
+            raise PermissionDenied("Недостаточно прав для согласования заявки Service Desk")
         if ticket.status != ServiceDeskTicketStatus.PENDING_APPROVAL:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Заявка больше не находится на согласовании")
+            raise ConflictDetected("Заявка больше не находится на согласовании")
         if stage.status != ServiceDeskApprovalStatus.PENDING or stage.started_at is None:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Этап согласования ещё не активен")
+            raise ConflictDetected("Этап согласования ещё не активен")
         if approval.status != ServiceDeskApprovalStatus.PENDING:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Решение уже принято")
+            raise ConflictDetected("Решение уже принято")
 
         return _DecisionContext(
             ticket=ticket,
@@ -264,7 +269,7 @@ class TicketApprovalService:
         )
         template_version = self.db.get(ServiceDeskTemplateVersion, context.ticket.template_version_id)
         if not template_version:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Шаблон заявки не найден")
+            raise ConflictDetected("Шаблон заявки не найден")
         self.routing_service.apply_snapshot_assignment(context.ticket, occurred_at=now)
         self._apply_default_assignment(context.ticket, template_version, now)
 
@@ -335,7 +340,7 @@ class TicketApprovalService:
     def _require_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         ticket = self.ticket_repository.get_ticket(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         return ticket
 
     @staticmethod

@@ -1,5 +1,6 @@
 import uuid
 
+from platform_sdk.outbox import claim_outbox_batch
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
@@ -53,7 +54,7 @@ class NotificationRepository:
             ServiceDeskNotification.recipient_user_id == recipient_user_id,
             ServiceDeskNotification.is_read.is_(False),
         ).values(is_read=True, read_at=read_at))
-        return result.rowcount
+        return int(getattr(result, "rowcount", 0) or 0)
 
 
 class NotificationOutboxRepository:
@@ -76,11 +77,11 @@ class NotificationOutboxRepository:
         self.db.add(record)
         return record
 
-    def ready_for_processing(self, now, *, limit: int = 50):
-        return list(self.db.scalars(
-            select(ServiceDeskNotificationOutbox).where(
-                ServiceDeskNotificationOutbox.status.in_(("pending", "failed")),
-                (ServiceDeskNotificationOutbox.next_retry_at.is_(None))
-                | (ServiceDeskNotificationOutbox.next_retry_at <= now),
-            ).order_by(ServiceDeskNotificationOutbox.created_at).limit(limit).with_for_update(skip_locked=True)
-        ).all())
+    def claim_ready(self, now, *, worker_id: str, limit: int = 50):
+        return claim_outbox_batch(
+            self.db,
+            ServiceDeskNotificationOutbox,
+            worker_id=worker_id,
+            batch_size=limit,
+            now=now,
+        )

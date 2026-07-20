@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 
-
 DEMO_PROFILE_RULES: dict[str, dict[str, Any] | None] = {
     "employee@utmn.ru": None,
     "project.manager@utmn.ru": None,
@@ -41,13 +40,13 @@ class IdentityBootstrapResult:
 
 def repair_service_desk_users(
     db: Session,
-    project_users: Iterable[dict[str, Any]],
+    platform_users: Iterable[dict[str, Any]],
 ) -> IdentityBootstrapResult:
     created = updated = skipped = 0
-    for project_user in project_users:
-        email = str(project_user.get("email") or "").strip().lower()
+    for platform_user in platform_users:
+        email = str(platform_user.get("email") or "").strip().lower()
         rule = DEMO_PROFILE_RULES.get(email)
-        identity_user_id = str(project_user.get("id") or "").strip()
+        identity_user_id = str(platform_user.get("id") or "").strip()
         if email not in DEMO_PROFILE_RULES or not email or not identity_user_id:
             skipped += 1
             continue
@@ -66,7 +65,7 @@ def repair_service_desk_users(
                 continue
             user.identity_user_id = identity_user_id
             user.email = email
-            user.display_name = str(project_user.get("full_name") or email)
+            user.display_name = str(platform_user.get("full_name") or email)
             user.is_active = False
             user.capabilities.clear()
             updated += 1
@@ -76,9 +75,9 @@ def repair_service_desk_users(
                 id=uuid.uuid5(uuid.NAMESPACE_URL, f"prom:service-desk:{identity_user_id}"),
                 identity_user_id=identity_user_id,
                 email=email,
-                display_name=str(project_user.get("full_name") or email),
-                department=project_user.get("department"),
-                position=project_user.get("position"),
+                display_name=str(platform_user.get("full_name") or email),
+                department=platform_user.get("department"),
+                position=platform_user.get("position"),
                 access_type=rule["access_type"],
                 is_active=True,
             )
@@ -88,9 +87,9 @@ def repair_service_desk_users(
         else:
             user.identity_user_id = identity_user_id
             user.email = email
-            user.display_name = str(project_user.get("full_name") or email)
-            user.department = project_user.get("department")
-            user.position = project_user.get("position")
+            user.display_name = str(platform_user.get("full_name") or email)
+            user.department = platform_user.get("department")
+            user.position = platform_user.get("position")
             user.access_type = rule["access_type"]
             user.is_active = True
             updated += 1

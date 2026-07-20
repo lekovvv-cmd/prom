@@ -2,12 +2,23 @@
   "name": "@prom/service-desk-frontend",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@prom/api-client": "0.1.0",
+    "@prom/auth": "0.1.0",
+    "@prom/generated-contracts": "0.1.0",
+    "@prom/layout": "0.1.0",
+    "@prom/platform-contracts": "0.1.0",
+    "@prom/ui": "0.1.0",
+    "@prom/utils": "0.1.0",
+    "@tanstack/react-query": "5.101.2",
+    "lucide-react": "1.23.0"
+  },
   "peerDependencies": {
     "react": "19.2.7",
     "react-router-dom": "7.18.1"
   },
   "devDependencies": {
-    "@types/react": "19.2.17"
+    "@types/react": "19.2.17",
+    "vitest": "4.1.9"
   }
 }
-

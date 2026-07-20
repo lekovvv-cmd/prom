@@ -1,18 +1,95 @@
 name: prom
 
 x-projects-environment: &projects-environment
-  DATABASE_URL: ${PROJECTS_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
-  JWT_SECRET: ${PROJECTS_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
-  FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
-  UPLOADS_DIR: ${PROJECTS_UPLOADS_DIR:-/workspace/backend/storage/projects}
-  ACCESS_JWKS_URL: ${ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
+  PROJECTS_ENV: ${PLATFORM_ENVIRONMENT:-development}
+  PROJECTS_DEBUG: ${PLATFORM_DEBUG:-false}
+  PROJECTS_DATABASE_URL: ${PROJECTS_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
+  PROJECTS_JWT_SECRET: ${PROJECTS_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
+  PROJECTS_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
+  PROJECTS_UPLOADS_DIR: ${PROJECTS_UPLOADS_DIR:-/workspace/backend/storage/projects}
+  PROJECTS_STORAGE_BACKEND: ${PROJECTS_STORAGE_BACKEND:-local}
+  PROJECTS_S3_BUCKET: ${PROJECTS_S3_BUCKET:-}
+  PROJECTS_S3_ENDPOINT_URL: ${PROJECTS_S3_ENDPOINT_URL:-}
+  PROJECTS_S3_REGION_NAME: ${PROJECTS_S3_REGION_NAME:-}
+  PROJECTS_S3_ACCESS_KEY_ID: ${PROJECTS_S3_ACCESS_KEY_ID:-}
+  PROJECTS_S3_SECRET_ACCESS_KEY: ${PROJECTS_S3_SECRET_ACCESS_KEY:-}
+  PROJECTS_ANTIVIRUS_BACKEND: ${PROJECTS_ANTIVIRUS_BACKEND:-noop}
+  PROJECTS_CLAMAV_HOST: ${PROJECTS_CLAMAV_HOST:-clamav}
+  PROJECTS_CLAMAV_PORT: ${PROJECTS_CLAMAV_PORT:-3310}
+  PROJECTS_MAX_ATTACHMENT_SIZE_BYTES: ${PROJECTS_MAX_ATTACHMENT_SIZE_BYTES:-10485760}
+  PROJECTS_MAX_ATTACHMENTS_PER_OWNER: ${PROJECTS_MAX_ATTACHMENTS_PER_OWNER:-10}
+  PROJECTS_ATTACHMENT_ORPHAN_GRACE_SECONDS: ${PROJECTS_ATTACHMENT_ORPHAN_GRACE_SECONDS:-3600}
+  PROJECTS_WORKER_METRICS_PORT: ${PROJECTS_WORKER_METRICS_PORT:-9100}
+  PROJECTS_ACCESS_JWKS_URL: ${PROJECTS_ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
+  PROJECTS_ACCESS_TOKEN_ISSUER: ${PROJECTS_ACCESS_TOKEN_ISSUER:-prom-access}
+  PROJECTS_ACCESS_TOKEN_AUDIENCE: ${PROJECTS_ACCESS_TOKEN_AUDIENCE:-projects}
+  PROJECTS_ACCESS_JWKS_CACHE_TTL_SECONDS: ${PROJECTS_ACCESS_JWKS_CACHE_TTL_SECONDS:-300}
+  PROJECTS_ACCESS_JWKS_STALE_IF_ERROR_SECONDS: ${PROJECTS_ACCESS_JWKS_STALE_IF_ERROR_SECONDS:-3600}
+  PROJECTS_ACCESS_CLOCK_SKEW_SECONDS: ${PROJECTS_ACCESS_CLOCK_SKEW_SECONDS:-30}
+  PROJECTS_ALLOW_LEGACY_TOKENS: "false"
+  PROJECTS_DB_POOL_SIZE: ${PROJECTS_DB_POOL_SIZE:-5}
+  PROJECTS_DB_MAX_OVERFLOW: ${PROJECTS_DB_MAX_OVERFLOW:-5}
+  PROJECTS_DB_POOL_TIMEOUT_SECONDS: ${PROJECTS_DB_POOL_TIMEOUT_SECONDS:-30}
+  PROJECTS_DB_POOL_RECYCLE_SECONDS: ${PROJECTS_DB_POOL_RECYCLE_SECONDS:-1800}
+  PROJECTS_DB_STATEMENT_TIMEOUT_MS: ${PROJECTS_DB_STATEMENT_TIMEOUT_MS:-30000}
+  PROJECTS_DB_APPLICATION_NAME: ${PROJECTS_DB_APPLICATION_NAME:-prom-projects-api}
 
 x-service-desk-environment: &service-desk-environment
+  SERVICE_DESK_ENV: ${PLATFORM_ENVIRONMENT:-development}
+  SERVICE_DESK_DEBUG: ${PLATFORM_DEBUG:-false}
   SERVICE_DESK_DATABASE_URL: ${SERVICE_DESK_DATABASE_URL:-postgresql+psycopg://service_desk:service_desk@service-desk-db:5432/service_desk}
   SERVICE_DESK_JWT_SECRET: ${SERVICE_DESK_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
   SERVICE_DESK_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
   SERVICE_DESK_STORAGE_DIR: ${SERVICE_DESK_STORAGE_DIR:-/workspace/backend/storage/service-desk}
-  SERVICE_DESK_ACCESS_JWKS_URL: ${ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
+  SERVICE_DESK_STORAGE_BACKEND: ${SERVICE_DESK_STORAGE_BACKEND:-filesystem}
+  SERVICE_DESK_S3_ENDPOINT: ${SERVICE_DESK_S3_ENDPOINT:-}
+  SERVICE_DESK_S3_BUCKET: ${SERVICE_DESK_S3_BUCKET:-}
+  SERVICE_DESK_S3_ACCESS_KEY: ${SERVICE_DESK_S3_ACCESS_KEY:-}
+  SERVICE_DESK_S3_SECRET_KEY: ${SERVICE_DESK_S3_SECRET_KEY:-}
+  SERVICE_DESK_S3_REGION: ${SERVICE_DESK_S3_REGION:-}
+  SERVICE_DESK_STORAGE_SIGNED_URL_TTL_SECONDS: ${SERVICE_DESK_STORAGE_SIGNED_URL_TTL_SECONDS:-60}
+  SERVICE_DESK_ANTIVIRUS_BACKEND: ${SERVICE_DESK_ANTIVIRUS_BACKEND:-noop}
+  SERVICE_DESK_CLAMAV_HOST: ${SERVICE_DESK_CLAMAV_HOST:-clamav}
+  SERVICE_DESK_CLAMAV_PORT: ${SERVICE_DESK_CLAMAV_PORT:-3310}
+  SERVICE_DESK_CLAMAV_TIMEOUT_SECONDS: ${SERVICE_DESK_CLAMAV_TIMEOUT_SECONDS:-10}
+  SERVICE_DESK_MAX_ATTACHMENT_SIZE_BYTES: ${SERVICE_DESK_MAX_ATTACHMENT_SIZE_BYTES:-10485760}
+  SERVICE_DESK_MAX_ATTACHMENTS_PER_OWNER: ${SERVICE_DESK_MAX_ATTACHMENTS_PER_OWNER:-10}
+  SERVICE_DESK_ATTACHMENT_ORPHAN_GRACE_SECONDS: ${SERVICE_DESK_ATTACHMENT_ORPHAN_GRACE_SECONDS:-3600}
+  SERVICE_DESK_ATTACHMENT_REJECTED_RETENTION_DAYS: ${SERVICE_DESK_ATTACHMENT_REJECTED_RETENTION_DAYS:-7}
+  SERVICE_DESK_WORKER_METRICS_PORT: ${SERVICE_DESK_WORKER_METRICS_PORT:-9100}
+  SERVICE_DESK_ACCESS_JWKS_URL: ${SERVICE_DESK_ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
+  SERVICE_DESK_ACCESS_TOKEN_ISSUER: ${SERVICE_DESK_ACCESS_TOKEN_ISSUER:-prom-access}
+  SERVICE_DESK_ACCESS_TOKEN_AUDIENCE: ${SERVICE_DESK_ACCESS_TOKEN_AUDIENCE:-service-desk}
+  SERVICE_DESK_ACCESS_JWKS_CACHE_TTL_SECONDS: ${SERVICE_DESK_ACCESS_JWKS_CACHE_TTL_SECONDS:-300}
+  SERVICE_DESK_ACCESS_JWKS_STALE_IF_ERROR_SECONDS: ${SERVICE_DESK_ACCESS_JWKS_STALE_IF_ERROR_SECONDS:-3600}
+  SERVICE_DESK_ACCESS_CLOCK_SKEW_SECONDS: ${SERVICE_DESK_ACCESS_CLOCK_SKEW_SECONDS:-30}
+  SERVICE_DESK_ALLOW_LEGACY_TOKENS: "false"
+  SERVICE_DESK_DB_POOL_SIZE: ${SERVICE_DESK_DB_POOL_SIZE:-5}
+  SERVICE_DESK_DB_MAX_OVERFLOW: ${SERVICE_DESK_DB_MAX_OVERFLOW:-5}
+  SERVICE_DESK_DB_POOL_TIMEOUT_SECONDS: ${SERVICE_DESK_DB_POOL_TIMEOUT_SECONDS:-30}
+  SERVICE_DESK_DB_POOL_RECYCLE_SECONDS: ${SERVICE_DESK_DB_POOL_RECYCLE_SECONDS:-1800}
+  SERVICE_DESK_DB_STATEMENT_TIMEOUT_MS: ${SERVICE_DESK_DB_STATEMENT_TIMEOUT_MS:-30000}
+  SERVICE_DESK_DB_APPLICATION_NAME: ${SERVICE_DESK_DB_APPLICATION_NAME:-prom-service-desk-api}
+
+x-projects-worker-healthcheck: &projects-worker-healthcheck
+  test:
+    [
+      "CMD-SHELL",
+      "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PROJECTS_WORKER_METRICS_PORT', '9100') + '/metrics', timeout=2)\"",
+    ]
+  interval: 10s
+  timeout: 3s
+  retries: 10
+
+x-service-desk-worker-healthcheck: &service-desk-worker-healthcheck
+  test:
+    [
+      "CMD-SHELL",
+      "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('SERVICE_DESK_WORKER_METRICS_PORT', '9100') + '/metrics', timeout=2)\"",
+    ]
+  interval: 10s
+  timeout: 3s
+  retries: 10
 
 services:
   access-db:
@@ -34,6 +111,9 @@ services:
     profiles: ["core", "full"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
+      ACCESS_DB_POOL_SIZE: 1
+      ACCESS_DB_MAX_OVERFLOW: 0
+      ACCESS_DB_APPLICATION_NAME: prom-access-migrate
     depends_on:
       access-db: { condition: service_healthy }
     command: ["python", "scripts/init_db.py"]
@@ -44,6 +124,9 @@ services:
     profiles: ["core", "full"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
+      ACCESS_DB_POOL_SIZE: 1
+      ACCESS_DB_MAX_OVERFLOW: 0
+      ACCESS_DB_APPLICATION_NAME: prom-access-seed
     depends_on:
       access-migrate: { condition: service_completed_successfully }
     command: ["python", "scripts/seed.py"]
@@ -59,7 +142,27 @@ services:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
       ACCESS_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
       ACCESS_ENVIRONMENT: ${PLATFORM_ENVIRONMENT:-development}
+      ACCESS_DEBUG: ${PLATFORM_DEBUG:-false}
       ACCESS_JWT_PRIVATE_KEY: ${ACCESS_JWT_PRIVATE_KEY:-}
+      ACCESS_JWT_KEY_ID: ${ACCESS_JWT_KEY_ID:-local-ephemeral}
+      ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:-prom-access}
+      ACCESS_TOKEN_AUDIENCES: ${ACCESS_TOKEN_AUDIENCES:-projects,service-desk}
+      ACCESS_OIDC_ENABLED: ${ACCESS_OIDC_ENABLED:-false}
+      SSO_PROVIDER: ${SSO_PROVIDER:-mock}
+      SSO_ISSUER_URL: ${SSO_ISSUER_URL:-}
+      SSO_CLIENT_ID: ${SSO_CLIENT_ID:-}
+      SSO_CLIENT_SECRET: ${SSO_CLIENT_SECRET:-}
+      SSO_REDIRECT_URI: ${SSO_REDIRECT_URI:-}
+      SSO_SCOPES: ${SSO_SCOPES:-openid profile email}
+      SSO_ALLOWED_AUDIENCES: ${SSO_ALLOWED_AUDIENCES:-}
+      SSO_JWKS_CACHE_TTL: ${SSO_JWKS_CACHE_TTL:-300}
+      SSO_POST_LOGOUT_REDIRECT_URI: ${SSO_POST_LOGOUT_REDIRECT_URI:-}
+      ACCESS_DB_POOL_SIZE: ${ACCESS_DB_POOL_SIZE:-5}
+      ACCESS_DB_MAX_OVERFLOW: ${ACCESS_DB_MAX_OVERFLOW:-5}
+      ACCESS_DB_POOL_TIMEOUT_SECONDS: ${ACCESS_DB_POOL_TIMEOUT_SECONDS:-30}
+      ACCESS_DB_POOL_RECYCLE_SECONDS: ${ACCESS_DB_POOL_RECYCLE_SECONDS:-1800}
+      ACCESS_DB_STATEMENT_TIMEOUT_MS: ${ACCESS_DB_STATEMENT_TIMEOUT_MS:-30000}
+      ACCESS_DB_APPLICATION_NAME: ${ACCESS_DB_APPLICATION_NAME:-prom-access-api}
     depends_on:
       access-seed: { condition: service_completed_successfully }
     restart: unless-stopped
@@ -84,7 +187,11 @@ services:
       context: .
       dockerfile: apps/projects/backend/Dockerfile
     profiles: ["projects", "full"]
-    environment: *projects-environment
+    environment:
+      <<: *projects-environment
+      PROJECTS_DB_POOL_SIZE: 1
+      PROJECTS_DB_MAX_OVERFLOW: 0
+      PROJECTS_DB_APPLICATION_NAME: prom-projects-migrate
     depends_on:
       projects-db: { condition: service_healthy }
     command: ["python", "-m", "alembic", "upgrade", "head"]
@@ -93,7 +200,11 @@ services:
   projects-seed:
     image: prom-projects-backend:local
     profiles: ["projects", "full"]
-    environment: *projects-environment
+    environment:
+      <<: *projects-environment
+      PROJECTS_DB_POOL_SIZE: 1
+      PROJECTS_DB_MAX_OVERFLOW: 0
+      PROJECTS_DB_APPLICATION_NAME: prom-projects-seed
     depends_on:
       projects-migrate: { condition: service_completed_successfully }
     command: ["python", "scripts/seed.py"]
@@ -106,6 +217,37 @@ services:
     volumes: ["projects_storage:/workspace/backend/storage/projects"]
     depends_on:
       projects-seed: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  projects-outbox-worker:
+    image: prom-projects-backend:local
+    profiles: ["projects", "full"]
+    environment:
+      <<: *projects-environment
+      PROJECTS_DB_POOL_SIZE: 2
+      PROJECTS_DB_MAX_OVERFLOW: 0
+      PROJECTS_DB_APPLICATION_NAME: prom-projects-outbox-worker
+    depends_on:
+      projects-migrate: { condition: service_completed_successfully }
+    command: ["python", "scripts/outbox_worker.py"]
+    expose: ["${PROJECTS_WORKER_METRICS_PORT:-9100}"]
+    healthcheck: *projects-worker-healthcheck
+    restart: unless-stopped
+
+  projects-attachment-cleanup-worker:
+    image: prom-projects-backend:local
+    profiles: ["projects", "full"]
+    environment:
+      <<: *projects-environment
+      PROJECTS_DB_POOL_SIZE: 1
+      PROJECTS_DB_MAX_OVERFLOW: 0
+      PROJECTS_DB_APPLICATION_NAME: prom-projects-attachment-cleanup
+    volumes: ["projects_storage:/workspace/backend/storage/projects"]
+    depends_on:
+      projects-migrate: { condition: service_completed_successfully }
+    command: ["python", "scripts/attachment_cleanup_worker.py"]
+    expose: ["${PROJECTS_WORKER_METRICS_PORT:-9100}"]
+    healthcheck: *projects-worker-healthcheck
     restart: unless-stopped
 
   service-desk-db:
@@ -128,7 +270,11 @@ services:
       context: .
       dockerfile: apps/service-desk/backend/Dockerfile
     profiles: ["service-desk", "full"]
-    environment: *service-desk-environment
+    environment:
+      <<: *service-desk-environment
+      SERVICE_DESK_DB_POOL_SIZE: 1
+      SERVICE_DESK_DB_MAX_OVERFLOW: 0
+      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-migrate
     depends_on:
       service-desk-db: { condition: service_healthy }
     command: ["python", "-m", "alembic", "upgrade", "head"]
@@ -137,7 +283,11 @@ services:
   platform-bootstrap:
     image: prom-service-desk-backend:local
     profiles: ["service-desk", "full"]
-    environment: *service-desk-environment
+    environment:
+      <<: *service-desk-environment
+      SERVICE_DESK_DB_POOL_SIZE: 1
+      SERVICE_DESK_DB_MAX_OVERFLOW: 0
+      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-bootstrap
     depends_on:
       service-desk-migrate: { condition: service_completed_successfully }
     command: ["python", "scripts/bootstrap_identity.py"]
@@ -146,7 +296,11 @@ services:
   service-desk-seed:
     image: prom-service-desk-backend:local
     profiles: ["service-desk", "full"]
-    environment: *service-desk-environment
+    environment:
+      <<: *service-desk-environment
+      SERVICE_DESK_DB_POOL_SIZE: 1
+      SERVICE_DESK_DB_MAX_OVERFLOW: 0
+      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-seed
     depends_on:
       platform-bootstrap: { condition: service_completed_successfully }
     command: ["python", "scripts/seed.py"]
@@ -164,24 +318,48 @@ services:
   service-desk-sla-worker:
     image: prom-service-desk-backend:local
     profiles: ["service-desk", "full"]
-    environment: *service-desk-environment
+    environment:
+      <<: *service-desk-environment
+      SERVICE_DESK_DB_POOL_SIZE: 2
+      SERVICE_DESK_DB_MAX_OVERFLOW: 1
+      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-sla-worker
     command: ["python", "scripts/sla_worker.py"]
     volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
     depends_on:
       service-desk-backend: { condition: service_healthy }
-    healthcheck:
-      disable: true
+    healthcheck: *service-desk-worker-healthcheck
+    expose: ["${SERVICE_DESK_WORKER_METRICS_PORT:-9100}"]
     restart: unless-stopped
 
   service-desk-notification-worker:
     image: prom-service-desk-backend:local
     profiles: ["service-desk", "full"]
-    environment: *service-desk-environment
+    environment:
+      <<: *service-desk-environment
+      SERVICE_DESK_DB_POOL_SIZE: 2
+      SERVICE_DESK_DB_MAX_OVERFLOW: 1
+      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-notification-worker
     command: ["python", "scripts/notification_worker.py"]
     depends_on:
       service-desk-backend: { condition: service_healthy }
-    healthcheck:
-      disable: true
+    healthcheck: *service-desk-worker-healthcheck
+    expose: ["${SERVICE_DESK_WORKER_METRICS_PORT:-9100}"]
+    restart: unless-stopped
+
+  service-desk-attachment-cleanup-worker:
+    image: prom-service-desk-backend:local
+    profiles: ["service-desk", "full"]
+    environment:
+      <<: *service-desk-environment
+      SERVICE_DESK_DB_POOL_SIZE: 1
+      SERVICE_DESK_DB_MAX_OVERFLOW: 0
+      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-attachment-cleanup
+    command: ["python", "scripts/attachment_cleanup_worker.py"]
+    volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
+    depends_on:
+      service-desk-backend: { condition: service_healthy }
+    healthcheck: *service-desk-worker-healthcheck
+    expose: ["${SERVICE_DESK_WORKER_METRICS_PORT:-9100}"]
     restart: unless-stopped
 
   platform-shell:
@@ -192,14 +370,31 @@ services:
         VITE_API_BASE_URL: ${VITE_PROJECTS_API_BASE_URL:-/api/projects/v1}
         VITE_SERVICE_DESK_API_BASE_URL: ${VITE_SERVICE_DESK_API_BASE_URL:-/api/service-desk/v1}
         VITE_ACCESS_API_BASE_URL: ${VITE_ACCESS_API_BASE_URL:-/api/access/v1}
-    profiles: ["full"]
+    profiles: ["core", "full"]
     ports: ["5173:80"]
     depends_on:
       access-service: { condition: service_healthy }
-      projects-backend: { condition: service_healthy }
-      service-desk-backend: { condition: service_healthy }
-      service-desk-sla-worker: { condition: service_started }
-      service-desk-notification-worker: { condition: service_started }
+      projects-backend:
+        condition: service_healthy
+        required: false
+      projects-outbox-worker:
+        condition: service_started
+        required: false
+      projects-attachment-cleanup-worker:
+        condition: service_started
+        required: false
+      service-desk-backend:
+        condition: service_healthy
+        required: false
+      service-desk-sla-worker:
+        condition: service_started
+        required: false
+      service-desk-notification-worker:
+        condition: service_started
+        required: false
+      service-desk-attachment-cleanup-worker:
+        condition: service_started
+        required: false
     restart: unless-stopped
 
   projects-tests:

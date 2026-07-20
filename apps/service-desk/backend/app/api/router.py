@@ -2,8 +2,8 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     access,
-    admin_approvals,
     admin_access,
+    admin_approvals,
     admin_catalog,
     admin_routing,
     admin_sla,

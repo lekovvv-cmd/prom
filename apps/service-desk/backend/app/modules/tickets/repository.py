@@ -7,7 +7,11 @@ from app.core.enums import ServiceDeskTicketStatus
 from app.modules.approvals.models import ServiceDeskTicketApproval, ServiceDeskTicketApprovalStage
 from app.modules.catalog.models import ServiceDeskService
 from app.modules.comments.models import ServiceDeskTicketComment
-from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketCounter, ServiceDeskTicketHistory
+from app.modules.tickets.models import (
+    ServiceDeskTicket,
+    ServiceDeskTicketCounter,
+    ServiceDeskTicketHistory,
+)
 
 
 class TicketRepository:

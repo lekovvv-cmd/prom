@@ -1,41 +1,70 @@
 import { ArrowUp, FolderKanban, Table2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { useAuth } from "../../../app/providers/AppProviders";
-import { Header } from "../../../widgets/header/ui/Header";
+import { useAuth } from "@prom/auth";
+import { Header } from "@prom/layout";
+import { platformModules } from "../../../app/modules/registry";
+
+const moduleIcons = {
+  projects: FolderKanban,
+  "service-desk": Table2,
+};
+
+const moduleCardTitles = {
+  projects: "Проектный модуль",
+  "service-desk": "Service Desk",
+};
 
 export function ModuleSelectorPage() {
-  const { token } = useAuth();
-  const projectsTarget = token ? "/projects" : "/login?next=%2Fprojects";
-  const serviceDeskTarget = token ? "/service-desk" : "/login?next=%2Fservice-desk";
+  const { modules, token } = useAuth();
+  const availableModules = token
+    ? platformModules.filter((manifest) =>
+        modules.some((module) => module.id === manifest.id),
+      )
+    : platformModules;
 
   return (
     <>
       <Header />
       <main className="module-selector-page">
-        <section className="module-selector" aria-labelledby="module-selector-title">
+        <section
+          className="module-selector"
+          aria-labelledby="module-selector-title"
+        >
           <div className="module-selector-heading">
             <p className="eyebrow">PROM</p>
             <h1 id="module-selector-title">Выберите сервис</h1>
             <p>Единая точка входа в рабочие сервисы университета.</p>
           </div>
           <div className="module-selector-grid">
-            <Link className="module-selector-card" to={projectsTarget}>
-              <span className="module-selector-icon"><FolderKanban size={28} aria-hidden="true" /></span>
-              <span className="module-selector-card-copy">
-                <strong>Проектный модуль</strong>
-                <span>Проекты, инициативы, команды, отклики и отчётность.</span>
-              </span>
-              <ArrowUp size={20} aria-hidden="true" />
-            </Link>
-            <Link className="module-selector-card" to={serviceDeskTarget}>
-              <span className="module-selector-icon"><Table2 size={28} aria-hidden="true" /></span>
-              <span className="module-selector-card-copy">
-                <strong>Service Desk</strong>
-                <span>Каталог услуг, заявки, согласования, исполнение и SLA.</span>
-              </span>
-              <ArrowUp size={20} aria-hidden="true" />
-            </Link>
+            {availableModules.map((manifest) => {
+              const Icon =
+                moduleIcons[manifest.id as keyof typeof moduleIcons] ??
+                FolderKanban;
+              const target = token
+                ? manifest.basePath
+                : `/login?next=${encodeURIComponent(manifest.basePath)}`;
+              return (
+                <Link
+                  className="module-selector-card"
+                  key={manifest.id}
+                  to={target}
+                >
+                  <span className="module-selector-icon">
+                    <Icon size={28} aria-hidden="true" />
+                  </span>
+                  <span className="module-selector-card-copy">
+                    <strong>
+                      {moduleCardTitles[
+                        manifest.id as keyof typeof moduleCardTitles
+                      ] ?? manifest.title}
+                    </strong>
+                    <span>{manifest.description}</span>
+                  </span>
+                  <ArrowUp size={20} aria-hidden="true" />
+                </Link>
+              );
+            })}
           </div>
         </section>
       </main>

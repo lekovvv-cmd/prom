@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import HTTPException, status
+from platform_sdk.error_types import ConflictDetected, EntityNotFound
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -27,7 +27,7 @@ class CatalogService:
 
     def create_category(self, payload: schemas.CategoryCreate) -> ServiceDeskCategory:
         if payload.parent_id and not self.repository.get_category(payload.parent_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Родительская категория не найдена")
+            raise EntityNotFound("Родительская категория не найдена")
         self._ensure_unique_category_title(payload.title, payload.parent_id)
         category = ServiceDeskCategory(**{**payload.model_dump(), "title": payload.title.strip()})
         try:
@@ -35,9 +35,7 @@ class CatalogService:
             self.db.commit()
         except IntegrityError as error:
             self.db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Категория с таким названием уже существует",
+            raise ConflictDetected("Категория с таким названием уже существует",
             ) from error
         self.db.refresh(category)
         return category
@@ -46,7 +44,7 @@ class CatalogService:
         category = self._require_category(category_id)
         data = payload.model_dump(exclude_unset=True)
         if "parent_id" in data and data["parent_id"] and not self.repository.get_category(data["parent_id"]):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Родительская категория не найдена")
+            raise EntityNotFound("Родительская категория не найдена")
         next_title = str(data.get("title", category.title)).strip()
         next_parent_id = data.get("parent_id", category.parent_id)
         self._ensure_unique_category_title(
@@ -62,9 +60,7 @@ class CatalogService:
             self.db.commit()
         except IntegrityError as error:
             self.db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Категория с таким названием уже существует",
+            raise ConflictDetected("Категория с таким названием уже существует",
             ) from error
         self.db.refresh(category)
         return category
@@ -114,7 +110,7 @@ class CatalogService:
     def get_service(self, service_id: uuid.UUID, *, public: bool = False) -> ServiceDeskService:
         service = self._require_service(service_id)
         if public and (not service.is_active or service.deleted_at is not None):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
+            raise EntityNotFound("Услуга не найдена")
         if public:
             from app.modules.templates.repository import TemplateRepository
 
@@ -132,9 +128,7 @@ class CatalogService:
             self.db.commit()
         except IntegrityError as error:
             self.db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Услуга с таким названием уже существует в выбранной категории",
+            raise ConflictDetected("Услуга с таким названием уже существует в выбранной категории",
             ) from error
         self.db.refresh(service)
         return service
@@ -161,9 +155,7 @@ class CatalogService:
             self.db.commit()
         except IntegrityError as error:
             self.db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Услуга с таким названием уже существует в выбранной категории",
+            raise ConflictDetected("Услуга с таким названием уже существует в выбранной категории",
             ) from error
         self.db.refresh(service)
         return service
@@ -187,13 +179,13 @@ class CatalogService:
     def _require_category(self, category_id: uuid.UUID) -> ServiceDeskCategory:
         category = self.repository.get_category(category_id)
         if not category:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Категория не найдена")
+            raise EntityNotFound("Категория не найдена")
         return category
 
     def _require_service(self, service_id: uuid.UUID) -> ServiceDeskService:
         service = self.repository.get_service(service_id)
         if not service:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
+            raise EntityNotFound("Услуга не найдена")
         return service
 
     def _ensure_unique_category_title(
@@ -204,9 +196,7 @@ class CatalogService:
         exclude_id: uuid.UUID | None = None,
     ) -> None:
         if self.repository.category_title_exists(title, parent_id, exclude_id=exclude_id):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Категория с таким названием уже существует",
+            raise ConflictDetected("Категория с таким названием уже существует",
             )
 
     def _ensure_unique_service_title(
@@ -217,7 +207,5 @@ class CatalogService:
         exclude_id: uuid.UUID | None = None,
     ) -> None:
         if self.repository.service_title_exists(title, category_id, exclude_id=exclude_id):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "Услуга с таким названием уже существует в выбранной категории",
+            raise ConflictDetected("Услуга с таким названием уже существует в выбранной категории",
             )

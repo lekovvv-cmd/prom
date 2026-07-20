@@ -26,6 +26,8 @@ from app.modules.sla import models as sla_models  # noqa: F401
 from app.modules.templates import models as template_models  # noqa: F401
 from app.modules.tickets import models as ticket_models  # noqa: F401
 
+settings.allow_legacy_tokens = True
+
 
 class ServiceDeskTestClient(TestClient):
     def __init__(self, app, admin_headers_factory) -> None:

@@ -34,5 +34,5 @@ def test_email_required_event_is_blocked_external_while_in_app_is_delivered(
             ServiceDeskNotificationOutbox.channel == "email",
         ))
         assert email_record.status == "blocked_external"
-        assert email_record.retry_count == 0
+        assert email_record.attempts == 0
         assert email_record.processed_at is None

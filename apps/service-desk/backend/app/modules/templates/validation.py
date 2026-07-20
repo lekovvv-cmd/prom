@@ -119,7 +119,8 @@ def _validate_field_value(
         if allowed_extensions:
             normalized_extensions = {str(item).lower().lstrip(".") for item in allowed_extensions}
             for file_item in files:
-                file_name = file_item.get("name") if isinstance(file_item, dict) else str(file_item)
+                raw_file_name = file_item.get("name") if isinstance(file_item, dict) else file_item
+                file_name = raw_file_name if isinstance(raw_file_name, str) else str(raw_file_name or "")
                 extension = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
                 if extension not in normalized_extensions:
                     errors.append(_error(field, "Недопустимый формат файла"))

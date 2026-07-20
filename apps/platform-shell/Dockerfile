@@ -1,10 +1,12 @@
-FROM node:24.13.1-alpine AS build
+FROM node:24.13.1-alpine@sha256:4f696fbf39f383c1e486030ba6b289a5d9af541642fc78ab197e584a113b9c03 AS build
 WORKDIR /workspace
 
 COPY package.json package-lock.json ./
 COPY apps/platform-shell/package.json apps/platform-shell/package.json
 COPY apps/projects/frontend/package.json apps/projects/frontend/package.json
 COPY apps/service-desk/frontend/package.json apps/service-desk/frontend/package.json
+COPY contracts/generated contracts/generated
+COPY packages/frontend packages/frontend
 # npm lockfiles produced on Windows omit Rolldown's Linux optional native
 # package; install the pinned Alpine binding explicitly without mutating the
 # committed lockfile.
@@ -22,7 +24,7 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_ACCESS_API_BASE_URL=$VITE_ACCESS_API_BASE_URL
 RUN npm run build --workspace=@prom/platform-shell
 
-FROM nginx:1.29.6-alpine AS runtime
+FROM nginx:1.30.3-alpine@sha256:0d3b80406a13a767339fbe2f41406d6c7da727ab89cf8fae399e81f780f814d1 AS runtime
 COPY apps/platform-shell/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/apps/platform-shell/dist /usr/share/nginx/html
 EXPOSE 80

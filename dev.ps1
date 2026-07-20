@@ -14,6 +14,11 @@ $RootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 function Invoke-PromPython {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
 
+    $workspacePython = Join-Path $RootDir ".venv\Scripts\python.exe"
+    if (Test-Path -LiteralPath $workspacePython) {
+        & $workspacePython @Arguments
+        return
+    }
     $py = Get-Command py -ErrorAction SilentlyContinue
     if ($py) {
         & $py.Source -3.14 @Arguments
@@ -23,15 +28,17 @@ function Invoke-PromPython {
     }
 }
 
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    throw "Docker Desktop is required. Install it and make sure Docker is running."
-}
-
 Push-Location $RootDir
 try {
-    & docker info *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker is not running. Start Docker Desktop and try again."
+    $DockerCommands = @("up", "down", "restart", "logs", "status", "reset", "test", "test-integration")
+    if ($DockerCommands -contains $Command) {
+        if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+            throw "Docker Desktop is required for '$Command'."
+        }
+        & docker info *> $null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Docker is not running. Start Docker Desktop and try again."
+        }
     }
 
     switch ($Command) {

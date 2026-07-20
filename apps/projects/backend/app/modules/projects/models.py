@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Date, DateTime, Enum as SAEnum, ForeignKey, String, Text, Uuid
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, utc_now
@@ -15,7 +17,7 @@ if TYPE_CHECKING:
     from app.modules.users.models import User
 
 
-def enum_values(enum_class: type) -> list[str]:
+def enum_values(enum_class: type[Enum]) -> list[str]:
     return [item.value for item in enum_class]
 
 
@@ -23,6 +25,7 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     short_description: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)

@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 import codecs
-import re
 import uuid
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import BinaryIO
 
-from fastapi import HTTPException, UploadFile, status
+from platform_sdk.error_types import (
+    ConflictDetected,
+    EntityNotFound,
+    PermissionDenied,
+    ValidationFailed,
+)
+from platform_sdk.storage import IncomingFile, safe_file_name, stream_incoming_file
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.enums import (
     ServiceDeskAccessType,
     ServiceDeskAttachmentOwnerType,
+    ServiceDeskAttachmentStatus,
     ServiceDeskCommentVisibility,
     ServiceDeskTicketStatus,
     TemplateFieldType,
@@ -20,15 +28,16 @@ from app.core.enums import (
 from app.modules.access.models import ServiceDeskUser
 from app.modules.attachments.models import ServiceDeskAttachment
 from app.modules.attachments.repository import AttachmentRepository
+from app.modules.attachments.storage import antivirus_scanner, object_storage
 from app.modules.comments.repository import TicketCommentRepository
 from app.modules.templates.repository import TemplateRepository
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
 from app.modules.tickets.policy import TicketPolicyService
 from app.modules.tickets.repository import TicketRepository
 
-
 UPLOAD_CHUNK_SIZE = 64 * 1024
 MAX_ARCHIVE_ENTRIES = 10_000
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
 
 CONTENT_TYPE_BY_EXTENSION = {
     ".pdf": "application/pdf",
@@ -63,11 +72,13 @@ class AttachmentService:
         self.comment_repository = TicketCommentRepository(db)
         self.template_repository = TemplateRepository(db)
         self.policy = TicketPolicyService()
+        self.storage = object_storage()
+        self.scanner = antivirus_scanner()
 
     async def upload_ticket_attachment(
         self,
         ticket_id: uuid.UUID,
-        file: UploadFile,
+        file: IncomingFile,
         actor: ServiceDeskUser,
     ) -> ServiceDeskAttachment:
         ticket = self._require_ticket(ticket_id)
@@ -86,19 +97,17 @@ class AttachmentService:
         self,
         ticket_id: uuid.UUID,
         comment_id: uuid.UUID,
-        file: UploadFile,
+        file: IncomingFile,
         actor: ServiceDeskUser,
     ) -> ServiceDeskAttachment:
         ticket = self._require_ticket(ticket_id)
         comment = self.comment_repository.get_for_update(comment_id)
         if not comment or comment.ticket_id != ticket.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Комментарий не найден")
+            raise EntityNotFound("Комментарий не найден")
         self.policy.require_view(ticket, actor)
         self._ensure_mutable_ticket(ticket)
         if comment.author_user_id != actor.id and actor.access_type != ServiceDeskAccessType.SERVICE_DESK_ADMIN:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "Прикреплять файл к чужому комментарию может только автор или администратор Service Desk",
+            raise PermissionDenied("Прикреплять файл к чужому комментарию может только автор или администратор Service Desk",
             )
         if comment.visibility == ServiceDeskCommentVisibility.INTERNAL:
             self.policy.require_internal_comments(ticket, actor)
@@ -129,7 +138,7 @@ class AttachmentService:
         ticket = self._require_ticket(ticket_id)
         comment = self.comment_repository.get_for_update(comment_id)
         if not comment or comment.ticket_id != ticket.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Комментарий не найден")
+            raise EntityNotFound("Комментарий не найден")
         self.policy.require_view(ticket, actor)
         if comment.visibility == ServiceDeskCommentVisibility.INTERNAL:
             self.policy.require_internal_comments(ticket, actor)
@@ -139,20 +148,20 @@ class AttachmentService:
         self,
         ticket_id: uuid.UUID,
         field_key: str,
-        file: UploadFile,
+        file: IncomingFile,
         actor: ServiceDeskUser,
     ) -> ServiceDeskAttachment:
         ticket = self._require_ticket(ticket_id)
         self._ensure_mutable_ticket(ticket)
         if ticket.status != ServiceDeskTicketStatus.DRAFT:
-            raise HTTPException(status.HTTP_409_CONFLICT, "Файлы полей можно прикреплять только к черновику")
+            raise ConflictDetected("Файлы полей можно прикреплять только к черновику")
         if actor.id != ticket.requester_user_id:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Прикреплять файлы полей может только заявитель")
+            raise PermissionDenied("Прикреплять файлы полей может только заявитель")
         field = self.template_repository.get_field_by_key(ticket.template_version_id, field_key)
         if not field:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Поле формы не найдено")
+            raise EntityNotFound("Поле формы не найдено")
         if field.field_type != TemplateFieldType.FILE:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Вложение доступно только для поля типа «Файл»")
+            raise ValidationFailed("Вложение доступно только для поля типа «Файл»")
 
         rules = field.validation or {}
         configured_limit = rules.get("max_files", settings.max_attachments_per_owner)
@@ -161,9 +170,9 @@ class AttachmentService:
         except (TypeError, ValueError):
             max_files = settings.max_attachments_per_owner
         if max_files < 1:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Лимит файлов поля должен быть положительным")
+            raise ValidationFailed("Лимит файлов поля должен быть положительным")
         if self.repository.count_for_field_value(ticket.id, field.key) >= max_files:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Превышен лимит файлов поля")
+            raise ValidationFailed("Превышен лимит файлов поля")
 
         allowed_extensions = rules.get("allowed_extensions")
         return await self._store(
@@ -187,9 +196,9 @@ class AttachmentService:
         self.policy.require_view(ticket, actor)
         field = self.template_repository.get_field_by_key(ticket.template_version_id, field_key)
         if not field:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Поле формы не найдено")
+            raise EntityNotFound("Поле формы не найдено")
         if field.field_type != TemplateFieldType.FILE:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Вложение доступно только для поля типа «Файл»")
+            raise ValidationFailed("Вложение доступно только для поля типа «Файл»")
         return self.repository.list_for_field_value(ticket.id, field.key)
 
     def field_value_payload(self, ticket_id: uuid.UUID) -> dict[str, list[dict[str, object]]]:
@@ -212,24 +221,40 @@ class AttachmentService:
         ticket_id: uuid.UUID,
         attachment_id: uuid.UUID,
         actor: ServiceDeskUser,
-    ) -> tuple[ServiceDeskAttachment, Path]:
+    ) -> tuple[ServiceDeskAttachment, BinaryIO]:
         ticket = self._require_ticket(ticket_id)
         attachment = self.repository.get(attachment_id)
         if not attachment or attachment.ticket_id != ticket.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Вложение не найдено")
+            raise EntityNotFound("Вложение не найдено")
         self.policy.require_view(ticket, actor)
 
         if attachment.owner_type == ServiceDeskAttachmentOwnerType.COMMENT:
             comment = self.comment_repository.get_for_update(attachment.owner_id)
             if not comment or comment.ticket_id != ticket.id:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Вложение не найдено")
+                raise EntityNotFound("Вложение не найдено")
             if comment.visibility == ServiceDeskCommentVisibility.INTERNAL:
                 self.policy.require_internal_comments(ticket, actor)
 
-        path = self._storage_path(attachment.storage_key)
-        if not path.is_file():
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Содержимое вложения не найдено")
-        return attachment, path
+        if (
+            attachment.status != ServiceDeskAttachmentStatus.AVAILABLE
+            or not self.storage.exists(attachment.storage_key)
+        ):
+            raise EntityNotFound("Содержимое вложения не найдено")
+        self.ticket_repository.add_history(
+            ServiceDeskTicketHistory(
+                ticket_id=ticket.id,
+                event_type="attachment_downloaded",
+                actor_user_id=actor.id,
+                message="Attachment downloaded",
+                payload={
+                    "attachment_id": str(attachment.id),
+                    "owner_type": attachment.owner_type.value,
+                    "checksum": attachment.checksum,
+                },
+            )
+        )
+        self.db.commit()
+        return attachment, self.storage.get(attachment.storage_key)
 
     def delete_attachment(
         self,
@@ -239,10 +264,10 @@ class AttachmentService:
     ) -> None:
         ticket = self.ticket_repository.get_ticket_for_update(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         attachment = self.repository.get_for_update(attachment_id)
         if not attachment or attachment.ticket_id != ticket.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Вложение не найдено")
+            raise EntityNotFound("Вложение не найдено")
 
         is_admin = actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
         is_draft_owner = (
@@ -250,19 +275,12 @@ class AttachmentService:
             and ticket.requester_user_id == actor.id
         )
         if not (is_admin or is_draft_owner):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "Удалить вложение может заявитель из своего черновика или администратор Service Desk",
+            raise PermissionDenied("Удалить вложение может заявитель из своего черновика или администратор Service Desk",
             )
 
-        path = self._storage_path(attachment.storage_key)
-        tombstone = path.with_name(f".{path.name}.deleting-{uuid.uuid4().hex}")
-        moved = False
         try:
-            if path.is_file():
-                path.replace(tombstone)
-                moved = True
-            self.repository.delete(attachment)
+            attachment.status = ServiceDeskAttachmentStatus.DELETED
+            attachment.deleted_at = datetime.now(UTC)
             self.ticket_repository.add_history(
                 ServiceDeskTicketHistory(
                     ticket_id=ticket.id,
@@ -280,11 +298,8 @@ class AttachmentService:
             self.db.commit()
         except BaseException:
             self._rollback_best_effort()
-            if moved and tombstone.is_file():
-                tombstone.replace(path)
             raise
-        if moved:
-            self._remove_file_best_effort(tombstone)
+        self._delete_object_best_effort(attachment.storage_key)
 
     async def _store(
         self,
@@ -292,7 +307,7 @@ class AttachmentService:
         owner_type: ServiceDeskAttachmentOwnerType,
         owner_id: uuid.UUID,
         ticket: ServiceDeskTicket,
-        file: UploadFile,
+        file: IncomingFile,
         actor: ServiceDeskUser,
         comment_visibility: ServiceDeskCommentVisibility | None,
         field_key: str | None = None,
@@ -301,31 +316,103 @@ class AttachmentService:
     ) -> ServiceDeskAttachment:
         limit = max_attachments or settings.max_attachments_per_owner
         if self.repository.count_for_owner(owner_type, owner_id) >= limit:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Превышен лимит вложений")
-        file_name, extension = self._validate_file_metadata(file)
+            raise ValidationFailed("Превышен лимит вложений")
+        file_name, extension, declared_content_type = self._validate_file_metadata(file)
         if allowed_extensions:
             normalized_extensions = {str(item).lower().lstrip(".") for item in allowed_extensions}
             if extension.lstrip(".") not in normalized_extensions:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Недопустимое расширение файла для поля формы")
-        storage_key = f"{owner_type.value}/{owner_id}/{uuid.uuid4().hex}{extension}"
-        path = self._storage_path(storage_key)
+                raise ValidationFailed("Недопустимое расширение файла для поля формы")
+        final_storage_key = f"{owner_type.value}/{owner_id}/{uuid.uuid4().hex}{extension}"
+        quarantine_key = f".quarantine/service-desk/{uuid.uuid4().hex}{extension}"
+        staging_path = (
+            Path(settings.storage_dir).resolve()
+            / ".staging"
+            / f"{uuid.uuid4().hex}{extension}"
+        )
+        quarantine_stored = False
+        final_stored = False
+        preserve_quarantine = False
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            size_bytes = await self._stream_upload(file, path)
-            self._validate_file_content(path, extension)
+            streamed = await stream_incoming_file(
+                file,
+                destination=staging_path,
+                max_size_bytes=settings.max_attachment_size_bytes,
+                chunk_size=UPLOAD_CHUNK_SIZE,
+            )
+            self._validate_file_content(staging_path, extension)
+            with staging_path.open("rb") as source:
+                quarantine_checksum = self.storage.put(quarantine_key, source)
+            quarantine_stored = True
+            if quarantine_checksum != streamed.checksum:
+                raise RuntimeError("Quarantine storage checksum mismatch")
             attachment = self.repository.add(
                 ServiceDeskAttachment(
+                    module="service-desk",
                     owner_type=owner_type,
                     owner_id=owner_id,
                     ticket_id=ticket.id,
                     field_key=field_key,
                     file_name=file_name,
-                    storage_key=storage_key,
+                    storage_key=quarantine_key,
                     content_type=CONTENT_TYPE_BY_EXTENSION[extension],
-                    size_bytes=size_bytes,
+                    original_name=Path(file.file_name or file_name).name[:255],
+                    safe_name=file_name,
+                    content_type_declared=declared_content_type,
+                    content_type_detected=CONTENT_TYPE_BY_EXTENSION[extension],
+                    checksum=streamed.checksum,
+                    status=ServiceDeskAttachmentStatus.QUARANTINED,
+                    size_bytes=streamed.size_bytes,
                     uploaded_by_user_id=actor.id,
                 )
             )
+            try:
+                scan_result = self.scanner.scan(staging_path)
+            except Exception as exc:
+                self.ticket_repository.add_history(
+                    ServiceDeskTicketHistory(
+                        ticket_id=ticket.id,
+                        event_type="attachment_quarantined",
+                        actor_user_id=actor.id,
+                        message="Attachment remains quarantined",
+                        payload={
+                            "attachment_id": str(attachment.id),
+                            "owner_type": owner_type.value,
+                            "checksum": attachment.checksum,
+                        },
+                    )
+                )
+                self.db.commit()
+                preserve_quarantine = True
+                raise ValidationFailed(
+                    "Antivirus scan is unavailable; the file remains quarantined"
+                ) from exc
+            if scan_result != "clean":
+                attachment.status = ServiceDeskAttachmentStatus.REJECTED
+                self.ticket_repository.add_history(
+                    ServiceDeskTicketHistory(
+                        ticket_id=ticket.id,
+                        event_type="attachment_rejected",
+                        actor_user_id=actor.id,
+                        message="Attachment rejected by antivirus",
+                        payload={
+                            "attachment_id": str(attachment.id),
+                            "owner_type": owner_type.value,
+                            "checksum": attachment.checksum,
+                        },
+                    )
+                )
+                self.db.commit()
+                preserve_quarantine = True
+                raise ValidationFailed("File rejected by antivirus scan")
+            with staging_path.open("rb") as source:
+                final_checksum = self.storage.put(final_storage_key, source)
+            final_stored = True
+            if final_checksum != streamed.checksum:
+                raise RuntimeError("Final storage checksum mismatch")
+            self.storage.delete(quarantine_key)
+            quarantine_stored = False
+            attachment.storage_key = final_storage_key
+            attachment.status = ServiceDeskAttachmentStatus.AVAILABLE
             self.ticket_repository.add_history(
                 ServiceDeskTicketHistory(
                     ticket_id=ticket.id,
@@ -338,45 +425,56 @@ class AttachmentService:
                         "owner_id": str(owner_id),
                         "field_key": field_key,
                         "file_name": file_name,
+                        "checksum": attachment.checksum,
                         "comment_visibility": comment_visibility.value if comment_visibility else None,
                     },
                 )
             )
             self.db.commit()
+        except ValueError as exc:
+            self._rollback_best_effort()
+            if final_stored:
+                self._delete_object_best_effort(final_storage_key)
+            if quarantine_stored:
+                self._delete_object_best_effort(quarantine_key)
+            raise ValidationFailed(str(exc)) from exc
+        except ValidationFailed:
+            if not preserve_quarantine:
+                self._rollback_best_effort()
+                if final_stored:
+                    self._delete_object_best_effort(final_storage_key)
+                if quarantine_stored:
+                    self._delete_object_best_effort(quarantine_key)
+            raise
         except BaseException:
             self._rollback_best_effort()
-            self._remove_file_best_effort(path)
+            if final_stored:
+                self._delete_object_best_effort(final_storage_key)
+            if quarantine_stored:
+                self._delete_object_best_effort(quarantine_key)
             raise
+        finally:
+            self._remove_file_best_effort(staging_path)
+            self._remove_empty_storage_dirs(
+                staging_path.parent,
+                Path(settings.storage_dir).resolve() / ".quarantine" / "service-desk",
+            )
         return attachment
 
     @staticmethod
-    def _validate_file_metadata(file: UploadFile) -> tuple[str, str]:
-        file_name = AttachmentService._sanitize_file_name(file.filename or "attachment")
+    def _validate_file_metadata(file: IncomingFile) -> tuple[str, str, str | None]:
+        file_name = safe_file_name(file.file_name or "attachment")
         extension = Path(file_name).suffix.lower()
         if extension not in ALLOWED_EXTENSIONS:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Недопустимое расширение файла")
-        declared_content_type = (file.content_type or "").partition(";")[0].strip().lower()
+            raise ValidationFailed("Недопустимое расширение файла")
+        declared_content_type = (
+            (file.content_type or "").partition(";")[0].strip().lower() or None
+        )
         if declared_content_type and declared_content_type not in ALLOWED_CONTENT_TYPES:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Недопустимый MIME-тип файла")
+            raise ValidationFailed("Недопустимый MIME-тип файла")
         if declared_content_type and declared_content_type != CONTENT_TYPE_BY_EXTENSION[extension]:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "MIME-тип не соответствует расширению")
-        return file_name, extension
-
-    @staticmethod
-    async def _stream_upload(file: UploadFile, path: Path) -> int:
-        total_size = 0
-        with path.open("xb") as destination:
-            while chunk := await file.read(UPLOAD_CHUNK_SIZE):
-                total_size += len(chunk)
-                if total_size > settings.max_attachment_size_bytes:
-                    raise HTTPException(
-                        status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        "Файл превышает допустимый размер",
-                    )
-                destination.write(chunk)
-        if total_size == 0:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Нельзя прикрепить пустой файл")
-        return total_size
+            raise ValidationFailed("MIME-тип не соответствует расширению")
+        return file_name, extension, declared_content_type
 
     @staticmethod
     def _validate_file_content(path: Path, extension: str) -> None:
@@ -406,9 +504,7 @@ class AttachmentService:
             valid = False
 
         if not valid:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Содержимое файла не соответствует его расширению",
+            raise ValidationFailed("Содержимое файла не соответствует его расширению",
             )
 
     @staticmethod
@@ -437,6 +533,8 @@ class AttachmentService:
                 entries = archive.infolist()
                 if len(entries) > MAX_ARCHIVE_ENTRIES:
                     return False
+                if sum(entry.file_size for entry in entries) > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+                    return False
                 names = {entry.filename for entry in entries}
         except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile):
             return False
@@ -455,29 +553,32 @@ class AttachmentService:
         except OSError:
             pass
 
-    @staticmethod
-    def _sanitize_file_name(file_name: str) -> str:
-        clean = re.sub(r"[\\/:*?\"<>|]+", "_", file_name).strip(". ")
-        return clean[:255] or "attachment"
+    def _delete_object_best_effort(self, storage_key: str) -> None:
+        try:
+            self.storage.delete(storage_key)
+        except Exception:
+            pass
 
     @staticmethod
-    def _storage_path(storage_key: str) -> Path:
+    def _remove_empty_storage_dirs(*directories: Path) -> None:
         root = Path(settings.storage_dir).resolve()
-        path = (root / storage_key).resolve()
-        if root not in path.parents:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Недопустимый путь вложения")
-        return path
+        for directory in directories:
+            candidate = directory.resolve()
+            while candidate != root and root in candidate.parents:
+                try:
+                    candidate.rmdir()
+                except OSError:
+                    break
+                candidate = candidate.parent
 
     def _require_ticket(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         ticket = self.ticket_repository.get_ticket(ticket_id)
         if not ticket:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявка не найдена")
+            raise EntityNotFound("Заявка не найдена")
         return ticket
 
     @staticmethod
     def _ensure_mutable_ticket(ticket: ServiceDeskTicket) -> None:
         if ticket.status in {ServiceDeskTicketStatus.CLOSED, ServiceDeskTicketStatus.CANCELLED}:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "В закрытую или отменённую заявку нельзя добавлять вложения",
+            raise ConflictDetected("В закрытую или отменённую заявку нельзя добавлять вложения",
             )
