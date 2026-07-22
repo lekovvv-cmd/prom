@@ -29,7 +29,7 @@ patterns are present in `.gitignore`.
 | Tool | Result |
 | --- | --- |
 | `ruff` | Passed across SDK, Access, Projects, Service Desk, and tools. |
-| `mypy` | Passed: SDK 10, Access 17, Projects 80, Service Desk 96 source files. |
+| `mypy` | Passed: SDK 10, Access 17, Projects 84, Service Desk 103 source files. |
 | `deptry` | Passed for all four Python packages; no dependency issues. |
 | `eslint` | Passed with zero warnings. |
 | `prettier` | Passed for all configured frontend and tooling paths. |
@@ -51,4 +51,3 @@ patterns are present in `.gitignore`.
   not model those runtime entry points reliably.
 - User-owned untracked prompt files, spreadsheets, and `outputs/` content were not
   treated as repository dead code and were not staged.
-

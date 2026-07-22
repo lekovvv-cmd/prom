@@ -39,7 +39,7 @@ The production build passed all configured budgets:
 
 | Asset | Result | Budget |
 | --- | ---: | ---: |
-| Initial JavaScript | 273,465 bytes | 300,000 bytes |
+| Initial JavaScript | 273,673 bytes | 300,000 bytes |
 | Initial CSS | 27,817 bytes | 30,000 bytes |
 | Largest lazy JavaScript chunk | 46,972 bytes | 60,000 bytes |
 | Largest lazy CSS chunk | 44,017 bytes | 45,000 bytes |
@@ -66,5 +66,5 @@ enforces production bundle budgets in `frontend-build`.
 - `npm run check:styles` — passed, 0 warnings.
 - `npm run typecheck` — passed.
 - `npm run lint` — passed.
-- `npm run test` — passed, 40 files / 109 tests.
+- `npm run test` — passed, 40 files / 111 tests.
 - `npm run build:check` — passed with the budgets above.

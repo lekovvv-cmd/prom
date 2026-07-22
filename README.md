@@ -24,7 +24,8 @@ or:
 ./dev.sh up
 ```
 
-The full profile starts databases, migrations, seeds, workers and the gateway. Open `http://localhost:5173/`.
+The full profile starts databases, migrations, APIs, workers and the gateway without
+creating demo data. Open `http://localhost:5173/`.
 
 | Surface | URL |
 | --- | --- |
@@ -40,15 +41,17 @@ The previous `/api/` and `/service-desk-api/` gateway paths remain compatibility
 | Profile | Contents |
 | --- | --- |
 | `core` | gateway/platform shell, Access Service, Access PostgreSQL, local SSO mock |
-| `projects` | Projects PostgreSQL, migrations, seed, API and workers |
-| `service-desk` | Service Desk PostgreSQL, migrations, seed, API and workers |
-| `full` | complete local platform |
+| `projects` | Projects PostgreSQL, migrations, API and workers |
+| `service-desk` | Service Desk PostgreSQL, migrations, API and workers |
+| `full` | complete production-like local platform without demo fixtures |
+| `demo` | optional idempotent users, projects, Service Desk access and catalog fixtures |
 | `test` | isolated backend and frontend test images |
 
 ```powershell
 docker compose --profile core --profile projects up --build
 docker compose --profile core --profile service-desk up --build
 docker compose --profile full up --build
+docker compose --profile full --profile demo up -d --wait
 ```
 
 ## Common commands
@@ -78,7 +81,12 @@ OpenAPI snapshots are committed in `contracts/openapi/`; regenerate them after a
 
 ## Local mock identities
 
-The development Access Service accepts code `000000` for the seeded accounts: `employee@utmn.ru`, `project.manager@utmn.ru`, `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, and `admin@utmn.ru`. This mock provider is blocked by the production configuration guard; production must use an OIDC adapter and real key material.
+After the optional `demo` profile is applied, the development Access Service
+accepts code `000000` for the seeded accounts: `employee@utmn.ru`,
+`project.manager@utmn.ru`, `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, and
+`admin@utmn.ru`. The backend verifies this code and creates the same browser
+session used by OIDC. Mock endpoints are blocked by the production configuration
+guard; production must use an OIDC adapter and real key material.
 
 ## Production configuration
 

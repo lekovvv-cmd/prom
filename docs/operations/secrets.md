@@ -35,3 +35,22 @@ credentialed CORS, missing issuer/audience, legacy tokens, and noop antivirus.
 After rotation, inspect logs and `/metrics` for authentication errors, database
 pool failures, worker failures, and outbox age. Never log or paste a secret
 while troubleshooting.
+
+For Access, mount a generated PKCS#8 RSA private key into the container and run:
+
+```bash
+docker compose --profile full exec access-service \
+  python scripts/rotate_signing_key.py \
+  --kid 2026-07-primary \
+  --private-key-file /run/secrets/access-signing-key.pem
+```
+
+The prior key becomes verify-only and remains in JWKS during overlap. After the
+configured overlap is safely past:
+
+```bash
+docker compose --profile full exec access-service \
+  python scripts/rotate_signing_key.py --retire-expired
+```
+
+Never pass private PEM material directly on the command line or put it in Git.
