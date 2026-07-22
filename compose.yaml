@@ -94,7 +94,7 @@ x-service-desk-worker-healthcheck: &service-desk-worker-healthcheck
 services:
   access-db:
     image: postgres:17.6-alpine
-    profiles: ["core", "full"]
+    profiles: ["core", "full", "migration"]
     environment:
       POSTGRES_DB: prom_access
       POSTGRES_USER: prom_access
@@ -108,7 +108,7 @@ services:
 
   access-migrate:
     image: prom-access-service:local
-    profiles: ["core", "full"]
+    profiles: ["core", "full", "migration"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
       ACCESS_DB_POOL_SIZE: 1
@@ -167,9 +167,33 @@ services:
       access-seed: { condition: service_completed_successfully }
     restart: unless-stopped
 
+  access-identity-migrate:
+    image: prom-access-service:local
+    build:
+      context: .
+      dockerfile: apps/access-service/Dockerfile
+    profiles: ["migration"]
+    environment:
+      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
+      PROJECTS_DATABASE_URL: postgresql+psycopg://project_showcase:${PROJECTS_DB_PASSWORD:-project_showcase}@projects-db:5432/project_showcase
+      SERVICE_DESK_DATABASE_URL: postgresql+psycopg://service_desk:${SERVICE_DESK_DB_PASSWORD:-service_desk}@service-desk-db:5432/service_desk
+      IDENTITY_MIGRATION_REPORT_DIR: /workspace/backend/outputs/identity-migration
+      ACCESS_DB_POOL_SIZE: 1
+      ACCESS_DB_MAX_OVERFLOW: 0
+      ACCESS_DB_APPLICATION_NAME: prom-identity-migrate
+    volumes:
+      - ./outputs/identity-migration:/workspace/backend/outputs/identity-migration
+    depends_on:
+      access-migrate: { condition: service_completed_successfully }
+      projects-migrate: { condition: service_completed_successfully }
+      service-desk-migrate: { condition: service_completed_successfully }
+    entrypoint: ["python", "scripts/migrate_identities.py"]
+    command: ["--dry-run"]
+    restart: "no"
+
   projects-db:
     image: postgres:17.6-alpine
-    profiles: ["projects", "full"]
+    profiles: ["projects", "full", "migration"]
     environment:
       POSTGRES_DB: project_showcase
       POSTGRES_USER: project_showcase
@@ -186,7 +210,7 @@ services:
     build: &projects-build
       context: .
       dockerfile: apps/projects/backend/Dockerfile
-    profiles: ["projects", "full"]
+    profiles: ["projects", "full", "migration"]
     environment:
       <<: *projects-environment
       PROJECTS_DB_POOL_SIZE: 1
@@ -252,7 +276,7 @@ services:
 
   service-desk-db:
     image: postgres:17.6-alpine
-    profiles: ["service-desk", "full"]
+    profiles: ["service-desk", "full", "migration"]
     environment:
       POSTGRES_DB: service_desk
       POSTGRES_USER: service_desk
@@ -269,7 +293,7 @@ services:
     build: &service-desk-build
       context: .
       dockerfile: apps/service-desk/backend/Dockerfile
-    profiles: ["service-desk", "full"]
+    profiles: ["service-desk", "full", "migration"]
     environment:
       <<: *service-desk-environment
       SERVICE_DESK_DB_POOL_SIZE: 1

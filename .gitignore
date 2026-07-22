@@ -24,3 +24,8 @@ backend/storage/
 storage/uploads/
 .dev-*.log
 *.db
+apps/*/backend/storage/
+apps/*/backend/.quarantine/
+*.log
+docker-compose*.log
+outputs/identity-migration/

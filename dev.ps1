@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "down", "restart", "logs", "status", "reset", "test", "test-unit", "test-integration", "test-e2e", "generate-contracts", "architecture-check", "create-module")]
+    [ValidateSet("up", "down", "restart", "logs", "status", "reset", "test", "test-unit", "test-integration", "test-e2e", "generate-contracts", "architecture-check", "create-module", "migrate-identities")]
     [string]$Command = "up",
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -30,7 +30,7 @@ function Invoke-PromPython {
 
 Push-Location $RootDir
 try {
-    $DockerCommands = @("up", "down", "restart", "logs", "status", "reset", "test", "test-integration")
+    $DockerCommands = @("up", "down", "restart", "logs", "status", "reset", "test", "test-integration", "migrate-identities")
     if ($DockerCommands -contains $Command) {
         if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
             throw "Docker Desktop is required for '$Command'."
@@ -87,6 +87,12 @@ try {
         "create-module" {
             if ($Services.Count -ne 1) { throw "Usage: .\dev.cmd create-module <module-name>" }
             Invoke-PromPython tools/generators/create_module.py $Services[0]
+        }
+        "migrate-identities" {
+            if ($Services.Count -ne 1 -or $Services[0] -notin @("--dry-run", "--apply")) {
+                throw "Usage: .\dev.cmd migrate-identities {--dry-run|--apply}"
+            }
+            & docker compose --profile migration run --rm --build access-identity-migrate $Services[0]
         }
     }
 

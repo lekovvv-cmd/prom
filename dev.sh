@@ -6,14 +6,14 @@ COMMAND="${1:-up}"
 if [[ $# -gt 0 ]]; then shift; fi
 
 case "$COMMAND" in
-  up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module) ;;
-  *) printf 'Usage: ./dev.sh {up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module} [service]\n' >&2; exit 2 ;;
+  up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module|migrate-identities) ;;
+  *) printf 'Usage: ./dev.sh {up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module|migrate-identities} [args]\n' >&2; exit 2 ;;
 esac
 
 cd "$ROOT_DIR"
 
 case "$COMMAND" in
-  up|down|restart|logs|status|reset|test|test-integration)
+  up|down|restart|logs|status|reset|test|test-integration|migrate-identities)
     command -v docker >/dev/null 2>&1 || { printf 'Docker is required for %s.\n' "$COMMAND" >&2; exit 1; }
     docker info >/dev/null 2>&1 || { printf 'Docker is not running.\n' >&2; exit 1; }
     ;;
@@ -65,5 +65,12 @@ case "$COMMAND" in
   create-module)
     [[ $# -eq 1 ]] || { printf 'Usage: ./dev.sh create-module <module-name>\n' >&2; exit 2; }
     "$PROM_PYTHON" tools/generators/create_module.py "$1"
+    ;;
+  migrate-identities)
+    [[ $# -eq 1 && ( "$1" == "--dry-run" || "$1" == "--apply" ) ]] || {
+      printf 'Usage: ./dev.sh migrate-identities {--dry-run|--apply}\n' >&2
+      exit 2
+    }
+    docker compose --profile migration run --rm --build access-identity-migrate "$1"
     ;;
 esac
