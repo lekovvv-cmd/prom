@@ -4,7 +4,7 @@ import logging
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -37,6 +37,11 @@ ROOT_CATEGORIES = [
     "Практика: Организация и договоры",
     "Практика: Сопровождение",
 ]
+
+
+class DictionarySeed(TypedDict):
+    title: str
+    items: list[tuple[str, str]]
 
 SERVICES_BY_CATEGORY = {
     "Сопровождение учебного процесса": [
@@ -137,7 +142,7 @@ APPROVED_TEMPLATE_CATEGORY_BY_SERVICE = {
     "Получение со склада (кроме компьютерной техники)": "Административно-хозяйственное сопровождение",
 }
 
-DICTIONARIES = {
+DICTIONARIES: dict[str, DictionarySeed] = {
     "building_addresses": {
         "title": "Адреса корпусов",
         "items": [
