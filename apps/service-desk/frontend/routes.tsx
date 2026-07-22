@@ -15,7 +15,8 @@ import { Spinner } from "@prom/ui/Spinner";
 import { ServiceDeskAdminLayout } from "./widgets/service-desk-admin-layout/ui/ServiceDeskAdminLayout";
 import { ServiceDeskNotificationCenter } from "./widgets/service-desk-notifications/ui/ServiceDeskNotificationCenter";
 import { ServiceDeskContextualCounters } from "./widgets/service-desk-notifications/ui/ServiceDeskContextualCounters";
-import "./styles.css";
+import "@prom/ui/styles.css";
+import "./styles/index.css";
 
 const ServiceDeskAdminAccessPage = lazy(() =>
   import("./pages/service-desk-admin-access/ui/ServiceDeskAdminAccessPage").then(

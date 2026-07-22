@@ -1,0 +1,263 @@
+.approval-stage-marker {
+  @apply grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--c-116);
+  background: var(--accent-dark);
+  font-size: 13px;
+  @apply font-bold;
+}
+
+.approval-stage-content {
+  @apply grid gap-3 min-w-0;
+}
+
+.approval-stage-header h4 {
+  margin: 0 0 3px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.approval-stage-header span {
+  color: var(--muted);
+  @apply text-xs;
+}
+
+.approval-person-list {
+  @apply grid;
+  gap: 7px;
+}
+
+.approval-person-list li {
+  @apply grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.approval-person-icon {
+  @apply grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.approval-person-list li > div {
+  @apply grid;
+  gap: 2px;
+}
+
+.approval-person-list strong {
+  font-size: 13px;
+}
+
+.approval-person-list span,
+.approval-person-list p {
+  @apply m-0;
+  color: var(--muted);
+  @apply text-xs;
+  line-height: 1.4;
+}
+
+.approval-person-list p {
+  margin-top: 4px;
+  padding: 7px 9px;
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-alt);
+}
+
+.approval-action-panel {
+  padding: 13px;
+  border: 1px solid var(--c-117);
+  @apply rounded-md;
+  background: var(--accent-soft);
+}
+
+.approval-action-panel > div:first-child {
+  @apply grid;
+  gap: 3px;
+}
+
+.approval-action-panel strong {
+  color: var(--c-003);
+  @apply text-sm;
+}
+
+.approval-action-panel span {
+  color: var(--c-023);
+  @apply text-xs;
+}
+
+.service-desk-field-list {
+  @apply grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  @apply gap-2.5;
+  margin: 14px 0 0;
+}
+
+.service-desk-field-list > div {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-alt);
+}
+
+.service-desk-field-list dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.service-desk-field-list dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  @apply text-sm;
+}
+
+.service-desk-history {
+  @apply grid;
+  gap: 0;
+  margin-top: 14px;
+}
+
+.service-desk-history li {
+  @apply grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  @apply gap-3;
+  padding: 11px 0;
+  border-top: 1px solid var(--border);
+}
+
+.service-desk-history li > span {
+  color: var(--muted);
+  @apply text-xs;
+}
+
+.service-desk-history li > div {
+  @apply grid gap-1;
+}
+
+.service-desk-history strong {
+  font-size: 13px;
+}
+
+.service-desk-history p {
+  @apply m-0;
+  color: var(--muted);
+  @apply text-xs;
+}
+
+.service-desk-comments,
+.service-desk-comment-form,
+.service-desk-comment-list {
+  @apply grid;
+  gap: 13px;
+}
+
+.service-desk-comment-list {
+  @apply m-0 p-0 list-none;
+}
+
+.service-desk-comment-list li {
+  padding: 11px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--surface-alt);
+}
+
+.service-desk-comment-list li.service-desk-comment-internal {
+  border-color: var(--c-059);
+  background: var(--c-106);
+}
+
+.service-desk-comment-meta,
+.service-desk-comment-visibility {
+  @apply flex;
+  gap: 7px;
+  @apply items-center flex-wrap;
+}
+
+.service-desk-comment-meta strong {
+  font-size: 13px;
+}
+
+.service-desk-comment-meta > span,
+.service-desk-comment-list p,
+.service-desk-comment-list > span {
+  @apply text-xs;
+}
+
+.service-desk-comment-meta > span,
+.service-desk-comment-list > span {
+  color: var(--muted);
+}
+
+.service-desk-comment-visibility {
+  color: var(--c-033);
+  @apply font-bold;
+}
+
+.service-desk-comment-list p {
+  margin: 8px 0 0;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.service-desk-routing-page-actions,
+.service-desk-routing-card-heading,
+.service-desk-routing-rule-actions,
+.service-desk-routing-condition,
+.service-desk-routing-check {
+  @apply flex gap-2 items-center;
+}
+
+.service-desk-sla-sections {
+  @apply grid;
+  gap: 30px;
+}
+
+.service-desk-sla-section {
+  @apply grid gap-4;
+}
+
+.service-desk-sla-workflow {
+  @apply grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  @apply gap-2.5 m-0;
+  padding: 14px;
+  @apply list-none;
+  border: 1px solid var(--c-057);
+  border-radius: 12px;
+  background: var(--c-102);
+}
+
+.service-desk-sla-workflow li {
+  @apply grid;
+  gap: 3px;
+  @apply min-w-0;
+  padding: 2px 10px;
+  border-left: 2px solid var(--c-041);
+}
+
+.service-desk-sla-workflow strong {
+  color: var(--text);
+}
+
+.service-desk-sla-workflow span,
+.service-desk-sla-section-heading p {
+  @apply m-0;
+  color: var(--muted);
+  @apply text-sm;
+  line-height: 1.4;
+}
+
+.service-desk-sla-section-heading {
+  @apply flex items-start justify-between gap-4;
+}

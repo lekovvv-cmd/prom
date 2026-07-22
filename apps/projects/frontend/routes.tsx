@@ -3,8 +3,8 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useAuth } from "@prom/auth";
 import { Spinner } from "@prom/ui/Spinner";
-import "./platform-foundation.css";
-import "./styles.css";
+import "@prom/ui/styles.css";
+import "./styles/index.css";
 const AdminProjectManagePage = lazy(() =>
   import("./pages/admin-project-manage/ui/AdminProjectManagePage").then(
     (module) => ({ default: module.AdminProjectManagePage }),

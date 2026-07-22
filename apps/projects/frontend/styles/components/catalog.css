@@ -1,0 +1,189 @@
+.card-topline {
+  @apply flex items-center;
+}
+
+.filters {
+  @apply grid;
+  grid-template-columns: 1.3fr repeat(3, minmax(170px, 0.8fr));
+  @apply gap-3;
+  margin-bottom: 22px;
+  align-items: start;
+}
+
+.card-topline {
+  gap: 7px;
+  @apply flex-wrap;
+}
+
+.side-list dt {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.side-list dd {
+  @apply m-0;
+  color: var(--text);
+  @apply text-sm;
+  line-height: 1.42;
+}
+
+.details-heading p {
+  @apply m-0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.side-list {
+  @apply grid;
+  gap: 13px;
+  @apply m-0;
+}
+
+.details-heading h2 {
+  @apply m-0;
+  color: var(--c-002);
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.details-heading {
+  @apply grid gap-3;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--accent);
+  @apply rounded-md;
+  background: var(--c-116);
+}
+
+.details-heading h2 {
+  font-size: clamp(30px, 4vw, 44px);
+}
+
+.task-status-todo {
+  color: var(--muted-strong);
+  background: var(--surface-alt);
+}
+
+.task-status-in_progress {
+  color: var(--info);
+  background: var(--c-085);
+  border-color: var(--c-052);
+}
+
+.task-status-done {
+  color: var(--success);
+  background: var(--c-077);
+  border-color: var(--c-051);
+}
+
+.task-status-cancelled {
+  color: var(--danger);
+  background: var(--c-111);
+  border-color: var(--c-097);
+}
+
+@media (max-width: 1220px) {
+}
+
+@media (max-width: 980px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+}
+
+@media (max-width: 980px) {
+}
+
+@media (max-width: 620px) {
+}
+
+@media (max-width: 620px) {
+}
+
+.details-heading h2 {
+  font-weight: 650;
+}
+
+.filters {
+  @apply gap-2.5;
+}
+
+.side-list dt {
+  font-weight: 620;
+}
+
+.details-heading h2 {
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 650;
+}
+
+@media (max-width: 1180px) {
+}
+
+/* Module-local styles split from the former shell global layer. New UI should use Tailwind utilities and shared primitives. */
+.project-card-meta dd {
+  @apply flex items-center;
+}
+
+.button-primary {
+  color: var(--c-116);
+  background: var(--accent-dark);
+}
+
+.button-primary:hover {
+  background: var(--c-006);
+}
+
+.showcase-layout {
+  @apply grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  @apply gap-5;
+  align-items: start;
+}
+
+.filter-rail,
+.project-stream {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  @apply rounded-md;
+}
+
+.filter-rail {
+  @apply sticky;
+  top: 98px;
+}
+
+.filter-rail {
+  @apply grid;
+  gap: 18px;
+  padding: 16px;
+}
+
+.my-projects-filters {
+  grid-template-columns: minmax(240px, 1.4fr) repeat(2, minmax(180px, 0.8fr));
+}
+
+.my-projects-stream {
+  padding: 16px;
+}
+
+.view-tabs {
+  @apply inline-flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--surface-alt);
+}
+
+.view-tabs .button {
+  min-height: 34px;
+}

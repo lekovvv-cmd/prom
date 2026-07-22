@@ -1,0 +1,264 @@
+.report-status {
+  @apply inline-flex;
+  gap: 7px;
+  @apply items-center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--c-049);
+  @apply rounded-full;
+  color: var(--success);
+  background: var(--c-072);
+  font-size: 13px;
+  font-weight: 650;
+  @apply whitespace-nowrap;
+}
+
+.report-status-muted {
+  color: var(--muted-strong);
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+.report-admin-form {
+  @apply grid;
+  grid-template-columns:
+    minmax(260px, 1.4fr) repeat(2, minmax(150px, 0.7fr))
+    auto;
+  @apply gap-2.5;
+  align-items: end;
+}
+
+.report-active-period {
+  @apply flex;
+  gap: 14px;
+  @apply items-center justify-between;
+  padding: 12px;
+  border: 1px solid var(--c-125);
+  @apply rounded-md;
+  background: var(--accent-soft);
+}
+
+.report-active-period div {
+  @apply grid;
+  gap: 2px;
+}
+
+.report-active-period strong {
+  font-size: 15px;
+}
+
+.report-active-period span {
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.report-submissions {
+  @apply grid gap-3;
+}
+
+.report-list {
+  @apply grid gap-2;
+}
+
+.report-list-item {
+  @apply grid;
+  grid-template-columns: 240px minmax(0, 1fr) 130px;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-116);
+}
+
+.report-list-item div {
+  @apply grid;
+  gap: 2px;
+}
+
+.report-list-item strong,
+.report-list-item span,
+.report-list-item small,
+.report-list-item p {
+  @apply min-w-0;
+}
+
+.report-list-item strong {
+  @apply text-sm;
+}
+
+.report-list-item span,
+.report-list-item small,
+.report-list-item time {
+  color: var(--muted);
+  @apply text-xs;
+  line-height: 1.35;
+}
+
+.report-list-item p {
+  @apply m-0;
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.project-candidates-section {
+  @apply min-w-0;
+}
+
+.candidate-filters {
+  @apply grid;
+  grid-template-columns: minmax(220px, 1.3fr) repeat(3, minmax(150px, 0.9fr));
+  @apply gap-2.5;
+  margin-bottom: 14px;
+  align-items: start;
+}
+
+.candidate-list {
+  @apply grid gap-2.5;
+}
+
+.candidate-row {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-116);
+}
+
+.candidate-main {
+  @apply grid;
+  gap: 6px;
+  @apply min-w-0;
+}
+
+.candidate-main strong {
+  font-size: 15px;
+}
+
+.candidate-main span,
+.candidate-main p {
+  @apply m-0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.candidate-side {
+  @apply grid;
+  gap: 6px;
+  align-content: start;
+  justify-items: start;
+}
+
+.candidate-side span {
+  color: var(--muted-strong);
+  @apply text-xs;
+  font-weight: 650;
+}
+
+.candidate-score {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--c-125);
+  @apply rounded-full;
+  color: var(--c-003);
+  background: var(--accent-soft);
+  @apply text-lg;
+  font-weight: 800;
+}
+
+.details-section {
+  @apply grid gap-2;
+}
+
+.details-section + .details-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.task-list {
+  @apply grid;
+  gap: 7px;
+  @apply m-0 p-0 list-none;
+  counter-reset: task;
+}
+
+.task-list li {
+  @apply grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  color: var(--muted-strong);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.task-list li::before {
+  counter-increment: task;
+  content: counter(task);
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  @apply rounded-full;
+  color: var(--c-003);
+  background: var(--accent-soft);
+  @apply text-xs;
+  font-weight: 650;
+}
+
+.member-list {
+  @apply grid gap-2.5 m-0 p-0 list-none;
+}
+
+.member-list li {
+  @apply grid;
+  gap: 2px;
+}
+
+.member-list span {
+  color: var(--muted);
+  @apply text-sm;
+}
+
+.form-grid {
+  @apply grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  @apply gap-3;
+}
+
+.form-grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.form-success {
+  @apply m-0 rounded;
+  padding: 10px 12px;
+  font-weight: 760;
+}
+
+.form-success {
+  color: var(--success);
+  background: var(--c-072);
+  border: 1px solid var(--c-049);
+}
+
+.form-success-card {
+  @apply grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  @apply gap-2.5;
+  align-items: start;
+  padding: 13px 14px;
+  border-left: 4px solid var(--success);
+}
+
+.form-success-card svg {
+  margin-top: 1px;
+  color: var(--success);
+}

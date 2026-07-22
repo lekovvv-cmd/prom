@@ -1,0 +1,267 @@
+.service-desk-routing-form-card {
+  @apply sticky;
+  top: 18px;
+}
+
+.service-desk-routing-list,
+.service-desk-routing-form,
+.service-desk-routing-form-section {
+  @apply grid;
+  gap: 14px;
+}
+
+.service-desk-routing-card-heading {
+  @apply justify-between items-start gap-3;
+}
+
+.service-desk-routing-card-heading h2,
+.service-desk-routing-card-heading h3 {
+  @apply m-0;
+}
+
+.service-desk-routing-card-heading h2 {
+  font-size: 17px;
+}
+
+.service-desk-routing-card-heading h3 {
+  @apply text-sm;
+}
+
+.service-desk-routing-card-heading p {
+  max-width: 430px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  @apply text-xs;
+  line-height: 1.45;
+}
+
+.service-desk-routing-form-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.service-desk-routing-form > .form-actions,
+.service-desk-routing-rule-card > .form-actions {
+  @apply flex flex-wrap items-center gap-2.5;
+  margin-top: 4px;
+}
+
+.service-desk-routing-form > .form-actions {
+  padding-top: 8px;
+}
+
+.service-desk-routing-form > .form-actions .button,
+.service-desk-routing-rule-card > .form-actions .button {
+  min-height: 40px;
+}
+
+.service-desk-routing-check {
+  color: var(--text);
+  font-size: 13px;
+  @apply font-semibold;
+}
+
+.service-desk-routing-check input {
+  width: 16px;
+  height: 16px;
+}
+
+.service-desk-routing-condition-list {
+  @apply grid gap-2;
+}
+
+.service-desk-routing-condition {
+  @apply grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(100px, 1fr) auto;
+  align-items: end;
+  padding: 9px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--surface-alt);
+}
+
+.service-desk-routing-condition-with-key {
+  grid-template-columns:
+    minmax(110px, 0.7fr) minmax(100px, 0.65fr) minmax(100px, 1fr)
+    auto;
+}
+
+.service-desk-routing-condition .field {
+  @apply min-w-0;
+}
+
+.service-desk-routing-rule-card {
+  @apply grid;
+  gap: 15px;
+}
+
+.service-desk-routing-priority {
+  @apply inline-flex items-center;
+  min-height: 24px;
+  padding: 2px 8px;
+  @apply rounded-full;
+  color: var(--c-018);
+  background: var(--c-073);
+  @apply text-xs font-bold;
+}
+
+.service-desk-routing-rule-summary {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  @apply gap-3;
+}
+
+.service-desk-routing-rule-summary > div {
+  padding: 10px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--surface-alt);
+}
+
+.service-desk-routing-rule-summary span {
+  color: var(--muted);
+  font-size: 11px;
+  @apply font-bold;
+  text-transform: uppercase;
+}
+
+.service-desk-routing-rule-summary p,
+.service-desk-routing-rule-summary ul {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.service-desk-routing-rule-summary ul {
+  @apply grid;
+  gap: 3px;
+  padding-left: 18px;
+}
+
+@media (max-width: 1000px) {
+  .service-desk-ticket-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-ticket-side {
+    position: static;
+  }
+
+  .service-desk-routing-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-routing-form-card {
+    position: static;
+  }
+}
+
+@media (max-width: 620px) {
+  .service-desk-section-heading,
+  .approval-stage-header,
+  .approval-action-panel {
+    @apply items-start;
+    flex-direction: column;
+  }
+
+  .service-desk-field-list {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-history li {
+    grid-template-columns: 1fr;
+    @apply gap-1;
+  }
+
+  .service-desk-routing-page-actions,
+  .service-desk-routing-card-heading,
+  .service-desk-routing-rule-actions {
+    @apply items-start flex-wrap;
+  }
+
+  .service-desk-routing-condition,
+  .service-desk-routing-condition-with-key,
+  .service-desk-routing-rule-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metric-grid {
+  @apply grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  @apply gap-3;
+  margin: 16px 0;
+}
+
+.metric-value {
+  @apply block;
+  font-size: 2rem;
+  margin-top: 8px;
+}
+
+.approval-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  @apply gap-4;
+  margin: 16px 0 0;
+}
+
+.approval-metric {
+  @apply flex;
+  flex-direction: column;
+  @apply items-start justify-between gap-3;
+  min-height: 108px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--color-surface-muted, var(--c-101));
+}
+
+.approval-metric > span {
+  color: var(--muted-strong, var(--c-029));
+  line-height: 1.4;
+}
+
+.approval-metric .metric-value {
+  @apply m-0;
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+  line-height: 1.2;
+}
+
+.dashboard-grid {
+  @apply grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  @apply gap-4;
+}
+
+.dashboard-analytics {
+  @apply grid;
+  gap: 32px;
+}
+
+.dashboard-analytics > * {
+  @apply min-w-0;
+}
+
+.dashboard-analytics > .metric-grid {
+  @apply m-0;
+}
+
+.stats-bars {
+  @apply grid gap-2.5;
+  margin-top: 14px;
+}
+
+.stats-bar {
+  @apply grid;
+  grid-template-areas: "label count" "bar bar";
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  @apply items-center;
+}
+
+.stats-bar > span {
+  grid-area: label;
+  @apply min-w-0;
+  overflow-wrap: anywhere;
+}

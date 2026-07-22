@@ -1,0 +1,12 @@
+/* Tailwind handles simple layout and state; these layers contain complex component rules. */
+@reference "../../../platform-shell/src/app/styles/globals.css";
+@import "./theme.css";
+@import "./components/notifications.css";
+@import "./components/ticket.css";
+@import "./components/approvals.css";
+@import "./components/sla.css";
+@import "./components/routing.css";
+@import "./components/catalog.css";
+@import "./components/workbench.css";
+@import "./components/access.css";
+@import "./components/responsive.css";

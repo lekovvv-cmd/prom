@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./core.css": "./src/core.css",
     "./styles.css": "./src/styles.css",
     "./*": "./src/*.tsx"
   },

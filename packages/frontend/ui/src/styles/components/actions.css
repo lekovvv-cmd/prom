@@ -1,0 +1,241 @@
+.button,
+.table-actions {
+  @apply flex items-center;
+}
+
+.page {
+  width: min(1480px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 38px 0 56px;
+}
+
+.page-title-row {
+  @apply flex justify-between gap-6 items-end;
+  margin-bottom: 26px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.page h1 {
+  @apply m-0;
+  color: var(--c-002);
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.page-title-row p {
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  @apply text-base;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.page-actions {
+  @apply flex gap-2.5 flex-wrap;
+}
+
+.button {
+  @apply justify-center gap-2;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  @apply rounded cursor-pointer text-sm;
+  font-weight: 760;
+  line-height: 1;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease;
+}
+
+.button:disabled {
+  @apply cursor-not-allowed;
+  opacity: 0.62;
+}
+
+.button-secondary {
+  color: var(--c-002);
+  background: var(--accent-soft);
+  border-color: var(--c-127);
+}
+
+.button-secondary:hover {
+  background: var(--c-062);
+  border-color: var(--accent);
+}
+
+.button-ghost {
+  color: var(--muted-strong);
+  @apply bg-transparent;
+}
+
+.button-ghost:hover {
+  color: var(--c-002);
+  background: var(--surface-alt);
+}
+
+.button-danger {
+  color: var(--c-116);
+  background: var(--danger);
+}
+
+.card,
+.form-panel,
+.table-wrap,
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  @apply rounded-md;
+}
+
+.field {
+  @apply grid;
+  gap: 7px;
+  color: var(--muted-strong);
+  @apply text-xs;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.field input,
+.field textarea,
+.field select {
+  @apply w-full;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  @apply rounded;
+  padding: 9px 11px;
+  color: var(--text);
+  background: var(--c-116);
+  outline: none;
+  text-transform: none;
+}
+
+.select-control {
+  @apply relative block min-w-0;
+}
+
+.select-control select {
+  padding-right: 38px;
+}
+
+.field select:not([multiple]) {
+  appearance: none;
+  padding-right: 42px;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m1 1 5 5 5-5' stroke='%23101828' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 12px 8px;
+}
+
+.select-control:has(.select-clear) select:not([multiple]) {
+  padding-right: 72px;
+  background-position: right 46px center;
+}
+
+.select-clear {
+  @apply absolute;
+  right: 6px;
+  top: 50%;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  @apply rounded;
+  color: var(--muted-strong);
+  @apply bg-transparent;
+  transform: translateY(-50%);
+}
+
+.select-clear:hover,
+.select-clear:focus-visible {
+  color: var(--c-002);
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+.searchable-select {
+  @apply min-w-0;
+}
+
+.searchable-select-control {
+  @apply relative min-w-0;
+}
+
+.searchable-select-control input {
+  padding-right: 38px;
+}
+
+.searchable-select-menu {
+  @apply absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 35;
+  @apply grid;
+  max-height: 300px;
+  @apply overflow-auto;
+  border: 1px solid var(--border-strong);
+  @apply rounded-md;
+  background: var(--c-116);
+  box-shadow: var(--shadow);
+}
+
+.searchable-select-option {
+  min-height: 38px;
+  @apply border-0;
+  border-bottom: 1px solid var(--border);
+  padding: 9px 11px;
+  color: var(--text);
+  background: var(--c-116);
+  @apply cursor-pointer text-left;
+  text-transform: none;
+}
+
+.searchable-select-option:hover,
+.searchable-select-option.active,
+.searchable-select-option[aria-selected="true"] {
+  color: var(--c-003);
+  background: var(--accent-soft);
+}
+
+.searchable-select-empty,
+.searchable-select-hint {
+  padding: 10px 11px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: none;
+}
+
+.searchable-select-hint {
+  background: var(--surface-alt);
+}
+
+.field textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--c-121);
+}
+
+.card {
+  padding: 18px;
+  box-shadow: none;
+}
+
+.card p,
+.muted {
+  @apply m-0;
+  color: var(--muted);
+  line-height: 1.55;
+}

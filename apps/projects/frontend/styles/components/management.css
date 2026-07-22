@@ -1,0 +1,263 @@
+.project-counter-strip {
+  @apply grid;
+  grid-template-columns: repeat(3, minmax(110px, 150px));
+  @apply gap-2;
+  margin: -4px 0 16px;
+}
+
+.project-counter-strip div {
+  @apply grid gap-1;
+  min-height: 64px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  @apply rounded-md;
+  background: var(--c-116);
+}
+
+.project-counter-strip span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.project-counter-strip strong {
+  color: var(--c-002);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.filter-rail .filters {
+  grid-template-columns: 1fr;
+  @apply gap-3;
+  margin-bottom: 0;
+}
+
+.competency-filter-field {
+  @apply grid;
+  grid-column: 1 / -1;
+  @apply gap-2 min-w-0;
+  align-self: start;
+}
+
+.competency-filter-field .field {
+  max-width: 540px;
+}
+
+.filter-rail .competency-filter-field {
+  grid-column: auto;
+}
+
+.filter-rail .competency-filter-field .field {
+  max-width: none;
+}
+
+.project-stream {
+  @apply min-w-0;
+  padding: 16px;
+}
+
+.stream-toolbar {
+  @apply flex justify-between gap-4 items-center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stream-toolbar div {
+  @apply flex gap-2;
+  align-items: baseline;
+}
+
+.stream-toolbar strong {
+  color: var(--c-002);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.recommendation-panel {
+  @apply grid gap-3;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--c-124);
+  border-left: 4px solid var(--accent);
+  @apply rounded-md;
+  background: linear-gradient(180deg, var(--c-116), var(--c-104));
+}
+
+.recommendation-panel h2 {
+  @apply m-0 text-lg;
+  line-height: 1.2;
+}
+
+.recommendation-list {
+  @apply grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  @apply gap-2.5;
+}
+
+.recommendation-card {
+  @apply grid;
+  gap: 7px;
+  min-height: 126px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-116);
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.recommendation-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.recommendation-card strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.recommendation-reason,
+.recommendation-score {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.recommendation-score {
+  color: var(--accent-dark);
+  @apply font-bold;
+}
+
+.project-list {
+  @apply grid gap-2.5;
+}
+
+.project-card {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  @apply p-0 overflow-hidden;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.project-card-selected {
+  border-color: var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.project-card-main {
+  @apply grid;
+  gap: 7px;
+  @apply w-full;
+  padding: 16px 18px;
+  @apply border-0 bg-transparent cursor-pointer text-left;
+}
+
+.project-card-main:hover .project-card-title {
+  color: var(--accent-dark);
+}
+
+.project-card-title {
+  color: var(--c-002);
+  font-size: 19px;
+  font-weight: 820;
+  line-height: 1.18;
+}
+
+.project-card-description,
+.project-card-goal {
+  @apply block;
+  color: var(--muted);
+  @apply text-sm;
+  line-height: 1.45;
+}
+
+.project-card-goal {
+  color: var(--muted-strong);
+}
+
+.project-card-meta {
+  @apply grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  @apply m-0;
+  padding: 13px 0;
+  border-top: 1px solid var(--border);
+  border-left: 0;
+  background: var(--c-108);
+}
+
+.project-card-meta div {
+  padding: 0 16px;
+}
+
+.project-card-meta dt {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.project-card-meta dd {
+  @apply m-0;
+  color: var(--text);
+  @apply text-sm;
+  line-height: 1.42;
+}
+
+.project-card-meta dd {
+  gap: 6px;
+}
+
+.summary-kicker {
+  color: var(--accent-dark);
+  @apply text-xs;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.badge-success {
+  color: var(--c-011);
+  background: var(--c-072);
+  border-color: var(--c-049);
+}
+
+.badge-info {
+  color: var(--c-019);
+  background: var(--c-084);
+  border-color: var(--c-054);
+}
+
+.badge-danger {
+  color: var(--c-042);
+  background: var(--c-109);
+  border-color: var(--c-096);
+}
+
+.details-layout {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  @apply gap-5;
+  align-items: start;
+}
+
+.details-main,
+.details-side {
+  @apply grid;
+  gap: 14px;
+}
+
+.project-management-page {
+  @apply grid;
+  gap: 18px;
+}

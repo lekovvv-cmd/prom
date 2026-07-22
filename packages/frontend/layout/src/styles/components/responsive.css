@@ -1,0 +1,80 @@
+@media (max-width: 760px) {
+  .brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .brand-copy {
+    @apply hidden;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-auth {
+    display: contents;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-auth-actions {
+    grid-column: 2;
+    grid-row: 1;
+    @apply min-w-0;
+    gap: 2px;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-auth-actions .user-chip {
+    max-width: none;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-auth-actions .user-chip span,
+  .header-auth-actions .user-chip small {
+    @apply hidden;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-auth-actions > .button {
+    min-height: 36px;
+    padding: 8px;
+    font-size: 0;
+    gap: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-auth-actions > .button svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-tools {
+    grid-column: 1;
+    grid-row: 2;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-auth .module-switcher {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 760px) {
+  .main-nav {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}

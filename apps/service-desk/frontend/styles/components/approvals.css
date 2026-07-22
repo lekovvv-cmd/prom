@@ -1,0 +1,264 @@
+.service-desk-sla-help {
+  @apply relative;
+  flex: 0 0 auto;
+}
+
+.service-desk-sla-help summary {
+  @apply grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--color-primary, var(--c-007));
+  @apply cursor-pointer list-none;
+  border: 1px solid var(--c-046);
+  border-radius: 50%;
+  background: var(--c-110);
+}
+
+.service-desk-sla-help summary::-webkit-details-marker {
+  @apply hidden;
+}
+
+.service-desk-sla-help[open] summary {
+  background: var(--accent-soft);
+}
+
+.service-desk-sla-help p {
+  @apply absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(350px, calc(100vw - 52px));
+  @apply m-0;
+  padding: 12px;
+  color: var(--text);
+  @apply text-sm;
+  line-height: 1.45;
+  border: 1px solid var(--c-046);
+  border-radius: 10px;
+  background: var(--c-110);
+  box-shadow: 0 10px 24px var(--c-144);
+}
+
+.service-desk-sla-section-heading h2,
+.service-desk-sla-card-heading h2,
+.service-desk-sla-card-heading h3 {
+  margin: 4px 0 0;
+}
+
+.service-desk-sla-layout {
+  @apply grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  @apply gap-5;
+  align-items: start;
+}
+
+.service-desk-sla-editor-card,
+.service-desk-sla-summary-card {
+  @apply min-w-0;
+}
+
+.service-desk-sla-card-heading {
+  @apply flex justify-between gap-4 items-start;
+}
+
+.service-desk-sla-card-heading p {
+  margin: 6px 0 0;
+}
+
+.service-desk-sla-form,
+.service-desk-sla-form-section,
+.service-desk-sla-row-list,
+.service-desk-sla-entity-list {
+  @apply grid;
+  gap: 14px;
+}
+
+.service-desk-sla-form {
+  margin-top: 18px;
+}
+
+.service-desk-sla-form-section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.service-desk-sla-form-section h3 {
+  @apply m-0;
+}
+
+.service-desk-sla-form-section p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.service-desk-sla-form-grid {
+  @apply grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  @apply gap-3;
+}
+
+.service-desk-sla-form-grid > * {
+  @apply min-w-0;
+}
+
+.service-desk-sla-timezone-field {
+  @apply grid;
+  gap: 6px;
+}
+
+.service-desk-sla-timezone-field p,
+.service-desk-sla-inline-hint {
+  @apply m-0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.service-desk-sla-advanced-settings {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-alt);
+}
+
+.service-desk-sla-advanced-settings summary {
+  @apply flex items-center justify-between gap-4;
+  padding: 14px 16px;
+  color: var(--text);
+  @apply cursor-pointer list-none;
+}
+
+.service-desk-sla-advanced-settings summary::-webkit-details-marker {
+  @apply hidden;
+}
+
+.service-desk-sla-advanced-settings summary > span:first-child {
+  @apply grid;
+  gap: 3px;
+}
+
+.service-desk-sla-advanced-settings summary small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.service-desk-sla-advanced-action {
+  flex: 0 0 auto;
+  color: var(--color-primary, var(--c-007));
+  @apply text-sm font-semibold;
+}
+
+.service-desk-sla-advanced-settings[open] {
+  background: var(--c-110);
+}
+
+.service-desk-sla-advanced-settings[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.service-desk-sla-advanced-settings[open] .service-desk-sla-advanced-action {
+  color: var(--muted);
+}
+
+.service-desk-sla-advanced-content {
+  padding: 0 16px 16px;
+}
+
+.service-desk-sla-advanced-section {
+  margin-top: 0;
+}
+
+.service-desk-sla-interval-row,
+.service-desk-sla-condition-row,
+.service-desk-sla-exception-row {
+  @apply grid gap-2.5;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-alt);
+}
+
+.service-desk-sla-interval-row {
+  grid-template-columns:
+    minmax(150px, 1fr) repeat(2, minmax(110px, 0.65fr))
+    auto;
+}
+
+.service-desk-sla-condition-row {
+  grid-template-columns: minmax(170px, 0.9fr) minmax(180px, 1.2fr) auto;
+}
+
+.service-desk-sla-condition-row.is-field-value {
+  grid-template-columns:
+    minmax(160px, 0.8fr) minmax(130px, 0.8fr) minmax(170px, 1fr)
+    auto;
+}
+
+.service-desk-sla-exception-row {
+  grid-template-columns:
+    minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(180px, 1fr)
+    auto;
+}
+
+.service-desk-sla-exception-row.is-custom {
+  grid-template-columns:
+    minmax(145px, 0.8fr) minmax(145px, 0.8fr) repeat(2, minmax(105px, 0.6fr))
+    minmax(170px, 1fr) auto;
+}
+
+.service-desk-sla-check-list {
+  @apply flex flex-wrap;
+  gap: 10px 18px;
+}
+
+.service-desk-sla-summary-card ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 1100px) {
+  .service-desk-sla-workflow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .service-desk-sla-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-sla-exception-row.is-custom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .service-desk-sla-workflow {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-sla-form-grid,
+  .service-desk-sla-interval-row,
+  .service-desk-sla-condition-row,
+  .service-desk-sla-condition-row.is-field-value,
+  .service-desk-sla-exception-row,
+  .service-desk-sla-exception-row.is-custom {
+    grid-template-columns: 1fr;
+  }
+
+  .service-desk-sla-card-heading {
+    flex-direction: column;
+  }
+
+  .service-desk-sla-advanced-settings summary {
+    @apply items-start;
+  }
+}
+
+.service-desk-routing-layout {
+  @apply grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+  @apply gap-4;
+  align-items: start;
+}

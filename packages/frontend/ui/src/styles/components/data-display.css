@@ -1,0 +1,261 @@
+.field {
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.field input,
+.field textarea,
+.field select {
+  min-height: 38px;
+  border-radius: 5px;
+  @apply text-sm;
+}
+
+.field input:not([type="checkbox"]):not([type="radio"]),
+.field select {
+  height: 42px;
+  min-height: 42px;
+}
+
+.card,
+.form-panel {
+  padding: 14px;
+}
+
+.badge {
+  min-height: 22px;
+  font-weight: 620;
+}
+
+.file-input {
+  @apply grid gap-2;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  @apply rounded-md;
+  background: var(--c-108);
+}
+
+.file-input-trigger {
+  @apply relative grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 10px;
+  @apply items-center;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-128);
+  border-radius: 5px;
+  background: var(--c-116);
+  color: var(--c-003);
+  @apply cursor-pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.file-input-trigger:hover,
+.file-input-trigger:focus-within {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--c-120);
+}
+
+.file-input-trigger > svg {
+  grid-row: 1 / span 2;
+}
+
+.file-input-trigger > span {
+  @apply inline-flex items-center text-sm;
+  font-weight: 650;
+}
+
+.file-input-trigger small {
+  color: var(--muted);
+  @apply text-xs;
+  line-height: 1.25;
+}
+
+.file-input-control {
+  @apply absolute;
+  inset: 0;
+  @apply w-full;
+  opacity: 0;
+  @apply cursor-pointer;
+}
+
+.file-input-empty {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.file-selection-list {
+  @apply grid;
+  gap: 6px;
+  @apply m-0 p-0 list-none;
+}
+
+.file-selection-list li {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  @apply gap-2.5 items-center;
+  min-height: 38px;
+  padding: 7px 8px 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--c-116);
+}
+
+.file-selection-list li > span {
+  @apply grid;
+  gap: 2px;
+  @apply min-w-0;
+}
+
+.file-selection-list strong {
+  @apply overflow-hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  @apply whitespace-nowrap;
+}
+
+.file-selection-list small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.file-selection-list button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--muted-strong);
+  background: var(--c-116);
+}
+
+.file-selection-list button:hover,
+.file-selection-list button:focus-visible {
+  border-color: var(--c-087);
+  color: var(--c-037);
+  background: var(--c-112);
+}
+
+@media (max-width: 720px) {
+  .page {
+    width: min(100% - 24px, 1540px);
+    padding-top: 18px;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-title-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.button-primary {
+  color: var(--surface);
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.button-primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.button-sm,
+.button-compact {
+  min-height: 32px;
+  padding-inline: 10px;
+  font-size: 13px;
+}
+
+.button-lg {
+  min-height: 44px;
+  padding-inline: 18px;
+  font-size: 15px;
+}
+
+.button-loading {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+.badge-danger {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--border));
+}
+
+.badge-info {
+  color: var(--info);
+  background: color-mix(in srgb, var(--info) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--info) 28%, var(--border));
+}
+
+.badge-success {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border));
+}
+
+.badge-compact {
+  min-height: 20px;
+  padding-inline: 6px;
+  font-size: 11px;
+}
+
+.card-elevated {
+  box-shadow: var(--shadow);
+}
+
+.card-outlined {
+  box-shadow: none;
+}
+
+.card-compact {
+  padding: 10px;
+}
+
+.checkbox-field,
+.switch-field {
+  @apply inline-flex items-center;
+  gap: 9px;
+  color: var(--text);
+  @apply text-sm cursor-pointer;
+}
+
+.checkbox-control {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  @apply rounded;
+  color: var(--surface);
+  background: var(--surface);
+}
+
+.checkbox-control[data-state="checked"],
+.checkbox-control[data-state="indeterminate"] {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
+}
+
+.switch-control {
+  @apply relative;
+  width: 38px;
+  height: 22px;
+  @apply border-0 rounded-full;
+  background: var(--border-strong);
+}
+
+.switch-control[data-state="checked"] {
+  background: var(--accent-dark);
+}

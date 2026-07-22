@@ -1,0 +1,256 @@
+.stats-bar > strong {
+  grid-area: count;
+  min-width: 2ch;
+  text-align: right;
+}
+
+.stats-bar div {
+  grid-area: bar;
+  height: 8px;
+  @apply rounded-full;
+  background: var(--color-surface-muted, var(--c-081));
+  @apply overflow-hidden;
+}
+
+.stats-bar i {
+  @apply block h-full;
+  background: var(--color-primary, var(--c-020));
+  border-radius: inherit;
+}
+
+.service-desk-admin-nav {
+  @apply flex;
+  gap: 6px;
+  padding: 10px max(16px, calc((100vw - 1200px) / 2));
+  overflow-x: auto;
+  background: var(--c-110);
+  border-bottom: 1px solid var(--c-069);
+}
+
+.service-desk-admin-nav a {
+  @apply whitespace-nowrap;
+  padding: 8px 10px;
+  @apply rounded-lg;
+  color: inherit;
+  text-decoration: none;
+}
+
+.service-desk-admin-nav a.active {
+  background: var(--c-074);
+  color: var(--c-017);
+  @apply font-semibold;
+}
+
+.capability-grid {
+  @apply grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 5px 12px;
+  min-width: 420px;
+}
+
+.service-desk-catalog-toolbar,
+.service-desk-ticket-toolbar {
+  @apply flex;
+  align-items: end;
+  @apply justify-between gap-4;
+  margin-bottom: 20px;
+}
+
+.service-desk-catalog-toolbar .field,
+.service-desk-ticket-toolbar .field {
+  @apply flex-1;
+  max-width: 520px;
+}
+
+.service-desk-catalog-groups {
+  @apply grid;
+  gap: 28px;
+}
+
+.service-desk-catalog-group {
+  @apply grid gap-3;
+}
+
+.service-desk-service-grid {
+  @apply grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.service-desk-service-card {
+  @apply flex;
+  flex-direction: column;
+  @apply justify-between;
+  gap: 18px;
+  min-height: 180px;
+}
+
+.service-desk-service-card h3 {
+  margin: 5px 0 8px;
+}
+
+.service-desk-service-card p {
+  @apply m-0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.service-desk-service-card-status {
+  @apply inline-flex items-center;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--c-034);
+  @apply text-sm font-semibold;
+}
+
+.service-desk-service-card .button[aria-disabled="true"] {
+  @apply cursor-not-allowed;
+  opacity: 0.65;
+}
+
+.service-desk-eyebrow {
+  @apply inline-flex;
+  gap: 5px;
+  @apply items-center;
+  color: var(--muted);
+  @apply text-xs font-bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.service-desk-form-layout {
+  max-width: 920px;
+}
+
+.service-desk-form-card {
+  @apply grid gap-5;
+}
+
+.service-desk-form-intro {
+  @apply grid gap-2;
+}
+
+.service-desk-form-intro p {
+  @apply m-0;
+  line-height: 1.55;
+}
+
+.service-desk-form-grid {
+  @apply grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  @apply gap-4;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.field-help {
+  @apply block;
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.field-error {
+  @apply block;
+  margin-top: 5px;
+  color: var(--c-043);
+  @apply text-xs;
+}
+
+.success-text {
+  color: var(--c-016);
+}
+
+.checkbox-field {
+  @apply flex items-center gap-2;
+  min-height: 42px;
+}
+
+.checkbox-field input {
+  width: 18px;
+  height: 18px;
+}
+
+.service-desk-my-tickets-table td a {
+  @apply inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.service-desk-my-tickets-table td a:hover strong {
+  color: var(--accent);
+}
+
+.service-desk-my-tickets-table td small {
+  color: var(--muted);
+}
+
+.filter-pills {
+  @apply flex flex-wrap;
+  gap: 6px;
+}
+
+.filter-pills button {
+  border: 1px solid var(--border);
+  @apply rounded-full;
+  padding: 8px 12px;
+  background: var(--c-110);
+  color: var(--muted-strong);
+  @apply cursor-pointer;
+}
+
+.filter-pills button.active {
+  border-color: var(--accent);
+  background: var(--c-079);
+  color: var(--accent);
+  @apply font-bold;
+}
+
+.breadcrumbs {
+  @apply flex flex-wrap gap-2 items-center;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.breadcrumbs a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.ticket-action-row {
+  @apply flex-wrap;
+}
+
+.service-desk-ticket-actions .ticket-action-row {
+  margin-top: 8px;
+}
+
+.service-desk-attachment-list {
+  @apply grid gap-2 p-0 m-0 list-none;
+}
+
+.service-desk-attachment-list li {
+  @apply flex items-center justify-between gap-3;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.service-desk-attachment-list li:last-child {
+  border-bottom: 0;
+}
+
+.service-desk-attachment-list li > div {
+  @apply grid;
+  gap: 3px;
+  @apply min-w-0;
+}
+
+.service-desk-attachment-list small {
+  color: var(--muted);
+}

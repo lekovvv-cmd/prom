@@ -1,0 +1,268 @@
+.form-success-card div {
+  @apply grid;
+  gap: 3px;
+}
+
+.form-success-card strong {
+  color: var(--c-011);
+  @apply text-base;
+  line-height: 1.2;
+}
+
+.form-success-card span {
+  color: var(--c-022);
+  @apply text-sm;
+  line-height: 1.45;
+  font-weight: 650;
+}
+
+.profile-competencies-readonly {
+  @apply grid gap-2;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--surface-alt);
+}
+
+.profile-competencies-readonly > strong {
+  color: var(--muted-strong);
+  @apply text-xs;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.table-link {
+  color: var(--c-004);
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.table-link:hover,
+.table-link:focus-visible {
+  color: var(--c-002);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.stats-grid {
+  @apply grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  @apply gap-3;
+  margin-bottom: 16px;
+}
+
+.metric-card {
+  @apply grid gap-2;
+  border-top: 4px solid var(--accent);
+}
+
+.metric-card span {
+  color: var(--muted);
+  @apply text-xs;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.metric-card strong {
+  color: var(--c-002);
+  font-size: 38px;
+  line-height: 1;
+}
+
+@media (max-width: 1220px) {
+  .showcase-layout {
+    grid-template-columns: 250px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 980px) {
+  .showcase-layout,
+  .my-projects-filters,
+  .project-card,
+  .details-layout,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-rail {
+    position: static;
+  }
+
+  .project-stream {
+    order: 1;
+  }
+
+  .filter-rail {
+    order: 2;
+  }
+
+  .form-grid,
+  .form-grid.four {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .project-card-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .stream-toolbar {
+    @apply items-start;
+    flex-direction: column;
+  }
+}
+
+.project-card-title {
+  font-weight: 650;
+}
+
+.button-primary {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.button-primary:hover {
+  background: var(--c-006);
+  border-color: var(--c-006);
+}
+
+.showcase-layout {
+  grid-template-columns: 290px minmax(520px, 1fr);
+  gap: 14px;
+}
+
+.filter-rail,
+.project-stream {
+  @apply rounded-md;
+  box-shadow: var(--shadow);
+}
+
+.project-stream,
+.filter-rail {
+  padding: 14px;
+}
+
+.project-card {
+  @apply rounded-md;
+}
+
+.project-card-main {
+  @apply gap-2;
+  padding: 14px;
+}
+
+.project-card-title {
+  font-size: 17px;
+}
+
+.project-card-description,
+.project-card-goal {
+  font-size: 13px;
+}
+
+.project-card-meta {
+  padding: 10px 0;
+}
+
+.project-card-meta dt {
+  font-weight: 620;
+}
+
+.details-layout {
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 14px;
+}
+
+.form-grid.four {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chip {
+  border: 1px solid var(--border);
+  @apply rounded-full;
+  background: var(--c-116);
+  color: var(--muted-strong);
+}
+
+.chip {
+  @apply inline-flex items-center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  cursor: default;
+  @apply text-xs;
+  font-weight: 520;
+}
+
+button.chip {
+  @apply cursor-pointer;
+}
+
+.chip small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 450;
+}
+
+.chip-selected {
+  color: var(--c-003);
+  background: var(--accent-soft);
+  border-color: var(--c-129);
+}
+
+.filter-chips,
+.competency-options,
+.competency-selected,
+.competency-inline {
+  @apply flex flex-wrap;
+  gap: 6px;
+}
+
+.competency-picker {
+  @apply grid gap-2.5;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-108);
+}
+
+.competency-blocks-editor,
+.competency-blocks-list,
+.competency-coverage {
+  @apply grid gap-3;
+}
+
+.section-heading.compact {
+  align-items: end;
+  margin-bottom: 0;
+}
+
+.competency-block-editor {
+  @apply grid gap-2.5;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-116);
+}
+
+.competency-block-editor-head {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  @apply gap-2.5;
+  align-items: end;
+}
+
+.competency-coverage-block {
+  @apply grid gap-2;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-108);
+}
+
+.competency-coverage-head {
+  @apply flex;
+  align-items: baseline;
+  @apply justify-between gap-2.5;
+}

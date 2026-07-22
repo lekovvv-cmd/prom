@@ -1,0 +1,260 @@
+.template-version-settings .admin-config-form-grid,
+.template-field-editor .admin-config-form-grid {
+  gap: 16px 20px;
+}
+
+.template-version-settings .checkbox-field,
+.template-field-editor .checkbox-field {
+  align-self: end;
+  min-height: 42px;
+  padding: 0 2px;
+}
+
+.template-field-editor .admin-config-form-grid > h4 {
+  grid-column: 1 / -1;
+  margin: 8px 0 -2px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.template-field-editor .admin-config-form-grid > h4:first-of-type {
+  margin-top: 0;
+}
+
+.template-builder-grid {
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.template-version-sidebar {
+  @apply grid gap-5 sticky;
+  top: 16px;
+}
+
+.template-sidebar-heading h3,
+.template-editor-header h3,
+.template-editor-intro h3,
+.template-section-title h3,
+.template-section-title h4,
+.template-fields-section h3 {
+  @apply m-0;
+}
+
+.template-sidebar-heading p,
+.template-editor-header p,
+.template-editor-intro p,
+.template-section-title p {
+  margin: 5px 0 0;
+}
+
+.template-version-actions {
+  @apply grid gap-2.5;
+  padding-top: 2px;
+}
+
+.template-version-list {
+  margin-top: 0;
+}
+
+.template-version-select {
+  @apply grid;
+  gap: 3px;
+  @apply w-full text-left;
+}
+
+.template-version-select small,
+.template-field-row small {
+  color: var(--muted);
+}
+
+.template-empty-copy {
+  @apply m-0;
+  padding: 12px;
+  border: 1px dashed var(--c-047);
+  @apply rounded-lg;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.template-empty-state {
+  min-height: 170px;
+  @apply grid;
+  align-content: center;
+  @apply gap-2;
+}
+
+.template-empty-state h3,
+.template-empty-state p {
+  @apply m-0;
+}
+
+.template-editor-surface {
+  @apply min-w-0;
+}
+
+.template-editor-header,
+.template-editor-intro,
+.template-editor-footer,
+.template-condition-rule-heading {
+  @apply flex items-start justify-between gap-4;
+}
+
+.template-editor-header {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.template-editor-header .button-row {
+  @apply justify-end;
+}
+
+.template-version-badge,
+.template-fields-count,
+.template-step-number {
+  @apply inline-flex items-center justify-center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 2px 8px;
+  @apply rounded-full text-xs font-bold;
+  line-height: 1.25;
+}
+
+.template-version-badge {
+  margin-bottom: 8px;
+  color: var(--c-010);
+  background: var(--c-075);
+}
+
+.template-version-badge.is-published {
+  color: var(--c-016);
+  background: var(--c-076);
+}
+
+.template-version-badge.is-archived {
+  color: var(--c-032);
+  background: var(--c-091);
+}
+
+.template-fields-count {
+  min-width: 24px;
+  margin-left: 5px;
+  color: var(--c-024);
+  background: var(--c-078);
+  vertical-align: middle;
+}
+
+.template-version-settings,
+.template-field-editor,
+.template-fields-section,
+.template-preview-card {
+  margin-top: 24px;
+}
+
+.template-version-settings,
+.template-field-editor,
+.template-preview-card {
+  border-color: var(--c-056);
+}
+
+.template-section-title {
+  @apply flex items-start gap-2.5;
+}
+
+.template-step-number {
+  min-width: 28px;
+  padding-inline: 7px;
+  color: var(--c-010);
+  background: var(--c-075);
+}
+
+.template-step-grid {
+  @apply grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 24px;
+  margin-top: 20px;
+}
+
+.template-step-wide {
+  grid-column: 1 / -1;
+}
+
+.template-control-with-help {
+  @apply min-w-0;
+}
+
+.template-editor-intro {
+  padding-bottom: 22px;
+}
+
+.template-editor-intro p {
+  max-width: 680px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.template-editor-step {
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+}
+
+.template-editor-step + .template-editor-step {
+  margin-top: 0;
+}
+
+.template-choice {
+  @apply items-start;
+  min-height: 0;
+  padding: 12px;
+  border: 1px solid var(--c-061);
+  @apply rounded-lg;
+  background: var(--c-108);
+}
+
+.template-choice input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.template-choice > span {
+  @apply grid;
+  gap: 3px;
+  @apply min-w-0;
+}
+
+.template-choice small {
+  color: var(--muted);
+  @apply text-xs;
+  line-height: 1.4;
+}
+
+.template-choice:has(input:checked) {
+  border-color: var(--c-039);
+  background: var(--c-089);
+}
+
+.template-choice:has(input:disabled) {
+  opacity: 0.62;
+  @apply cursor-not-allowed;
+}
+
+.template-required-choice {
+  margin-top: 16px;
+}
+
+.template-advanced-settings {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  @apply rounded-lg;
+  background: var(--surface-alt);
+}
+
+.template-advanced-settings summary {
+  @apply cursor-pointer font-bold;
+}
+
+.template-advanced-settings > p {
+  margin: 10px 0 0;
+  font-size: 13px;
+}

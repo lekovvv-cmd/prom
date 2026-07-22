@@ -1,0 +1,245 @@
+.notification-center {
+  @apply relative;
+}
+
+.service-desk-counters {
+  @apply flex;
+  grid-column: 1 / -1;
+  @apply gap-2 items-center;
+  padding: 0 0 10px;
+  overflow-x: auto;
+  grid-row: 2;
+}
+
+.service-desk-counter {
+  @apply inline-flex;
+  gap: 7px;
+  @apply items-center;
+  flex: 0 0 auto;
+  color: var(--muted-strong);
+  @apply text-xs font-bold;
+}
+
+.notification-trigger {
+  @apply relative justify-center;
+  min-width: 40px;
+  padding: 9px;
+}
+
+.notification-count {
+  @apply absolute;
+  top: 1px;
+  right: 0;
+  min-width: 18px;
+  padding: 1px 5px;
+  color: var(--c-110);
+  background: var(--danger);
+  border: 2px solid var(--surface);
+  @apply rounded-full;
+  font-size: 10px;
+  line-height: 14px;
+  @apply text-center;
+}
+
+.notification-panel {
+  @apply absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(430px, calc(100vw - 24px));
+  max-height: min(620px, calc(100vh - 100px));
+  @apply overflow-auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 20px 45px var(--c-139);
+}
+
+.notification-panel-header,
+.notification-actions {
+  @apply flex items-center justify-between gap-2.5;
+}
+
+.notification-panel-header {
+  @apply sticky;
+  top: 0;
+  z-index: 1;
+  padding: 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-panel-header > div,
+.notification-item > div:first-child {
+  @apply grid;
+  gap: 5px;
+}
+
+.notification-panel-header small,
+.notification-item small {
+  color: var(--muted);
+}
+
+.notification-item {
+  @apply grid gap-3;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-item.is-unread {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.notification-item p,
+.notification-error p {
+  @apply m-0;
+  color: var(--muted-strong);
+  line-height: 1.45;
+}
+
+.notification-actions {
+  @apply justify-end;
+}
+
+.notification-actions .button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.notification-error {
+  @apply grid;
+  justify-items: start;
+  @apply gap-3;
+  padding: 20px;
+}
+
+.button-row {
+  @apply flex gap-2.5 flex-wrap;
+}
+
+.workbench-quick-views {
+  @apply flex flex-wrap gap-2;
+  margin-bottom: 16px;
+}
+
+.workbench-filters {
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  margin-bottom: 0;
+}
+
+.workbench-pagination {
+  @apply flex items-center justify-center gap-4;
+  margin-top: 16px;
+}
+
+.workbench-sla {
+  @apply grid;
+  gap: 5px;
+  min-width: 140px;
+}
+
+.workbench-sla small {
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.config-error {
+  @apply flex items-center justify-between gap-3;
+}
+
+.modal-content > .modal-body {
+  @apply grid min-w-0 gap-4;
+}
+
+.modal-content > .modal-body {
+  @apply p-0;
+}
+
+.modal-content .modal-body > p {
+  @apply m-0;
+}
+
+.modal-content .button-row {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 620px) {
+  .button-row {
+    @apply w-full;
+  }
+}
+
+.service-desk-ticket-layout {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
+}
+
+.service-desk-ticket-main,
+.service-desk-ticket-side {
+  @apply grid;
+  gap: 14px;
+}
+
+.service-desk-ticket-side {
+  @apply sticky;
+  top: 84px;
+}
+
+.service-desk-ticket-heading {
+  border-left-color: var(--accent-dark);
+}
+
+.service-desk-eyebrow {
+  color: var(--accent-dark);
+  font-size: 11px;
+  @apply font-bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.service-desk-approvals {
+  @apply grid gap-4;
+}
+
+.service-desk-section-heading,
+.approval-stage-header,
+.approval-action-panel {
+  @apply flex justify-between;
+  gap: 14px;
+  @apply items-center;
+}
+
+.service-desk-section-heading > div {
+  @apply grid gap-1;
+}
+
+.approval-stage-list,
+.approval-person-list,
+.service-desk-history {
+  @apply m-0 p-0 list-none;
+}
+
+.approval-stage-list {
+  @apply grid gap-2.5;
+}
+
+.approval-stage {
+  @apply grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  @apply gap-2.5;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-116);
+}
+
+.approval-stage-current {
+  border-color: var(--c-119);
+  background: linear-gradient(180deg, var(--c-116), var(--c-095));
+  box-shadow: inset 3px 0 0 var(--accent-dark);
+}

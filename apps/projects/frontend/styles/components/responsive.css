@@ -1,0 +1,224 @@
+.competency-coverage-head h4 {
+  @apply m-0;
+  font-size: 15px;
+}
+
+.competency-coverage-head span {
+  color: var(--muted);
+  @apply text-xs;
+  font-weight: 650;
+}
+
+.competency-coverage-list {
+  @apply flex flex-wrap gap-2;
+}
+
+.coverage-chip {
+  @apply inline-flex items-center gap-2;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--c-143);
+  @apply rounded-full;
+  color: var(--c-036);
+  background: var(--c-115);
+  @apply text-xs;
+}
+
+.coverage-chip-covered {
+  border-color: var(--c-145);
+  color: var(--c-015);
+  background: var(--c-090);
+}
+
+.coverage-chip strong,
+.coverage-chip small {
+  line-height: 1;
+}
+
+.coverage-chip small {
+  color: inherit;
+  opacity: 0.78;
+}
+
+.field-label {
+  color: var(--muted-strong);
+  font-size: 11px;
+  font-weight: 620;
+  text-transform: uppercase;
+}
+
+.competency-search {
+  @apply relative;
+}
+
+.competency-search > svg {
+  @apply absolute;
+  right: 12px;
+  bottom: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.competency-options {
+  max-height: 104px;
+  @apply overflow-auto;
+}
+
+.member-picker {
+  @apply grid gap-2.5;
+  padding: 12px;
+  border: 1px solid var(--border);
+  @apply rounded-md;
+  background: var(--c-108);
+}
+
+.member-picker-grid {
+  @apply grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  @apply gap-2;
+}
+
+.member-option {
+  @apply grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  @apply gap-2;
+  align-items: start;
+  min-height: 54px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--c-116);
+  @apply cursor-pointer;
+}
+
+.member-option input {
+  margin-top: 2px;
+}
+
+.member-option span {
+  @apply grid;
+  gap: 2px;
+  @apply min-w-0;
+}
+
+.member-option strong,
+.member-option small {
+  @apply overflow-hidden;
+  text-overflow: ellipsis;
+  @apply whitespace-nowrap;
+}
+
+.member-option strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.member-option small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.member-option-active {
+  border-color: var(--c-130);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--c-123);
+}
+
+.inline-add {
+  @apply grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  @apply gap-2;
+  align-items: end;
+}
+
+.attachment-list {
+  @apply grid;
+  gap: 7px;
+  @apply m-0 p-0 list-none;
+}
+
+.attachment-list li,
+.attachment-list a {
+  @apply flex items-center;
+  gap: 7px;
+  @apply min-w-0;
+}
+
+.attachment-list li {
+  @apply justify-between;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--c-116);
+}
+
+.attachment-list a {
+  @apply min-w-0;
+  color: var(--c-004);
+  font-size: 13px;
+}
+
+.attachment-list a span {
+  @apply overflow-hidden;
+  text-overflow: ellipsis;
+  @apply whitespace-nowrap;
+}
+
+.attachment-list small {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 1180px) {
+  .showcase-layout,
+  .details-layout,
+  .project-management-grid,
+  .project-management-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-rail,
+  .project-management-side {
+    position: static;
+  }
+
+  .project-management-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .task-stage-form,
+  .task-create-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .task-create-form .field:has(textarea) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .inline-add,
+  .candidate-filters,
+  .candidate-row,
+  .competency-block-editor-head,
+  .member-picker-grid,
+  .report-admin-form,
+  .report-list-item,
+  .project-management-metrics,
+  .task-stage-form,
+  .task-create-form,
+  .task-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .management-toolbar,
+  .management-toolbar .button {
+    @apply w-full;
+  }
+
+  .section-heading {
+    @apply grid;
+  }
+}

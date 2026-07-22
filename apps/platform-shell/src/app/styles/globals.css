@@ -1,12 +1,5 @@
 @import "tailwindcss";
-
-@theme {
-  --color-prom-accent: #00aeef;
-  --color-prom-danger: #b42318;
-  --color-prom-success: #127344;
-  --color-prom-surface: #ffffff;
-  --color-prom-muted: #5f6b7a;
-}
+@import "./theme.css";
 
 :root {
   color-scheme: light;
@@ -19,27 +12,27 @@
     "Helvetica Neue",
     Arial,
     sans-serif;
-  color: #111827;
-  background: #ffffff;
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --surface-alt: #f6f8fb;
-  --surface-strong: #eef3f7;
-  --text: #111827;
-  --muted: #5f6b7a;
-  --muted-strong: #374151;
-  --border: #dce3ea;
-  --border-strong: #b7c3cf;
-  --accent: #00aeef;
-  --accent-dark: #007fb0;
-  --accent-soft: #e8f8fe;
-  --danger: #b42318;
-  --success: #127344;
-  --warning: #9a5b00;
-  --info: #2759a5;
-  --focus-ring: rgba(0, 174, 239, 0.2);
-  --overlay: rgba(17, 24, 39, 0.42);
-  --shadow: 0 14px 28px rgba(17, 24, 39, 0.06);
+  color: var(--c-013);
+  background: var(--c-116);
+  --bg: var(--c-116);
+  --surface: var(--c-116);
+  --surface-alt: var(--c-099);
+  --surface-strong: var(--c-082);
+  --text: var(--c-013);
+  --muted: var(--c-031);
+  --muted-strong: var(--c-025);
+  --border: var(--c-065);
+  --border-strong: var(--c-044);
+  --accent: var(--c-009);
+  --accent-dark: var(--c-008);
+  --accent-soft: var(--c-071);
+  --danger: var(--c-043);
+  --success: var(--c-014);
+  --warning: var(--c-040);
+  --info: var(--c-021);
+  --focus-ring: var(--c-122);
+  --overlay: var(--c-141);
+  --shadow: 0 14px 28px var(--c-137);
 }
 
 * {
@@ -54,7 +47,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: #ffffff;
+  background: var(--c-116);
 }
 
 a {
@@ -72,20 +65,21 @@ select {
 button {
   color: inherit;
 }
+
 :root {
-  --text: #111111;
-  --muted: #667085;
-  --muted-strong: #344054;
-  --border: #d8dee6;
-  --surface-alt: #f7f9fb;
-  --surface-strong: #eef3f7;
-  --accent: #00aeef;
-  --accent-dark: #007eb4;
-  --accent-soft: #e7f8fe;
-  --shadow: 0 8px 22px rgba(16, 24, 40, 0.05);
+  --text: var(--c-012);
+  --muted: var(--c-032);
+  --muted-strong: var(--c-024);
+  --border: var(--c-060);
+  --surface-alt: var(--c-100);
+  --surface-strong: var(--c-082);
+  --accent: var(--c-009);
+  --accent-dark: var(--c-007);
+  --accent-soft: var(--c-070);
+  --shadow: 0 8px 22px var(--c-132);
 }
 
 body {
   color: var(--text);
-  background: #ffffff;
+  background: var(--c-116);
 }

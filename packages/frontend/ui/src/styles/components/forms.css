@@ -1,0 +1,244 @@
+.badge {
+  @apply inline-flex items-center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  @apply rounded text-xs;
+  font-weight: 850;
+  @apply whitespace-nowrap;
+}
+
+.badge-neutral {
+  color: var(--c-026);
+  background: var(--c-094);
+  border-color: var(--c-063);
+}
+
+.badge-warning {
+  color: var(--c-035);
+  background: var(--c-113);
+  border-color: var(--c-088);
+}
+
+.badge-muted {
+  color: var(--c-031);
+  background: var(--c-093);
+  border-color: var(--c-066);
+}
+
+.card h2,
+.card h3,
+.form-panel h2 {
+  @apply m-0;
+  color: var(--c-002);
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.card h3,
+.form-panel h2 {
+  @apply text-lg;
+}
+
+.form-panel {
+  @apply grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.form-error {
+  @apply m-0 rounded;
+  padding: 10px 12px;
+  font-weight: 760;
+}
+
+.form-error {
+  color: var(--danger);
+  background: var(--c-109);
+}
+
+.table-wrap {
+  @apply w-full overflow-auto;
+}
+
+table {
+  @apply w-full;
+  min-width: 840px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border);
+  @apply text-left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted-strong);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: var(--surface-alt);
+}
+
+td {
+  @apply text-sm;
+}
+
+td span {
+  @apply block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+tbody tr:hover {
+  background: var(--c-108);
+}
+
+.table-actions {
+  @apply gap-2 flex-wrap;
+}
+
+.empty-state {
+  @apply grid;
+  place-items: center;
+  @apply gap-2.5;
+  min-height: 180px;
+  border: 1px dashed var(--border-strong);
+  @apply rounded-md;
+  color: var(--muted);
+  background: var(--c-116);
+}
+
+.empty-state h3 {
+  @apply m-0;
+  color: var(--text);
+}
+
+.empty-state p {
+  @apply m-0;
+}
+
+.modal-backdrop {
+  @apply fixed;
+  inset: 0;
+  z-index: 40;
+  @apply grid;
+  place-items: start center;
+  padding: 36px 18px;
+  @apply overflow-auto;
+  background: var(--c-141);
+}
+
+.modal {
+  width: min(920px, 100%);
+  @apply flex;
+  flex-direction: column;
+  max-height: calc(100vh - 72px);
+  @apply overflow-hidden;
+  box-shadow: 0 24px 70px var(--c-140);
+}
+
+.modal-header {
+  @apply flex justify-between items-center gap-4;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  @apply m-0 text-xl;
+  line-height: 1.25;
+}
+
+.modal-content {
+  @apply grid min-w-0;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.modal-content > .form-panel {
+  @apply grid min-w-0 gap-4;
+}
+
+.modal-content > .form-panel {
+  @apply p-0 border-0;
+  box-shadow: none;
+  @apply bg-transparent;
+}
+
+.modal-content .form-panel > p {
+  @apply m-0;
+}
+
+.modal-content .table-actions {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 980px) {
+  .page-title-row {
+    flex-direction: column;
+    @apply items-start;
+  }
+}
+
+@media (max-width: 620px) {
+  .page {
+    width: min(100% - 24px, 1480px);
+    padding-top: 24px;
+  }
+}
+
+@media (max-width: 620px) {
+  .table-actions {
+    @apply w-full;
+  }
+}
+
+@media (max-width: 620px) {
+  .button {
+    @apply w-full;
+  }
+}
+
+.card h2,
+.card h3,
+.form-panel h2 {
+  font-weight: 650;
+}
+
+.page {
+  width: min(1540px, calc(100% - 40px));
+  padding-top: 26px;
+}
+
+.page h1 {
+  font-size: clamp(30px, 3vw, 44px);
+  font-weight: 650;
+  line-height: 1.05;
+}
+
+.page-title-row {
+  @apply items-center;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+}
+
+.button {
+  min-height: 36px;
+  border-radius: 5px;
+  font-weight: 560;
+}
+
+.card,
+.form-panel,
+.table-wrap,
+.modal {
+  @apply rounded-md;
+  box-shadow: var(--shadow);
+}
