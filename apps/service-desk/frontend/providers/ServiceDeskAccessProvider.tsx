@@ -27,22 +27,22 @@ async function fetchServiceDeskAccess(): Promise<ServiceDeskUser> {
 
 export function ServiceDeskAccessProvider({
   children,
-  token,
+  isAuthenticated,
 }: {
   children: React.ReactNode;
-  token: string | null;
+  isAuthenticated: boolean;
 }) {
   const query = useQuery({
-    queryKey: serviceDeskQueryKeys.access(token),
+    queryKey: serviceDeskQueryKeys.access(isAuthenticated),
     queryFn: fetchServiceDeskAccess,
-    enabled: Boolean(token),
+    enabled: isAuthenticated,
     staleTime: 60_000,
     retry: 0,
   });
   const value = useMemo<ServiceDeskAccessContextValue>(
     () => ({
-      user: token ? (query.data ?? null) : null,
-      isLoading: Boolean(token) && query.isLoading,
+      user: isAuthenticated ? (query.data ?? null) : null,
+      isLoading: isAuthenticated && query.isLoading,
       error:
         query.error instanceof Error
           ? query.error.message
@@ -53,7 +53,7 @@ export function ServiceDeskAccessProvider({
         await query.refetch();
       },
     }),
-    [query.data, query.error, query.isLoading, query.refetch, token],
+    [isAuthenticated, query.data, query.error, query.isLoading, query.refetch],
   );
   return (
     <ServiceDeskAccessContext.Provider value={value}>

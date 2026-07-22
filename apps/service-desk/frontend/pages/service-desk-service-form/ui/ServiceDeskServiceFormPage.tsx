@@ -59,7 +59,7 @@ type Users = Array<{ id: string; display_name: string }>;
 export function ServiceDeskServiceFormPage() {
   const { serviceId, ticketId } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [service, setService] = useState<ServiceDeskService | null>(null);
   const [form, setForm] = useState<ServiceDeskPublishedForm | null>(null);
   const [values, setValues] = useState<FormValues>({});
@@ -213,7 +213,7 @@ export function ServiceDeskServiceFormPage() {
   async function persistDraft(submitAfter: boolean) {
     if (!form || !service || mutationLockRef.current) return;
     if (submitAfter && !validate(true)) return;
-    if (!token) {
+    if (!isAuthenticated) {
       navigate("/login");
       return;
     }
@@ -363,7 +363,7 @@ export function ServiceDeskServiceFormPage() {
                     </p>
                   ) : null}
                 </div>
-                {!token ? (
+                {!isAuthenticated ? (
                   <Card>
                     <p>Для сохранения заявки войдите в PROM.</p>
                     <Link className="button" to="/login">
@@ -497,13 +497,16 @@ export function ServiceDeskServiceFormPage() {
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={!token || pending !== null}
+                    disabled={!isAuthenticated || pending !== null}
                     onClick={() => void persistDraft(false)}
                   >
                     <Save size={16} aria-hidden="true" />
                     {pending === "save" ? "Сохраняем..." : "Сохранить черновик"}
                   </Button>
-                  <Button type="submit" disabled={!token || pending !== null}>
+                  <Button
+                    type="submit"
+                    disabled={!isAuthenticated || pending !== null}
+                  >
                     <Send size={16} aria-hidden="true" />
                     {pending === "submit"
                       ? "Отправляем..."

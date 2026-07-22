@@ -57,10 +57,7 @@ export function LoginForm() {
       setError(null);
       await requestCode(normalizedEmail);
       const response = await verifyCode(normalizedEmail, "000000");
-      login(response.access_token, response.user, {
-        modules: response.modules,
-        permissions: response.permissions,
-      });
+      login(response);
       const next = new URLSearchParams(location.search).get("next");
       const target =
         next &&

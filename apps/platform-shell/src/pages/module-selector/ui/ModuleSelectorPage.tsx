@@ -16,8 +16,8 @@ const moduleCardTitles = {
 };
 
 export function ModuleSelectorPage() {
-  const { modules, token } = useAuth();
-  const availableModules = token
+  const { isAuthenticated, modules } = useAuth();
+  const availableModules = isAuthenticated
     ? platformModules.filter((manifest) =>
         modules.some((module) => module.id === manifest.id),
       )
@@ -41,7 +41,7 @@ export function ModuleSelectorPage() {
               const Icon =
                 moduleIcons[manifest.id as keyof typeof moduleIcons] ??
                 FolderKanban;
-              const target = token
+              const target = isAuthenticated
                 ? manifest.basePath
                 : `/login?next=${encodeURIComponent(manifest.basePath)}`;
               return (

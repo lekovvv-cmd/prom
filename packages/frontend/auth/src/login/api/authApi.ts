@@ -1,38 +1,39 @@
 import { accessApiClient } from "@prom/api-client";
 import type { components as AccessContract } from "@prom/generated-contracts/access";
 import type { User, UserRole } from "../../index";
-import type { AuthCodeResponse, TokenResponse } from "../model/types";
+import type { AuthCodeResponse, SessionResponse } from "../model/types";
 
 export function requestCode(email: string) {
-  return Promise.resolve({
-    email,
-    dev_code: "000000",
-    message: "Local SSO mock is ready",
-  } satisfies AuthCodeResponse);
+  return accessApiClient.request<AuthCodeResponse>("/auth/mock/code", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ email }),
+  });
 }
 
-export function verifyCode(email: string, code: string) {
-  if (code !== "000000")
-    return Promise.reject(new Error("Неверный код подтверждения"));
-  return accessApiClient
-    .request<AccessContract["schemas"]["TokenOut"]>("/auth/mock/login", {
+export async function verifyCode(
+  email: string,
+  code: string,
+): Promise<SessionResponse> {
+  await accessApiClient.request<AccessContract["schemas"]["SessionOut"]>(
+    "/auth/mock/verify",
+    {
       method: "POST",
       auth: false,
-      body: JSON.stringify({ email }),
-    })
-    .then(
-      (response) =>
-        ({
-          access_token: response.access_token,
-          token_type: "bearer",
-          user: toLegacyUser(
-            response.session.user,
-            response.session.permissions,
-          ),
-          modules: response.session.modules,
-          permissions: response.session.permissions,
-        }) satisfies TokenResponse,
+      body: JSON.stringify({ email, code }),
+    },
+  );
+  const response =
+    await accessApiClient.request<AccessContract["schemas"]["TokenOut"]>(
+      "/session/token",
     );
+  accessApiClient.setToken(response.access_token);
+  const session = response.session;
+  return {
+    user: toLegacyUser(session.user, session.permissions),
+    modules: session.modules,
+    permissions: session.permissions,
+  };
 }
 
 function toLegacyUser(

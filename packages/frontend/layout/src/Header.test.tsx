@@ -6,12 +6,12 @@ vi.mock("@prom/auth", () => ({
   useAuth: () => ({
     canManageProjects: true,
     isAdmin: true,
+    isAuthenticated: true,
     logout: vi.fn(),
     modules: [
       { id: "projects", permissions: [] },
       { id: "service-desk", permissions: [] },
     ],
-    token: "token",
     user: { email: "admin@utmn.ru", role: "platform_admin" },
   }),
 }));

@@ -92,9 +92,16 @@ export function createCatalogFixtureCleaner() {
 
   return {
     async track(page: Page, fixture: CatalogFixture) {
-      const token = await page.evaluate(() =>
-        localStorage.getItem("shpiu_project_showcase_token"),
-      );
+      const token = await page.evaluate(async () => {
+        const response = await fetch("/api/access/v1/session/token", {
+          credentials: "include",
+        });
+        if (!response.ok) return null;
+        const payload = (await response.json()) as { access_token?: unknown };
+        return typeof payload.access_token === "string"
+          ? payload.access_token
+          : null;
+      });
       if (!token)
         throw new Error(
           "Невозможно очистить E2E-фикстуру: отсутствует авторизованная сессия.",

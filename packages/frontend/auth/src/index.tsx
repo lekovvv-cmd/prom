@@ -18,111 +18,94 @@ export type PlatformAuthorization = {
   modules: PlatformModuleAccess[];
   permissions: string[];
 };
-
-export type AuthTokenClient = {
-  getToken: () => string | null;
-  setToken: (token: string | null) => void;
-};
+export type AuthSession = PlatformAuthorization & { user: User };
 
 export type AuthContextValue = {
-  token: string | null;
   user: User | null;
   modules: PlatformModuleAccess[];
   permissions: string[];
+  isAuthenticated: boolean;
   isAdmin: boolean;
   canManageProjects: boolean;
   hasPermission: (permission: string) => boolean;
   isLoading: boolean;
-  login: (
-    token: string,
-    user: User,
-    authorization?: PlatformAuthorization,
-  ) => void;
+  login: (session: AuthSession) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const EMPTY_AUTHORIZATION: PlatformAuthorization = {
+  modules: [],
+  permissions: [],
+};
+
 export function AuthProvider({
   children,
-  client,
-  loadAuthorization,
-  loadCurrentUser,
+  loadSession,
+  closeSession,
 }: {
   children: React.ReactNode;
-  client: AuthTokenClient;
-  loadAuthorization?: () => Promise<PlatformAuthorization>;
-  loadCurrentUser: () => Promise<User>;
+  loadSession: () => Promise<AuthSession>;
+  closeSession: () => Promise<void>;
 }) {
-  const [token, setToken] = useState<string | null>(() => client.getToken());
   const [user, setUser] = useState<User | null>(null);
-  const [authorization, setAuthorization] = useState<PlatformAuthorization>({
-    modules: [],
-    permissions: [],
-  });
-  const [isLoading, setIsLoading] = useState(Boolean(token));
+  const [authorization, setAuthorization] =
+    useState<PlatformAuthorization>(EMPTY_AUTHORIZATION);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const clearSession = useCallback(() => {
+    setUser(null);
+    setAuthorization(EMPTY_AUTHORIZATION);
+  }, []);
 
   const logout = useCallback(() => {
-    client.setToken(null);
-    setToken(null);
-    setUser(null);
-    setAuthorization({ modules: [], permissions: [] });
-  }, [client]);
+    void closeSession().finally(clearSession);
+  }, [clearSession, closeSession]);
 
   const refreshUser = useCallback(async () => {
-    if (!client.getToken()) {
-      setIsLoading(false);
-      return;
-    }
     try {
       setIsLoading(true);
-      const [nextUser, nextAuthorization] = await Promise.all([
-        loadCurrentUser(),
-        loadAuthorization?.() ??
-          Promise.resolve({ modules: [], permissions: [] }),
-      ]);
-      setUser(nextUser);
-      setAuthorization(nextAuthorization);
+      const nextSession = await loadSession();
+      setUser(nextSession.user);
+      setAuthorization({
+        modules: nextSession.modules,
+        permissions: nextSession.permissions,
+      });
     } catch {
-      logout();
+      clearSession();
     } finally {
       setIsLoading(false);
     }
-  }, [client, loadAuthorization, loadCurrentUser, logout]);
+  }, [clearSession, loadSession]);
 
   useEffect(() => {
     void refreshUser();
   }, [refreshUser]);
 
-  const login = useCallback(
-    (
-      nextToken: string,
-      nextUser: User,
-      nextAuthorization?: PlatformAuthorization,
-    ) => {
-      client.setToken(nextToken);
-      setToken(nextToken);
-      setUser(nextUser);
-      setAuthorization(nextAuthorization ?? { modules: [], permissions: [] });
-    },
-    [client],
-  );
+  const login = useCallback((nextSession: AuthSession) => {
+    setUser(nextSession.user);
+    setAuthorization({
+      modules: nextSession.modules,
+      permissions: nextSession.permissions,
+    });
+  }, []);
+
+  const isAuthenticated = user !== null;
+  const isAdmin = authorization.permissions.includes("platform.admin");
+  const canManageProjects =
+    authorization.permissions.includes("projects.create") ||
+    authorization.permissions.includes("projects.manage");
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      token,
       user,
       modules: authorization.modules,
       permissions: authorization.permissions,
-      isAdmin:
-        authorization.permissions.includes("platform.admin") ||
-        user?.role === "platform_admin",
-      canManageProjects:
-        authorization.permissions.includes("projects.create") ||
-        authorization.permissions.includes("projects.manage") ||
-        user?.role === "platform_admin" ||
-        user?.role === "project_manager",
+      isAuthenticated,
+      isAdmin,
+      canManageProjects,
       hasPermission: (permission) =>
         authorization.permissions.includes(permission),
       isLoading,
@@ -130,7 +113,18 @@ export function AuthProvider({
       logout,
       refreshUser,
     }),
-    [authorization, isLoading, login, logout, refreshUser, token, user],
+    [
+      authorization.modules,
+      authorization.permissions,
+      canManageProjects,
+      isAdmin,
+      isAuthenticated,
+      isLoading,
+      login,
+      logout,
+      refreshUser,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -138,8 +132,6 @@ export function AuthProvider({
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 }

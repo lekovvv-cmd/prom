@@ -63,10 +63,10 @@ function ProtectedRoute({
   children: React.ReactNode;
   allowed?: boolean;
 }) {
-  const { isLoading, token } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   if (isLoading) return <Spinner label="Проверяем авторизацию" />;
-  if (!token)
+  if (!isAuthenticated)
     return (
       <Navigate to={loginPath(location.pathname + location.search)} replace />
     );

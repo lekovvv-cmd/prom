@@ -38,11 +38,19 @@ test("selector keeps both anonymous module choices and next redirects", async ({
     page.getByRole("heading", { name: "Каталог Service Desk" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Выйти" }).click();
+  await expect(page.getByRole("link", { name: "Войти" })).toBeVisible();
   await expect
-    .poll(() =>
-      page.evaluate(() => localStorage.getItem("shpiu_project_showcase_token")),
+    .poll(async () =>
+      (await page.context().cookies()).some(
+        (cookie) => cookie.name === "prom_session",
+      ),
     )
-    .toBeNull();
+    .toBe(false);
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem("shpiu_project_showcase_token"),
+    ),
+  ).toBeNull();
   diagnostics.assertClean();
 });
 

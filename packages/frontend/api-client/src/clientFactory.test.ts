@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe("createApiClient", () => {
-  it("creates clients with independent base URLs and shared token storage contract", async () => {
+  it("creates clients with independent base URLs and an optional bearer contract", async () => {
     const tokenStorage = {
       getToken: () => "token-123",
       setToken: vi.fn(),
@@ -33,6 +33,7 @@ describe("createApiClient", () => {
     const [, init] = fetchMock.mock.calls[0];
     const headers = init?.headers as Headers;
     expect(headers.get("Authorization")).toBe("Bearer token-123");
+    expect(init?.credentials).toBe("include");
   });
 
   it("returns undefined for successful no-content responses even with a JSON content type", async () => {
@@ -97,6 +98,12 @@ describe("createApiClient", () => {
     await expect(client.request("/admin/categories")).rejects.toMatchObject({
       message: "Категория с таким названием уже существует",
       status: 409,
+      code: "CONFLICT_DETECTED",
+      rawDetails: {
+        status: 409,
+        detail: "Категория с таким названием уже существует",
+        code: "CONFLICT_DETECTED",
+      },
     });
   });
 });

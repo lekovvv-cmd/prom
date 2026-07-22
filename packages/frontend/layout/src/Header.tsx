@@ -39,7 +39,7 @@ export function HeaderToolsProvider({
 }
 
 export function Header() {
-  const { canManageProjects, isAdmin, logout, modules, token, user } =
+  const { canManageProjects, isAdmin, isAuthenticated, logout, modules, user } =
     useAuth();
   const tools = useContext(HeaderToolsContext);
   const location = useLocation();
@@ -61,9 +61,10 @@ export function Header() {
   const isModuleRoute = isServiceDeskRoute || isProjectsRoute;
   const moduleAccess = modules ?? [];
   const canAccessProjects =
-    !token || moduleAccess.some((module) => module.id === "projects");
+    !isAuthenticated || moduleAccess.some((module) => module.id === "projects");
   const canAccessServiceDesk =
-    !token || moduleAccess.some((module) => module.id === "service-desk");
+    !isAuthenticated ||
+    moduleAccess.some((module) => module.id === "service-desk");
 
   return (
     <header className="app-header">
@@ -95,18 +96,18 @@ export function Header() {
                 <Table2 size={15} aria-hidden="true" />
                 Каталог
               </NavLink>
-              {token && (
+              {isAuthenticated ? (
                 <NavLink to="/service-desk/my-tickets">
                   <FileText size={15} aria-hidden="true" />
                   Мои заявки
                 </NavLink>
-              )}
-              {token && (
+              ) : null}
+              {isAuthenticated ? (
                 <NavLink to="/service-desk/workbench">
                   <Archive size={15} aria-hidden="true" />
                   Рабочее место
                 </NavLink>
-              )}
+              ) : null}
             </>
           ) : (
             <>
@@ -114,7 +115,7 @@ export function Header() {
                 <FolderKanban size={15} aria-hidden="true" />
                 Витрина
               </NavLink>
-              {token && user?.role !== "platform_admin" && (
+              {isAuthenticated && user?.role !== "platform_admin" ? (
                 <>
                   <NavLink to="/my/projects">
                     <FolderKanban size={15} aria-hidden="true" />
@@ -125,7 +126,7 @@ export function Header() {
                     Мои отклики
                   </NavLink>
                 </>
-              )}
+              ) : null}
               {canManageProjects && (
                 <>
                   <NavLink to="/admin/projects">
@@ -149,12 +150,12 @@ export function Header() {
         </nav>
       ) : null}
       {isModuleRoute ? (
-        <div className="header-tools">{token && tools}</div>
+        <div className="header-tools">{isAuthenticated ? tools : null}</div>
       ) : null}
       {isModuleRoute ? (
         <div className="header-auth">
           <div className="header-auth-actions">
-            {token ? (
+            {isAuthenticated ? (
               <>
                 <NavLink className="user-chip user-chip-link" to="/profile">
                   <UserRound size={15} />

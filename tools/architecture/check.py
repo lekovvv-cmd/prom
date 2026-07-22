@@ -143,6 +143,18 @@ def main() -> int:
         r"(?:apps[/\\](?:projects|service-desk)|(?:projects|service-desk)[/\\]frontend)",
         "Shared frontend package imports a product module",
     )
+    shared_transport = shared_frontend / "api-client" / "src" / "client.ts"
+    violations += assert_no_match(
+        [shared_transport],
+        r"(?i)\b(?:project|ticket|sla|report)s?\b",
+        "Shared API transport contains product vocabulary",
+    )
+    violations += assert_no_match(
+        files(shared_frontend / "api-client", ("*.ts", "*.tsx"))
+        + files(shared_frontend / "auth", ("*.ts", "*.tsx")),
+        r"(?i)localStorage[^\n]*(?:token|jwt)|shpiu_project_showcase_token",
+        "Privileged browser token is persisted in localStorage",
+    )
     legacy_shell_ui = ROOT / "apps" / "platform-shell" / "src" / "shared" / "ui"
     if legacy_shell_ui.exists():
         violations.append(

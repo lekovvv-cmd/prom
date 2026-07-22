@@ -69,12 +69,12 @@ const ServiceDeskWorkbenchPage = lazy(() =>
 );
 
 function ServiceDeskRoute({ children }: { children: React.ReactNode }) {
-  const { isLoading: isAuthLoading, token } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { error, isLoading, user } = useServiceDeskAccess();
   const location = useLocation();
   if (isAuthLoading || isLoading)
     return <Spinner label="Проверяем доступ к Service Desk" />;
-  if (!token)
+  if (!isAuthenticated)
     return (
       <Navigate
         to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
@@ -147,9 +147,9 @@ function ServiceDeskHeaderTools({ children }: { children: React.ReactNode }) {
 }
 
 function RoutedServiceDesk() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   return (
-    <ServiceDeskAccessProvider token={token}>
+    <ServiceDeskAccessProvider isAuthenticated={isAuthenticated}>
       <ServiceDeskHeaderTools>
         <Routes>
           <Route
