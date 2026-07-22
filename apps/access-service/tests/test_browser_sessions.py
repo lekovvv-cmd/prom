@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException, Response
@@ -8,10 +9,10 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
-from access_service.api.router import safe_return_url
+from access_service.api.router import safe_return_url, session_probe
 from access_service.bootstrap.config import AccessSettings
 from access_service.domain.models import Base, BrowserSession, PlatformUser
-from access_service.infrastructure.identity import generate_private_key_pem
+from access_service.infrastructure.identity import InternalTokenSigner, generate_private_key_pem
 from access_service.infrastructure.sessions import BrowserSessionManager
 
 
@@ -171,6 +172,34 @@ def test_session_secret_rotates_without_extending_absolute_expiry() -> None:
         and credentials.session_secret not in cookie
         for cookie in response.headers.getlist("set-cookie")
     )
+    db.close()
+    engine.dispose()
+
+
+def test_session_probe_returns_200_shape_for_anonymous_and_authenticated_requests() -> None:
+    settings = AccessSettings(database_url="sqlite+pysqlite:///:memory:")
+    engine, db, _, manager, credentials = create_session(settings)
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            session_manager=manager,
+            token_signer=InternalTokenSigner(settings),
+        )
+    )
+
+    anonymous = make_request(credentials)
+    anonymous.scope["headers"] = []
+    anonymous.scope["app"] = app
+    anonymous_result = session_probe(anonymous, Response(), db)
+    assert anonymous_result.authenticated is False
+    assert anonymous_result.token is None
+
+    authenticated = make_request(credentials)
+    authenticated.scope["app"] = app
+    authenticated_result = session_probe(authenticated, Response(), db)
+    assert authenticated_result.authenticated is True
+    assert authenticated_result.token is not None
+    assert authenticated_result.token.session.user.id == "user-1"
+
     db.close()
     engine.dispose()
 

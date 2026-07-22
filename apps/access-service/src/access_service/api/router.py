@@ -17,6 +17,7 @@ from access_service.api.schemas import (
     RoleInput,
     RoleOut,
     SessionOut,
+    SessionProbeOut,
     TokenOut,
     UserOut,
     UserRolesInput,
@@ -323,6 +324,30 @@ def session_token(
     """Issue a short-lived, memory-only bearer for product API calls."""
 
     return issue_token(request, session, user)
+
+
+@router.get("/api/v1/session/probe", response_model=SessionProbeOut)
+def session_probe(
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+) -> SessionProbeOut:
+    """Probe an optional browser session without producing an anonymous 401."""
+
+    manager: BrowserSessionManager = request.app.state.session_manager
+    if not request.cookies.get(manager.settings.session_cookie_name):
+        return SessionProbeOut(authenticated=False)
+    try:
+        user = manager.authenticate(request, response, session)
+    except HTTPException as exc:
+        if exc.status_code != status.HTTP_401_UNAUTHORIZED:
+            raise
+        manager.clear_cookies(response)
+        return SessionProbeOut(authenticated=False)
+    return SessionProbeOut(
+        authenticated=True,
+        token=issue_token(request, session, user),
+    )
 
 
 @router.delete("/api/v1/session", status_code=status.HTTP_204_NO_CONTENT)

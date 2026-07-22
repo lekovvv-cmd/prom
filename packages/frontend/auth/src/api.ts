@@ -34,12 +34,15 @@ function toLegacyUser(
 }
 
 export async function getAccessSession(): Promise<AuthSession> {
-  const response =
-    await accessApiClient.request<AccessContract["schemas"]["TokenOut"]>(
-      "/session/token",
-    );
-  accessApiClient.setToken(response.access_token);
-  const session = response.session;
+  const probe = await accessApiClient.request<
+    AccessContract["schemas"]["SessionProbeOut"]
+  >("/session/probe", { auth: false });
+  if (!probe.authenticated || !probe.token) {
+    accessApiClient.setToken(null);
+    throw new Error("No authenticated browser session");
+  }
+  accessApiClient.setToken(probe.token.access_token);
+  const session = probe.token.session;
   return {
     user: toLegacyUser(session.user, session.permissions),
     modules: session.modules,

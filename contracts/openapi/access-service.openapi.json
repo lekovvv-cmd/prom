@@ -303,6 +303,29 @@
         "title": "SessionOut",
         "type": "object"
       },
+      "SessionProbeOut": {
+        "properties": {
+          "authenticated": {
+            "title": "Authenticated",
+            "type": "boolean"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "authenticated"
+        ],
+        "title": "SessionProbeOut",
+        "type": "object"
+      },
       "TokenOut": {
         "properties": {
           "access_token": {
@@ -1126,6 +1149,25 @@
           }
         },
         "summary": "Session Info"
+      }
+    },
+    "/api/v1/session/probe": {
+      "get": {
+        "description": "Probe an optional browser session without producing an anonymous 401.",
+        "operationId": "session_probe_api_v1_session_probe_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionProbeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session Probe"
       }
     },
     "/api/v1/session/token": {

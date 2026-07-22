@@ -86,3 +86,8 @@ class TokenOut(BaseModel):
     access_token: str
     token_type: str = "Bearer"
     session: SessionOut
+
+
+class SessionProbeOut(BaseModel):
+    authenticated: bool
+    token: TokenOut | None = None
