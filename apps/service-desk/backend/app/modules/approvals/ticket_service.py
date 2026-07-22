@@ -8,6 +8,7 @@ from platform_sdk.error_types import (
     PermissionDenied,
     ValidationFailed,
 )
+from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -118,25 +119,26 @@ class TicketApprovalService:
         *,
         comment: str | None = None,
     ) -> ServiceDeskTicket:
-        context = self._decision_context(ticket_id, approval_id, actor_user_id)
-        now = datetime.now(UTC)
-        context.approval.status = ServiceDeskApprovalStatus.APPROVED
-        context.approval.decision_comment = comment.strip() if comment and comment.strip() else None
-        context.approval.decided_at = now
-        self._write_approval_history(context, "approval_approved", "Согласование одобрено")
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            context = self._decision_context(ticket_id, approval_id, actor_user_id)
+            now = datetime.now(UTC)
+            context.approval.status = ServiceDeskApprovalStatus.APPROVED
+            context.approval.decision_comment = comment.strip() if comment and comment.strip() else None
+            context.approval.decided_at = now
+            self._write_approval_history(context, "approval_approved", "Согласование одобрено")
 
-        stage_is_complete = context.stage.decision_rule == ApprovalDecisionRule.ANY or all(
-            approval.status == ServiceDeskApprovalStatus.APPROVED
-            for approval in context.stage_approvals
-        )
-        if stage_is_complete:
-            if context.stage.decision_rule == ApprovalDecisionRule.ANY:
-                self._skip_pending_approvals(context.stage_approvals, now)
-            context.stage.status = ServiceDeskApprovalStatus.APPROVED
-            context.stage.completed_at = now
-            self._advance_or_complete(context, now)
+            stage_is_complete = context.stage.decision_rule == ApprovalDecisionRule.ANY or all(
+                approval.status == ServiceDeskApprovalStatus.APPROVED
+                for approval in context.stage_approvals
+            )
+            if stage_is_complete:
+                if context.stage.decision_rule == ApprovalDecisionRule.ANY:
+                    self._skip_pending_approvals(context.stage_approvals, now)
+                context.stage.status = ServiceDeskApprovalStatus.APPROVED
+                context.stage.completed_at = now
+                self._advance_or_complete(context, now)
 
-        self.db.commit()
+            uow.commit()
         return self._require_ticket(ticket_id)
 
     def reject(
@@ -147,42 +149,43 @@ class TicketApprovalService:
         *,
         comment: str,
     ) -> ServiceDeskTicket:
-        context = self._decision_context(ticket_id, approval_id, actor_user_id)
-        now = datetime.now(UTC)
-        normalized_comment = comment.strip()
-        if not normalized_comment:
-            raise ValidationFailed("Укажите причину отклонения")
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            context = self._decision_context(ticket_id, approval_id, actor_user_id)
+            now = datetime.now(UTC)
+            normalized_comment = comment.strip()
+            if not normalized_comment:
+                raise ValidationFailed("Укажите причину отклонения")
 
-        context.approval.status = ServiceDeskApprovalStatus.REJECTED
-        context.approval.decision_comment = normalized_comment
-        context.approval.decided_at = now
-        self._skip_pending_approvals(context.stage_approvals, now)
-        context.stage.status = ServiceDeskApprovalStatus.REJECTED
-        context.stage.completed_at = now
+            context.approval.status = ServiceDeskApprovalStatus.REJECTED
+            context.approval.decision_comment = normalized_comment
+            context.approval.decided_at = now
+            self._skip_pending_approvals(context.stage_approvals, now)
+            context.stage.status = ServiceDeskApprovalStatus.REJECTED
+            context.stage.completed_at = now
 
-        later_stages = self.repository.list_later_stages_for_update(
-            context.ticket.id,
-            context.stage.position,
-        )
-        for later_stage in later_stages:
-            later_stage.status = ServiceDeskApprovalStatus.SKIPPED
-            later_stage.completed_at = now
-            later_approvals = self.repository.list_stage_approvals_for_update(later_stage.id)
-            self._skip_pending_approvals(later_approvals, now)
+            later_stages = self.repository.list_later_stages_for_update(
+                context.ticket.id,
+                context.stage.position,
+            )
+            for later_stage in later_stages:
+                later_stage.status = ServiceDeskApprovalStatus.SKIPPED
+                later_stage.completed_at = now
+                later_approvals = self.repository.list_stage_approvals_for_update(later_stage.id)
+                self._skip_pending_approvals(later_approvals, now)
 
-        self.lifecycle.perform_transition(
-            context.ticket,
-            ServiceDeskTicketAction.REJECT_APPROVAL,
-            actor=context.actor,
-            metadata={
-                "approval_id": str(context.approval.id),
-                "stage_id": str(context.stage.id),
-                "stage_title": context.stage.title,
-                "comment": normalized_comment,
-            },
-            occurred_at=now,
-        )
-        self.db.commit()
+            self.lifecycle.perform_transition(
+                context.ticket,
+                ServiceDeskTicketAction.REJECT_APPROVAL,
+                actor=context.actor,
+                metadata={
+                    "approval_id": str(context.approval.id),
+                    "stage_id": str(context.stage.id),
+                    "stage_title": context.stage.title,
+                    "comment": normalized_comment,
+                },
+                occurred_at=now,
+            )
+            uow.commit()
         return self._require_ticket(ticket_id)
 
     def _decision_context(

@@ -8,6 +8,7 @@ from platform_sdk.error_types import (
     PermissionDenied,
     ValidationFailed,
 )
+from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -114,59 +115,60 @@ class TicketService:
         return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
     def submit_draft(self, ticket_id: uuid.UUID, actor: ServiceDeskUser) -> schemas.TicketRead:
-        ticket = self.repository.get_ticket_for_update(ticket_id)
-        if not ticket:
-            raise EntityNotFound("Заявка не найдена")
-        if ticket.requester_user_id != actor.id:
-            raise PermissionDenied("Отправить черновик может только заявитель"
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            ticket = self.repository.get_ticket_for_update(ticket_id)
+            if not ticket:
+                raise EntityNotFound("Заявка не найдена")
+            if ticket.requester_user_id != actor.id:
+                raise PermissionDenied("Отправить черновик может только заявитель"
+                )
+            if ticket.status != ServiceDeskTicketStatus.DRAFT:
+                raise ConflictDetected("Отправить можно только черновик заявки",
+                )
+
+            service = self.catalog_repository.get_service(ticket.service_id)
+            if not service or not service.is_active or service.deleted_at is not None:
+                raise ConflictDetected("Услуга больше недоступна")
+
+            template_version = self.template_repository.get_version(ticket.template_version_id)
+            if not template_version or template_version.service_id != ticket.service_id:
+                raise ConflictDetected("Шаблон услуги больше недоступен")
+            if template_version.status == TemplateVersionStatus.DRAFT:
+                raise ConflictDetected("Форма услуги ещё не опубликована")
+
+            field_values = self._field_values_with_uploaded_files(ticket, template_version)
+            validation = validate_template_payload(
+                template_version,
+                field_values,
+                dictionary_options=self._dictionary_options(template_version),
             )
-        if ticket.status != ServiceDeskTicketStatus.DRAFT:
-            raise ConflictDetected("Отправить можно только черновик заявки",
+            errors = self._validate_system_fields(ticket, template_version.system_settings)
+            errors.extend(error.model_dump() for error in validation.errors)
+            if errors:
+                raise ValidationFailed(detail={"message": "Проверьте заполнение формы", "errors": errors},
+                )
+
+            default_title = template_version.system_settings.get("default_title")
+            if not template_version.system_settings.get("is_title_editable", True) and default_title:
+                ticket.title = str(default_title)
+            ticket.field_values = validation.normalized_data
+            now = datetime.now(UTC)
+            ticket.number = self.repository.next_ticket_number(now.year)
+            self.lifecycle.perform_transition(
+                ticket,
+                ServiceDeskTicketAction.SUBMIT,
+                actor=actor,
+                metadata={"number": ticket.number},
+                occurred_at=now,
             )
-
-        service = self.catalog_repository.get_service(ticket.service_id)
-        if not service or not service.is_active or service.deleted_at is not None:
-            raise ConflictDetected("Услуга больше недоступна")
-
-        template_version = self.template_repository.get_version(ticket.template_version_id)
-        if not template_version or template_version.service_id != ticket.service_id:
-            raise ConflictDetected("Шаблон услуги больше недоступен")
-        if template_version.status == TemplateVersionStatus.DRAFT:
-            raise ConflictDetected("Форма услуги ещё не опубликована")
-
-        field_values = self._field_values_with_uploaded_files(ticket, template_version)
-        validation = validate_template_payload(
-            template_version,
-            field_values,
-            dictionary_options=self._dictionary_options(template_version),
-        )
-        errors = self._validate_system_fields(ticket, template_version.system_settings)
-        errors.extend(error.model_dump() for error in validation.errors)
-        if errors:
-            raise ValidationFailed(detail={"message": "Проверьте заполнение формы", "errors": errors},
+            self.routing_service.snapshot_ticket(ticket, service, occurred_at=now)
+            self.sla_service.snapshot_ticket(ticket, service, occurred_at=now)
+            self.ticket_approval_service.initialize_snapshot(
+                ticket,
+                template_version,
+                occurred_at=now,
             )
-
-        default_title = template_version.system_settings.get("default_title")
-        if not template_version.system_settings.get("is_title_editable", True) and default_title:
-            ticket.title = str(default_title)
-        ticket.field_values = validation.normalized_data
-        now = datetime.now(UTC)
-        ticket.number = self.repository.next_ticket_number(now.year)
-        self.lifecycle.perform_transition(
-            ticket,
-            ServiceDeskTicketAction.SUBMIT,
-            actor=actor,
-            metadata={"number": ticket.number},
-            occurred_at=now,
-        )
-        self.routing_service.snapshot_ticket(ticket, service, occurred_at=now)
-        self.sla_service.snapshot_ticket(ticket, service, occurred_at=now)
-        self.ticket_approval_service.initialize_snapshot(
-            ticket,
-            template_version,
-            occurred_at=now,
-        )
-        self.db.commit()
+            uow.commit()
         return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
     def change_priority(
@@ -216,16 +218,31 @@ class TicketService:
         *,
         metadata: dict[str, Any] | None = None,
     ) -> schemas.TicketRead:
-        ticket = self.repository.get_ticket_for_update(ticket_id)
-        if not ticket:
-            raise EntityNotFound("Заявка не найдена")
-        previous_status = ticket.status
-        now = datetime.now(UTC)
-        self.lifecycle.perform_transition(ticket, action, actor=actor, metadata=metadata, occurred_at=now)
-        self.sla_service.handle_transition(ticket, previous_status, actor=actor, occurred_at=now)
-        if action in {ServiceDeskTicketAction.START, ServiceDeskTicketAction.REQUEST_CLARIFICATION}:
-            self.sla_service.mark_first_response(ticket, actor=actor, occurred_at=now)
-        self.db.commit()
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            ticket = self.repository.get_ticket_for_update(ticket_id)
+            if not ticket:
+                raise EntityNotFound("Заявка не найдена")
+            previous_status = ticket.status
+            now = datetime.now(UTC)
+            self.lifecycle.perform_transition(
+                ticket,
+                action,
+                actor=actor,
+                metadata=metadata,
+                occurred_at=now,
+            )
+            self.sla_service.handle_transition(
+                ticket,
+                previous_status,
+                actor=actor,
+                occurred_at=now,
+            )
+            if action in {
+                ServiceDeskTicketAction.START,
+                ServiceDeskTicketAction.REQUEST_CLARIFICATION,
+            }:
+                self.sla_service.mark_first_response(ticket, actor=actor, occurred_at=now)
+            uow.commit()
         return self._read_for_actor(self._require_ticket(ticket.id), actor)
 
     def assign_ticket(
