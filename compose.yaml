@@ -306,7 +306,7 @@ services:
 
   platform-bootstrap:
     image: prom-service-desk-backend:local
-    profiles: ["service-desk", "full"]
+    profiles: ["demo"]
     environment:
       <<: *service-desk-environment
       SERVICE_DESK_DB_POOL_SIZE: 1
