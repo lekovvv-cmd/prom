@@ -1,6 +1,66 @@
 {
   "components": {
     "schemas": {
+      "GroupInput": {
+        "properties": {
+          "code": {
+            "pattern": "^[a-z][a-z0-9_.-]{1,126}[a-z0-9]$",
+            "title": "Code",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 2,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "title"
+        ],
+        "title": "GroupInput",
+        "type": "object"
+      },
+      "GroupOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "member_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Member Ids",
+            "type": "array"
+          },
+          "role_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Role Codes",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "member_ids",
+          "role_codes"
+        ],
+        "title": "GroupOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -14,7 +74,7 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
-      "MockLoginInput": {
+      "MockCodeInput": {
         "properties": {
           "email": {
             "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
@@ -25,7 +85,90 @@
         "required": [
           "email"
         ],
+        "title": "MockCodeInput",
+        "type": "object"
+      },
+      "MockCodeOut": {
+        "properties": {
+          "dev_code": {
+            "title": "Dev Code",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "dev_code"
+        ],
+        "title": "MockCodeOut",
+        "type": "object"
+      },
+      "MockLoginInput": {
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
         "title": "MockLoginInput",
+        "type": "object"
+      },
+      "ModuleAdminOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "is_active"
+        ],
+        "title": "ModuleAdminOut",
+        "type": "object"
+      },
+      "ModuleInput": {
+        "properties": {
+          "id": {
+            "pattern": "^[a-z][a-z0-9-]{1,62}[a-z0-9]$",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 2,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ModuleInput",
         "type": "object"
       },
       "ModuleOut": {
@@ -55,6 +198,18 @@
             "pattern": "^[a-z0-9_.-]+$",
             "title": "Code",
             "type": "string"
+          },
+          "module_id": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9-]{1,62}[a-z0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Id"
           },
           "permissions": {
             "items": {
@@ -87,6 +242,17 @@
             "title": "Id",
             "type": "string"
           },
+          "module_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Id"
+          },
           "permissions": {
             "items": {
               "type": "string"
@@ -103,6 +269,7 @@
           "id",
           "code",
           "title",
+          "module_id",
           "permissions"
         ],
         "title": "RoleOut",
@@ -317,6 +484,342 @@
           }
         },
         "summary": "Jwks"
+      }
+    },
+    "/api/v1/admin/groups": {
+      "get": {
+        "operationId": "groups_api_v1_admin_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GroupOut"
+                  },
+                  "title": "Response Groups Api V1 Admin Groups Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Groups"
+      },
+      "post": {
+        "operationId": "create_group_api_v1_admin_groups_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Group"
+      }
+    },
+    "/api/v1/admin/groups/{group_id}": {
+      "delete": {
+        "operationId": "delete_group_api_v1_admin_groups__group_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Group"
+      }
+    },
+    "/api/v1/admin/groups/{group_id}/members/{user_id}": {
+      "delete": {
+        "operationId": "remove_group_member_api_v1_admin_groups__group_id__members__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Group Member"
+      },
+      "put": {
+        "operationId": "add_group_member_api_v1_admin_groups__group_id__members__user_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Group Member"
+      }
+    },
+    "/api/v1/admin/groups/{group_id}/roles/{role_id}": {
+      "delete": {
+        "operationId": "remove_group_role_api_v1_admin_groups__group_id__roles__role_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "title": "Role Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Group Role"
+      },
+      "put": {
+        "operationId": "add_group_role_api_v1_admin_groups__group_id__roles__role_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "title": "Role Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Group Role"
+      }
+    },
+    "/api/v1/admin/modules": {
+      "get": {
+        "operationId": "admin_modules_api_v1_admin_modules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleAdminOut"
+                  },
+                  "title": "Response Admin Modules Api V1 Admin Modules Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Modules"
+      },
+      "post": {
+        "operationId": "register_module_api_v1_admin_modules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleAdminOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Module"
       }
     },
     "/api/v1/admin/roles": {
@@ -599,6 +1102,15 @@
       }
     },
     "/api/v1/session": {
+      "delete": {
+        "operationId": "close_session_api_v1_session_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Close Session"
+      },
       "get": {
         "operationId": "session_info_api_v1_session_get",
         "responses": {
@@ -616,9 +1128,10 @@
         "summary": "Session Info"
       }
     },
-    "/auth/callback": {
+    "/api/v1/session/token": {
       "get": {
-        "operationId": "oidc_callback_auth_callback_get",
+        "description": "Issue a short-lived, memory-only bearer for product API calls.",
+        "operationId": "session_token_api_v1_session_token_get",
         "responses": {
           "200": {
             "content": {
@@ -626,6 +1139,22 @@
                 "schema": {
                   "$ref": "#/components/schemas/TokenOut"
                 }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session Token"
+      }
+    },
+    "/auth/callback": {
+      "get": {
+        "operationId": "oidc_callback_auth_callback_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -673,8 +1202,8 @@
       }
     },
     "/auth/logout": {
-      "get": {
-        "operationId": "logout_auth_logout_get",
+      "post": {
+        "operationId": "logout_auth_logout_post",
         "parameters": [
           {
             "in": "query",
@@ -710,9 +1239,58 @@
         "summary": "Logout"
       }
     },
-    "/auth/mock/login": {
+    "/auth/mock/code": {
       "post": {
-        "operationId": "mock_login_auth_mock_login_post",
+        "operationId": "mock_code_auth_mock_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockCodeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockCodeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mock Code"
+      }
+    },
+    "/auth/mock/logout": {
+      "post": {
+        "operationId": "mock_logout_auth_mock_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Mock Logout"
+      }
+    },
+    "/auth/mock/token": {
+      "post": {
+        "operationId": "mock_token_auth_mock_token_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -745,18 +1323,45 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Mock Login"
+        "summary": "Mock Token"
       }
     },
-    "/auth/mock/logout": {
+    "/auth/mock/verify": {
       "post": {
-        "operationId": "mock_logout_auth_mock_logout_post",
+        "operationId": "mock_verify_auth_mock_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockLoginInput"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
-        "summary": "Mock Logout"
+        "summary": "Mock Verify"
       }
     },
     "/health/live": {

@@ -3,7 +3,19 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Table, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -118,3 +130,36 @@ class AccessAuditEvent(Base):
     request_id: Mapped[str | None] = mapped_column(String(128))
     source: Mapped[str] = mapped_column(String(64), default="api")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class SigningKey(Base):
+    __tablename__ = "signing_keys"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    kid: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    private_key_pem: Mapped[str | None] = mapped_column(Text)
+    public_key_pem: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verify_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BrowserSession(Base):
+    __tablename__ = "browser_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    csrf_hash: Mapped[str] = mapped_column(String(64))
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("platform_users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    session_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    rotated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    idle_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

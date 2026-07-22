@@ -5,7 +5,17 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from access_service.domain.models import AccessAuditEvent, PlatformUser, Role, UserRoleAssignment
+from access_service.domain.models import (
+    AccessAuditEvent,
+    GroupMembership,
+    GroupRoleAssignment,
+    Module,
+    Permission,
+    PlatformUser,
+    Role,
+    UserRoleAssignment,
+    role_permissions,
+)
 from access_service.infrastructure.identity import ExternalPrincipal
 
 
@@ -24,21 +34,91 @@ def require_user(session: Session, user_id: str) -> PlatformUser:
     return user
 
 
-def permissions_for(user: PlatformUser) -> set[str]:
-    permissions: set[str] = set()
-    for assignment in user.assignments:
-        for permission in assignment.role.permissions:
-            permissions.add(permission.code)
-    return permissions
+def permissions_for(session: Session, user: PlatformUser) -> set[str]:
+    direct = select(Permission.code).join(
+        role_permissions,
+        role_permissions.c.permission_id == Permission.id,
+    ).join(
+        UserRoleAssignment,
+        UserRoleAssignment.role_id == role_permissions.c.role_id,
+    ).where(UserRoleAssignment.user_id == user.id)
+    through_groups = select(Permission.code).join(
+        role_permissions,
+        role_permissions.c.permission_id == Permission.id,
+    ).join(
+        GroupRoleAssignment,
+        GroupRoleAssignment.role_id == role_permissions.c.role_id,
+    ).join(
+        GroupMembership,
+        GroupMembership.group_id == GroupRoleAssignment.group_id,
+    ).where(GroupMembership.user_id == user.id)
+    return set(session.scalars(direct.union(through_groups)).all())
 
 
-def modules_for_permissions(permissions: set[str]) -> list[dict[str, object]]:
-    modules: list[dict[str, object]] = []
-    for module_id in ("projects", "service-desk"):
-        module_permissions = sorted(permission for permission in permissions if permission.startswith(module_id.replace("-", "_") + "."))
-        if module_permissions:
-            modules.append({"id": module_id, "permissions": module_permissions})
-    return modules
+def modules_for_permissions(
+    session: Session,
+    permissions: set[str],
+) -> list[dict[str, object]]:
+    if not permissions:
+        return []
+    rows = session.execute(
+        select(Module.id, Permission.code)
+        .join(Permission, Permission.module_id == Module.id)
+        .where(Module.is_active.is_(True), Permission.code.in_(permissions))
+        .order_by(Module.id, Permission.code)
+    ).all()
+    grouped: dict[str, list[str]] = {}
+    for module_id, permission_code in rows:
+        grouped.setdefault(module_id, []).append(permission_code)
+    return [
+        {"id": module_id, "permissions": module_permissions}
+        for module_id, module_permissions in grouped.items()
+    ]
+
+
+def user_ids_for_permission(session: Session, permission_code: str) -> set[str]:
+    direct = select(UserRoleAssignment.user_id).join(
+        role_permissions,
+        role_permissions.c.role_id == UserRoleAssignment.role_id,
+    ).join(
+        Permission,
+        Permission.id == role_permissions.c.permission_id,
+    ).where(Permission.code == permission_code)
+    through_groups = select(GroupMembership.user_id).join(
+        GroupRoleAssignment,
+        GroupRoleAssignment.group_id == GroupMembership.group_id,
+    ).join(
+        role_permissions,
+        role_permissions.c.role_id == GroupRoleAssignment.role_id,
+    ).join(
+        Permission,
+        Permission.id == role_permissions.c.permission_id,
+    ).where(Permission.code == permission_code)
+    candidate_ids = set(session.scalars(direct.union(through_groups)).all())
+    if not candidate_ids:
+        return set()
+    return set(
+        session.scalars(
+            select(PlatformUser.id).where(
+                PlatformUser.id.in_(candidate_ids),
+                PlatformUser.is_active.is_(True),
+            )
+        ).all()
+    )
+
+
+def affected_users_for_role(session: Session, role_id: str) -> list[PlatformUser]:
+    direct = select(UserRoleAssignment.user_id).where(UserRoleAssignment.role_id == role_id)
+    through_groups = select(GroupMembership.user_id).join(
+        GroupRoleAssignment,
+        GroupRoleAssignment.group_id == GroupMembership.group_id,
+    ).where(GroupRoleAssignment.role_id == role_id)
+    user_ids = set(session.scalars(direct.union(through_groups)).all())
+    if not user_ids:
+        return []
+    return list(
+        session.scalars(select(PlatformUser).where(PlatformUser.id.in_(user_ids))).all()
+    )
 
 
 def record_audit(

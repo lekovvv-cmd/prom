@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal
 
 from platform_sdk.config import (
@@ -22,7 +23,15 @@ class AccessSettings(BaseSettings):
     token_audiences: str = "projects,service-desk"
     token_ttl_seconds: int = 900
     jwt_private_key: str | None = None
+    jwt_private_key_file: str | None = None
     jwt_key_id: str = "local-ephemeral"
+    jwt_rotation_overlap_seconds: int = 1200
+    session_cookie_name: str = "prom_session"
+    session_csrf_cookie_name: str = "prom_csrf"
+    session_same_site: Literal["lax", "strict"] = "lax"
+    session_idle_ttl_seconds: int = 1800
+    session_absolute_ttl_seconds: int = 28800
+    session_rotation_seconds: int = 900
     trusted_headers_enabled: bool = False
     trusted_proxy_networks: str = ""
     sso_provider: Literal["mock", "trusted-header", "oidc"] = Field(default="mock", validation_alias="SSO_PROVIDER")
@@ -71,9 +80,9 @@ class AccessSettings(BaseSettings):
             )
             if self.debug:
                 raise ValueError("ACCESS_DEBUG must be false in production")
-            if is_insecure_secret(self.jwt_private_key):
+            if is_insecure_secret(self.jwt_private_key) and not self.jwt_private_key_file:
                 raise ValueError(
-                    "ACCESS_JWT_PRIVATE_KEY must be explicitly configured in production"
+                    "ACCESS_JWT_PRIVATE_KEY or ACCESS_JWT_PRIVATE_KEY_FILE must be configured in production"
                 )
             if not self.jwt_key_id.strip() or self.jwt_key_id == "local-ephemeral":
                 raise ValueError("ACCESS_JWT_KEY_ID must identify the production signing key")
@@ -91,11 +100,29 @@ class AccessSettings(BaseSettings):
                 raise ValueError("OIDC is enabled but its required configuration is incomplete")
         if self.oidc_jwks_cache_ttl_seconds < 30:
             raise ValueError("SSO_JWKS_CACHE_TTL must be at least 30 seconds")
+        if self.jwt_rotation_overlap_seconds < self.token_ttl_seconds:
+            raise ValueError("ACCESS_JWT_ROTATION_OVERLAP_SECONDS must cover token TTL")
+        if self.session_idle_ttl_seconds > self.session_absolute_ttl_seconds:
+            raise ValueError("Session idle TTL cannot exceed absolute TTL")
+        if self.session_rotation_seconds <= 0:
+            raise ValueError("Session rotation interval must be positive")
         return self
 
     @property
     def token_audience_values(self) -> tuple[str, ...]:
         return parse_nonempty_csv(self.token_audiences)
+
+    @property
+    def signing_private_key(self) -> str | None:
+        if self.jwt_private_key:
+            return self.jwt_private_key
+        if self.jwt_private_key_file:
+            return Path(self.jwt_private_key_file).read_text(encoding="utf-8")
+        return None
+
+    @property
+    def secure_cookies(self) -> bool:
+        return is_production_environment(self.environment)
 
 
 settings = AccessSettings()

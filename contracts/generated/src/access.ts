@@ -17,6 +17,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Groups */
+        get: operations["groups_api_v1_admin_groups_get"];
+        put?: never;
+        /** Create Group */
+        post: operations["create_group_api_v1_admin_groups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Group */
+        delete: operations["delete_group_api_v1_admin_groups__group_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/groups/{group_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Add Group Member */
+        put: operations["add_group_member_api_v1_admin_groups__group_id__members__user_id__put"];
+        post?: never;
+        /** Remove Group Member */
+        delete: operations["remove_group_member_api_v1_admin_groups__group_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/groups/{group_id}/roles/{role_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Add Group Role */
+        put: operations["add_group_role_api_v1_admin_groups__group_id__roles__role_id__put"];
+        post?: never;
+        /** Remove Group Role */
+        delete: operations["remove_group_role_api_v1_admin_groups__group_id__roles__role_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Modules */
+        get: operations["admin_modules_api_v1_admin_modules_get"];
+        put?: never;
+        /** Register Module */
+        post: operations["register_module_api_v1_admin_modules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/roles": {
         parameters: {
             query?: never;
@@ -165,6 +254,27 @@ export interface paths {
         get: operations["session_info_api_v1_session_get"];
         put?: never;
         post?: never;
+        /** Close Session */
+        delete: operations["close_session_api_v1_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/session/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Session Token
+         * @description Issue a short-lived, memory-only bearer for product API calls.
+         */
+        get: operations["session_token_api_v1_session_token_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -212,17 +322,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Logout */
-        get: operations["logout_auth_logout_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Logout */
+        post: operations["logout_auth_logout_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/auth/mock/login": {
+    "/auth/mock/code": {
         parameters: {
             query?: never;
             header?: never;
@@ -231,8 +341,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mock Login */
-        post: operations["mock_login_auth_mock_login_post"];
+        /** Mock Code */
+        post: operations["mock_code_auth_mock_code_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -250,6 +360,40 @@ export interface paths {
         put?: never;
         /** Mock Logout */
         post: operations["mock_logout_auth_mock_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mock/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mock Token */
+        post: operations["mock_token_auth_mock_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mock/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mock Verify */
+        post: operations["mock_verify_auth_mock_verify_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -294,15 +438,65 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** GroupInput */
+        GroupInput: {
+            /** Code */
+            code: string;
+            /** Title */
+            title: string;
+        };
+        /** GroupOut */
+        GroupOut: {
+            /** Code */
+            code: string;
+            /** Id */
+            id: string;
+            /** Member Ids */
+            member_ids: string[];
+            /** Role Codes */
+            role_codes: string[];
+            /** Title */
+            title: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** MockLoginInput */
-        MockLoginInput: {
+        /** MockCodeInput */
+        MockCodeInput: {
             /** Email */
             email: string;
+        };
+        /** MockCodeOut */
+        MockCodeOut: {
+            /** Dev Code */
+            dev_code: string;
+            /** Email */
+            email: string;
+        };
+        /** MockLoginInput */
+        MockLoginInput: {
+            /** Code */
+            code: string;
+            /** Email */
+            email: string;
+        };
+        /** ModuleAdminOut */
+        ModuleAdminOut: {
+            /** Id */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Title */
+            title: string;
+        };
+        /** ModuleInput */
+        ModuleInput: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
         };
         /** ModuleOut */
         ModuleOut: {
@@ -315,6 +509,8 @@ export interface components {
         RoleInput: {
             /** Code */
             code: string;
+            /** Module Id */
+            module_id?: string | null;
             /** Permissions */
             permissions?: string[];
             /** Title */
@@ -326,6 +522,8 @@ export interface components {
             code: string;
             /** Id */
             id: string;
+            /** Module Id */
+            module_id: string | null;
             /** Permissions */
             permissions: string[];
             /** Title */
@@ -416,6 +614,269 @@ export interface operations {
                             [key: string]: string;
                         }[];
                     };
+                };
+            };
+        };
+    };
+    groups_api_v1_admin_groups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"][];
+                };
+            };
+        };
+    };
+    create_group_api_v1_admin_groups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_group_api_v1_admin_groups__group_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_group_member_api_v1_admin_groups__group_id__members__user_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_group_member_api_v1_admin_groups__group_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_group_role_api_v1_admin_groups__group_id__roles__role_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_group_role_api_v1_admin_groups__group_id__roles__role_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_modules_api_v1_admin_modules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleAdminOut"][];
+                };
+            };
+        };
+    };
+    register_module_api_v1_admin_modules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModuleInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -674,7 +1135,25 @@ export interface operations {
             };
         };
     };
-    oidc_callback_auth_callback_get: {
+    close_session_api_v1_session_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    session_token_api_v1_session_token_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -690,6 +1169,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenOut"];
+                };
+            };
+        };
+    };
+    oidc_callback_auth_callback_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -725,7 +1224,7 @@ export interface operations {
             };
         };
     };
-    logout_auth_logout_get: {
+    logout_auth_logout_post: {
         parameters: {
             query?: {
                 return_url?: string;
@@ -756,7 +1255,58 @@ export interface operations {
             };
         };
     };
-    mock_login_auth_mock_login_post: {
+    mock_code_auth_mock_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MockCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MockCodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mock_logout_auth_mock_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    mock_token_auth_mock_token_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -789,21 +1339,36 @@ export interface operations {
             };
         };
     };
-    mock_logout_auth_mock_logout_post: {
+    mock_verify_auth_mock_verify_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MockLoginInput"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
