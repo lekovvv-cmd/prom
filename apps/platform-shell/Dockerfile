@@ -27,5 +27,12 @@ RUN npm run build --workspace=@prom/platform-shell
 FROM nginx:1.30.3-alpine@sha256:0d3b80406a13a767339fbe2f41406d6c7da727ab89cf8fae399e81f780f814d1 AS runtime
 COPY apps/platform-shell/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/apps/platform-shell/dist /usr/share/nginx/html
+RUN chown -R nginx:nginx \
+    /etc/nginx/conf.d \
+    /usr/share/nginx/html \
+    /var/cache/nginx \
+    /var/log/nginx \
+    /var/run
+USER nginx
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD ["wget", "-q", "--spider", "http://127.0.0.1/healthz"]
