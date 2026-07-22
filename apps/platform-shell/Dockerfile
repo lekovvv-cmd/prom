@@ -32,7 +32,9 @@ RUN chown -R nginx:nginx \
     /usr/share/nginx/html \
     /var/cache/nginx \
     /var/log/nginx \
-    /var/run
+    /var/run \
+    && touch /run/nginx.pid \
+    && chown nginx:nginx /run/nginx.pid
 USER nginx
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD ["wget", "-q", "--spider", "http://127.0.0.1/healthz"]
