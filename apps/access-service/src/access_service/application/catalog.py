@@ -127,34 +127,35 @@ def ensure_access_catalog(session: Session) -> dict[str, Role]:
 
     for code, title in PERMISSIONS.items():
         permission = session.scalar(select(Permission).where(Permission.code == code))
-        module_id = permission_module(code)
+        permission_module_id = permission_module(code)
         if permission is None:
-            session.add(Permission(code=code, title=title, module_id=module_id))
+            session.add(
+                Permission(code=code, title=title, module_id=permission_module_id)
+            )
         else:
             permission.title = title
-            permission.module_id = module_id
+            permission.module_id = permission_module_id
     session.flush()
 
     permissions = {
         permission.code: permission for permission in session.scalars(select(Permission)).all()
     }
     roles: dict[str, Role] = {}
-    for code, (title, module_id, permission_codes) in ROLES.items():
+    for code, (title, role_module_id, permission_codes) in ROLES.items():
         role = session.scalar(select(Role).where(Role.code == code))
         if role is None:
             role = Role(
                 code=code,
                 title=title,
-                module_id=module_id,
+                module_id=role_module_id,
                 is_system=True,
             )
             session.add(role)
         else:
             role.title = title
-            role.module_id = module_id
+            role.module_id = role_module_id
             role.is_system = True
         role.permissions = [permissions[permission_code] for permission_code in permission_codes]
         roles[code] = role
     session.flush()
     return roles
-

@@ -145,6 +145,7 @@ class BrowserSessionManager:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Browser session expired or was revoked",
             )
+        assert user is not None
         self._verify_csrf(request, browser_session)
         browser_session.last_seen_at = now
         browser_session.idle_expires_at = min(

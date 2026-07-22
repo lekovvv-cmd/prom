@@ -251,7 +251,7 @@ def build_reconciliation_plan(
     for email, row in service_desk_by_email.items():
         projection_id = str(row["id"])
         source_identity_id = _string_value(row.get("identity_user_id"))
-        record = records_by_email.get(email)
+        service_record = records_by_email.get(email)
         if source_identity_id in project_ids_to_email:
             owner_email = project_ids_to_email[source_identity_id]
             if owner_email != email:
@@ -265,13 +265,13 @@ def build_reconciliation_plan(
                         ),
                     }
                 )
-        if record is None:
+        if service_record is None:
             candidate_id = source_identity_id or projection_id
             try:
                 uuid.UUID(candidate_id)
             except (ValueError, AttributeError):
                 candidate_id = projection_id
-            record = IdentityRecord(
+            service_record = IdentityRecord(
                 user_id=candidate_id,
                 email=email,
                 display_name=str(row.get("display_name") or email),
@@ -279,11 +279,13 @@ def build_reconciliation_plan(
                 position=_string_value(row.get("position")),
                 external_subject=_string_value(row.get("external_subject")),
             )
-            records_by_email[email] = record
-        elif record.external_subject is None:
-            record.external_subject = _string_value(row.get("external_subject"))
-        record.service_desk_user_ids.append(projection_id)
-        record.is_active = record.is_active and bool(row.get("is_active", True))
+            records_by_email[email] = service_record
+        elif service_record.external_subject is None:
+            service_record.external_subject = _string_value(row.get("external_subject"))
+        service_record.service_desk_user_ids.append(projection_id)
+        service_record.is_active = service_record.is_active and bool(
+            row.get("is_active", True)
+        )
         role = SERVICE_DESK_ROLE_MAP.get(_enum_value(row.get("access_type")))
         if role is None:
             plan.conflicts.append(
@@ -295,7 +297,7 @@ def build_reconciliation_plan(
                 }
             )
         else:
-            record.role_codes.add(role)
+            service_record.role_codes.add(role)
 
     for email, record in records_by_email.items():
         existing_by_email = access_by_email.get(email)
