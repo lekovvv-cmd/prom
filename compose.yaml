@@ -121,7 +121,7 @@ services:
 
   access-seed:
     image: prom-access-service:local
-    profiles: ["core", "full"]
+    profiles: ["demo"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
       ACCESS_DB_POOL_SIZE: 1
@@ -223,7 +223,7 @@ services:
 
   projects-seed:
     image: prom-projects-backend:local
-    profiles: ["projects", "full"]
+    profiles: ["demo"]
     environment:
       <<: *projects-environment
       PROJECTS_DB_POOL_SIZE: 1
@@ -319,7 +319,7 @@ services:
 
   service-desk-seed:
     image: prom-service-desk-backend:local
-    profiles: ["service-desk", "full"]
+    profiles: ["demo"]
     environment:
       <<: *service-desk-environment
       SERVICE_DESK_DB_POOL_SIZE: 1
@@ -398,8 +398,14 @@ services:
     ports: ["5173:80"]
     depends_on:
       access-service: { condition: service_healthy }
+      access-seed:
+        condition: service_completed_successfully
+        required: false
       projects-backend:
         condition: service_healthy
+        required: false
+      projects-seed:
+        condition: service_completed_successfully
         required: false
       projects-outbox-worker:
         condition: service_started
@@ -409,6 +415,9 @@ services:
         required: false
       service-desk-backend:
         condition: service_healthy
+        required: false
+      service-desk-seed:
+        condition: service_completed_successfully
         required: false
       service-desk-sla-worker:
         condition: service_started

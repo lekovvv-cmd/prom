@@ -292,7 +292,7 @@ jobs:
           apps/access-service/tests/test_identity_migration.py
       - name: Start fresh PostgreSQL schemas and representative seed data
         run: >
-          docker compose --profile full up --build -d --wait
+          docker compose --profile full --profile demo up --build -d --wait
           access-seed projects-seed service-desk-seed
       - name: Rehearse dry-run and repeatable apply against PostgreSQL
         run: |
@@ -592,6 +592,8 @@ jobs:
         run: docker compose down -v --remove-orphans
       - name: Start production-like stack
         run: docker compose --profile full up --build -d --wait
+      - name: Load idempotent demo fixtures for browser scenarios
+        run: docker compose --profile full --profile demo up -d --wait
       - name: Record clean-stack health
         run: docker compose ps --all
       - name: Run Playwright through the versioned gateway
