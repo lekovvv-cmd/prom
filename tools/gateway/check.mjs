@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -24,6 +24,22 @@ const requiredNginxFragments = [
   'add_header Deprecation "true" always',
   "resolver 127.0.0.11",
 ];
+
+for (const entry of readdirSync(resolve(root, "apps"), {
+  withFileTypes: true,
+})) {
+  if (!entry.isDirectory()) continue;
+  const registrationPath = resolve(
+    root,
+    "apps",
+    entry.name,
+    "platform",
+    "registration.json",
+  );
+  if (!existsSync(registrationPath)) continue;
+  const registration = JSON.parse(readFileSync(registrationPath, "utf8"));
+  requiredNginxFragments.push(`location ${registration.gatewayPrefix}`);
+}
 
 const missing = requiredNginxFragments.filter(
   (fragment) => !nginx.includes(fragment),

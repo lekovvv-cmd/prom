@@ -63,8 +63,8 @@ case "$COMMAND" in
   generate-contracts) npm run generate:contracts ;;
   architecture-check) "$PROM_PYTHON" tools/architecture/check.py ;;
   create-module)
-    [[ $# -eq 1 ]] || { printf 'Usage: ./dev.sh create-module <module-name>\n' >&2; exit 2; }
-    "$PROM_PYTHON" tools/generators/create_module.py "$1"
+    [[ $# -ge 1 && $# -le 2 ]] || { printf 'Usage: ./dev.sh create-module <module-name> [--dry-run|--check|--remove]\n' >&2; exit 2; }
+    "$PROM_PYTHON" tools/generators/create_module.py "$@"
     ;;
   migrate-identities)
     [[ $# -eq 1 && ( "$1" == "--dry-run" || "$1" == "--apply" ) ]] || {

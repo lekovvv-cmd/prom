@@ -19,6 +19,7 @@
     "check:bundle": "node tools/frontend/check-bundle.mjs",
     "check:styles": "node tools/frontend/check-styles.mjs",
     "check:gateway": "node tools/gateway/check.mjs",
+    "test:generator": "python -m pytest -q tools/generators/test_create_module.py",
     "generate:contracts": "node tools/contracts/generate.mjs",
     "check:contracts": "node tools/contracts/check.mjs"
   },

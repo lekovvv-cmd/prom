@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import openapiTS, { astToString } from "openapi-typescript";
@@ -64,6 +70,27 @@ const services = [
     bootstrap: "from app.main import app",
   },
 ];
+
+for (const entry of readdirSync(resolve(root, "apps"), {
+  withFileTypes: true,
+})) {
+  if (!entry.isDirectory()) continue;
+  const registrationPath = resolve(
+    root,
+    "apps",
+    entry.name,
+    "platform",
+    "registration.json",
+  );
+  if (!existsSync(registrationPath)) continue;
+  const registration = JSON.parse(readFileSync(registrationPath, "utf8"));
+  services.push({
+    file: registration.openapiFile,
+    generatedFile: registration.generatedFile,
+    cwd: resolve(root, "apps", entry.name, "backend"),
+    bootstrap: `import sys; sys.path.insert(0, 'src'); from ${registration.backendPackage}.bootstrap.app import app`,
+  });
+}
 
 mkdirSync(outputDir, { recursive: true });
 mkdirSync(generatedOutputDir, { recursive: true });

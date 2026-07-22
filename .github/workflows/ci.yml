@@ -104,6 +104,36 @@ jobs:
       - run: node tools/gateway/check.mjs
       - run: docker compose config --quiet
 
+  module-generator-smoke:
+    name: Module generator acceptance
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --group dev
+      - run: uv run --frozen python -m pytest -q tools/generators/test_create_module.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: python tools/generators/create_module.py audit-sample-module
+      - run: python tools/generators/create_module.py audit-sample-module --check
+      - run: uv run --frozen --package prom-audit-sample-module-backend --extra dev python -m pytest -q apps/audit-sample-module/backend/tests
+      - run: docker compose --profile audit-sample-module up --build -d --wait audit-sample-module-backend
+      - run: npm run build
+      - run: npm run check:contracts
+      - run: node tools/gateway/check.mjs
+      - run: python tools/architecture/check.py
+      - run: docker compose --profile audit-sample-module down -v --remove-orphans
+      - run: python tools/generators/create_module.py audit-sample-module --remove
+      - run: git diff --exit-code
+
   python-lint:
     name: Python lint
     needs: detect-changes

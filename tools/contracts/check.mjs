@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -15,6 +21,23 @@ const expectedFiles = [
   "service-desk.openapi.json",
 ];
 const expectedGeneratedFiles = ["access.ts", "projects.ts", "serviceDesk.ts"];
+
+for (const entry of readdirSync(resolve(root, "apps"), {
+  withFileTypes: true,
+})) {
+  if (!entry.isDirectory()) continue;
+  const registrationPath = resolve(
+    root,
+    "apps",
+    entry.name,
+    "platform",
+    "registration.json",
+  );
+  if (!existsSync(registrationPath)) continue;
+  const registration = JSON.parse(readFileSync(registrationPath, "utf8"));
+  expectedFiles.push(registration.openapiFile);
+  expectedGeneratedFiles.push(registration.generatedFile);
+}
 
 try {
   const generate = spawnSync(

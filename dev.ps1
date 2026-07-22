@@ -85,8 +85,8 @@ try {
         "generate-contracts" { & npm.cmd run generate:contracts }
         "architecture-check" { Invoke-PromPython tools/architecture/check.py }
         "create-module" {
-            if ($Services.Count -ne 1) { throw "Usage: .\dev.cmd create-module <module-name>" }
-            Invoke-PromPython tools/generators/create_module.py $Services[0]
+            if ($Services.Count -lt 1 -or $Services.Count -gt 2) { throw "Usage: .\dev.cmd create-module <module-name> [--dry-run|--check|--remove]" }
+            Invoke-PromPython tools/generators/create_module.py @Services
         }
         "migrate-identities" {
             if ($Services.Count -ne 1 -or $Services[0] -notin @("--dry-run", "--apply")) {
