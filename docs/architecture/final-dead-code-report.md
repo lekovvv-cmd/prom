@@ -13,6 +13,7 @@ fixtures, migrations, worker entry points, lazy routes, or OpenAPI snapshots.
 
 | Item | Evidence / reason |
 | --- | --- |
+| `.docker-access-build.err.log`, `.docker-access-build.out.log` | Tracked local Docker build diagnostics; reproducible runtime output covered by `*.log` ignore rules. |
 | 16 files under `apps/projects/backend/storage/e2e_uploads/` | Generated Playwright uploads; runtime data is covered by `apps/*/backend/storage/` in `.gitignore`. |
 | `apps/projects/frontend/styles.css` | Retired 1,403-line product-wide stylesheet. |
 | `apps/projects/frontend/platform-foundation.css` | Retired duplicate platform foundation layer. |

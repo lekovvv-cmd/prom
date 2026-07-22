@@ -16,7 +16,7 @@ Updated: 2026-07-22
 | Tailwind/style migration | DONE | Giant product stylesheets are removed; 33 scoped files, 86 global lines, 274-line largest file, 0 unused selectors, 0 `!important`, 0 warnings, and all CSS budgets pass. |
 | Generic shared API client | DONE | Shared transport contains only generic HTTP/session/Problem Details behavior; module vocabulary boundary test, structured errors, timeout/cancellation, and cookie credentials pass. |
 | Module generator | DONE | Dry-run/create/check/remove is atomic and restores the workspace exactly; 2/2 rollback/roundtrip tests pass and CI exercises PostgreSQL, health, frontend, gateway, contracts, and architecture. |
-| Repository cleanup | DONE | Tracked runtime uploads and monolithic CSS are removed; ignore rules, ruff, mypy, deptry, ESLint, Prettier, knip, pip-audit, and production npm audit pass. |
+| Repository cleanup | DONE | Tracked Docker logs/runtime uploads and monolithic CSS are removed; ignore rules, ruff, mypy, deptry, ESLint, Prettier, knip, pip-audit, and production npm audit pass. |
 | Required CI coverage | DONE | CI includes affected-consumer routing, legacy migration, Access/Projects/Service Desk PostgreSQL, RBAC/rotation, storage rollback, style/generator/Compose/E2E jobs, Trivy, pip-audit, and npm audit. |
 | Clean Compose and persistence | DONE | Empty production-like `full` startup, rootless processes, internal-only service ports, health/metrics, demo isolation, API restart, full-stack reconstruction, signing-key/data/file persistence, and seed idempotence were reproduced. |
 | Full regression and E2E | DONE | Python 256 passed / 3 environment-gated skips (all three separately pass on PostgreSQL); frontend 111/111; PostgreSQL 3/3; generator 2/2; Playwright 35/35. |
