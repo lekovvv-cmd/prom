@@ -12,6 +12,8 @@ from access_service.application.identity_migration import (
     migrate_identities,
 )
 from access_service.domain.models import Base, PlatformUser, Role, UserRoleAssignment
+from access_service.bootstrap.config import AccessSettings
+from access_service.infrastructure.identity import InternalTokenSigner
 
 
 def database_url(path: Path) -> str:
@@ -297,3 +299,81 @@ def test_clear_uuid_conflict_blocks_apply(tmp_path: Path) -> None:
             report_dir=tmp_path / "report",
         )
 
+
+def test_migrated_identity_keeps_all_legacy_relationships_and_token_subject(
+    tmp_path: Path,
+) -> None:
+    projects_url, service_desk_url, access_url, projects_users, service_desk_users = (
+        legacy_databases(tmp_path)
+    )
+    user_id = str(uuid.uuid4())
+    insert_legacy_user(
+        projects_url=projects_url,
+        service_desk_url=service_desk_url,
+        projects_users=projects_users,
+        service_desk_users=service_desk_users,
+        project_user_id=user_id,
+        access_projection_id=str(uuid.uuid4()),
+    )
+    projects_metadata = MetaData()
+    relationships = [
+        Table(
+            table_name,
+            projects_metadata,
+            Column("id", String(36), primary_key=True),
+            Column("user_id", String(36), nullable=False),
+        )
+        for table_name in ("projects", "project_responses", "project_tasks", "half_year_reports")
+    ]
+    projects_engine = create_engine(projects_url)
+    projects_metadata.create_all(projects_engine)
+    with projects_engine.begin() as connection:
+        for table in relationships:
+            connection.execute(table.insert().values(id=str(uuid.uuid4()), user_id=user_id))
+    tickets_metadata = MetaData()
+    tickets = Table(
+        "service_desk_tickets",
+        tickets_metadata,
+        Column("id", String(36), primary_key=True),
+        Column("requester_user_id", String(36), nullable=False),
+    )
+    service_desk_engine = create_engine(service_desk_url)
+    tickets_metadata.create_all(service_desk_engine)
+    with service_desk_engine.begin() as connection:
+        connection.execute(
+            tickets.insert().values(id=str(uuid.uuid4()), requester_user_id=user_id)
+        )
+
+    migrate_identities(
+        projects_database_url=projects_url,
+        service_desk_database_url=service_desk_url,
+        access_database_url=access_url,
+        apply=True,
+        report_dir=tmp_path / "report",
+    )
+
+    with projects_engine.connect() as connection:
+        assert {
+            connection.scalar(select(table.c.user_id)) for table in relationships
+        } == {user_id}
+    with service_desk_engine.connect() as connection:
+        assert connection.scalar(select(tickets.c.requester_user_id)) == user_id
+    with Session(create_engine(access_url)) as session:
+        migrated = session.get(PlatformUser, user_id)
+        assert migrated is not None
+        role_codes = {
+            assignment.role.code for assignment in migrated.assignments
+        }
+    signer = InternalTokenSigner(AccessSettings(database_url=access_url))
+    token = signer.issue(
+        user_id=user_id,
+        external_subject=migrated.external_subject,
+        email=migrated.email,
+        display_name=migrated.display_name,
+        permissions={"projects.access", "service_desk.access"},
+        session_version=migrated.session_version,
+    )
+
+    assert role_codes == {"project_manager", "service_desk_manager"}
+    assert signer.verify(token, audience="projects")["sub"] == user_id
+    assert signer.verify(token, audience="service-desk")["sub"] == user_id

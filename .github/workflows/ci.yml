@@ -42,16 +42,32 @@ jobs:
           filters: |
             access:
               - 'apps/access-service/**'
+              - 'packages/python/platform-sdk/**'
+              - 'packages/frontend/auth/**'
+              - 'packages/frontend/api-client/**'
+              - 'packages/frontend/ui/**'
+              - 'tools/gateway/**'
             projects:
               - 'apps/projects/**'
+              - 'packages/python/platform-sdk/**'
+              - 'packages/frontend/auth/**'
+              - 'packages/frontend/api-client/**'
+              - 'packages/frontend/ui/**'
+              - 'tools/gateway/**'
             service_desk:
               - 'apps/service-desk/**'
+              - 'packages/python/platform-sdk/**'
+              - 'packages/frontend/auth/**'
+              - 'packages/frontend/api-client/**'
+              - 'packages/frontend/ui/**'
+              - 'tools/gateway/**'
             frontend:
               - 'apps/platform-shell/**'
               - 'apps/*/frontend/**'
               - 'packages/frontend/**'
               - 'contracts/generated/**'
               - 'tools/frontend/**'
+              - 'tools/gateway/**'
               - 'eslint.config.mjs'
               - 'knip.json'
               - 'package.json'
@@ -214,6 +230,94 @@ jobs:
       - run: uv sync --locked --package prom-access-service --extra dev
       - run: uv run --frozen --package prom-access-service --extra dev python -m pytest -q apps/access-service/tests
 
+  access-postgres-integration:
+    name: Access PostgreSQL, group RBAC, and key rotation
+    needs: detect-changes
+    if: needs.detect-changes.outputs.access == 'true' || needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_DB: access_test
+          POSTGRES_USER: access
+          POSTGRES_PASSWORD: access
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U access -d access_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      ACCESS_DATABASE_URL: postgresql+psycopg://access:access@localhost:5432/access_test
+      ACCESS_TEST_DATABASE_URL: postgresql+psycopg://access:access@localhost:5432/access_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package prom-access-service --extra dev
+      - name: Apply Access migrations to PostgreSQL
+        working-directory: apps/access-service
+        run: ../../.venv/bin/alembic upgrade head
+      - name: Exercise PostgreSQL group RBAC and persisted key rotation
+        run: >
+          uv run --frozen --package prom-access-service --extra dev python -m pytest -q
+          apps/access-service/tests/test_postgres_integration.py
+      - name: Re-run negative RBAC and rotation suites
+        run: >
+          uv run --frozen --package prom-access-service --extra dev python -m pytest -q
+          apps/access-service/tests/test_access_rbac.py
+          apps/access-service/tests/test_signing_key_rotation.py
+
+  legacy-identity-migration:
+    name: Legacy identity migration rehearsal
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.access == 'true' ||
+      needs.detect-changes.outputs.projects == 'true' ||
+      needs.detect-changes.outputs.service_desk == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --package prom-access-service --extra dev
+      - name: Verify UUID, relationship, conflict, and idempotency behavior
+        run: >
+          uv run --frozen --package prom-access-service --extra dev python -m pytest -q
+          apps/access-service/tests/test_identity_migration.py
+      - name: Start fresh PostgreSQL schemas and representative seed data
+        run: >
+          docker compose --profile full up --build -d --wait
+          access-seed projects-seed service-desk-seed
+      - name: Rehearse dry-run and repeatable apply against PostgreSQL
+        run: |
+          docker compose --profile migration run --rm access-identity-migrate --dry-run
+          docker compose --profile migration run --rm access-identity-migrate --apply
+          docker compose --profile migration run --rm access-identity-migrate --apply
+          test -s outputs/identity-migration/identity-reconciliation.json
+          test -s outputs/identity-migration/identity-reconciliation.md
+      - name: Capture diagnostics
+        if: always()
+        run: |
+          docker compose ps --all > docker-compose-ps.txt
+          docker compose logs --no-color > docker-compose.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: legacy-identity-migration-diagnostics
+          path: |
+            docker-compose-ps.txt
+            docker-compose.log
+            outputs/identity-migration
+      - name: Stop rehearsal databases
+        if: always()
+        run: docker compose down -v --remove-orphans
+
   projects-tests:
     name: Projects unit tests
     needs: detect-changes
@@ -228,6 +332,10 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --package shpiu-project-showcase-backend --extra dev
       - run: uv run --frozen --package shpiu-project-showcase-backend --extra dev python -m pytest -q apps/projects/backend/tests
+      - name: Re-run storage transaction and rollback boundary tests
+        run: >
+          uv run --frozen --package shpiu-project-showcase-backend --extra dev python -m pytest -q
+          apps/projects/backend/tests/test_projects_integrity.py
 
   service-desk-tests:
     name: Service Desk unit tests
@@ -480,8 +588,12 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm exec --workspace=@prom/platform-shell playwright install --with-deps chromium
+      - name: Remove all prior volumes and orphan containers
+        run: docker compose down -v --remove-orphans
       - name: Start production-like stack
         run: docker compose --profile full up --build -d --wait
+      - name: Record clean-stack health
+        run: docker compose ps --all
       - name: Run Playwright through the versioned gateway
         env:
           E2E_BASE_URL: http://127.0.0.1:5173

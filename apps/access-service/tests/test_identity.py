@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import jwt
 import pytest
@@ -16,6 +20,7 @@ from access_service.infrastructure.identity import (
     OidcIdentityProvider,
     TrustedHeaderIdentityProvider,
 )
+from access_service.infrastructure import identity as identity_module
 
 
 def make_request(
@@ -98,6 +103,116 @@ def test_oidc_adapter_is_complete_but_disabled_without_real_settings() -> None:
     assert error.value.status_code == 503
 
 
+def test_oidc_login_uses_signed_state_nonce_pkce_and_safe_return_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = production_settings()
+    provider = OidcIdentityProvider(settings)
+    monkeypatch.setattr(
+        provider,
+        "_discovery_document",
+        lambda: {"authorization_endpoint": "https://sso.example/authorize"},
+    )
+
+    redirect = provider.build_login_redirect("https://evil.example/steal")
+    query = parse_qs(urlparse(redirect).query)
+    state = jwt.decode(
+        query["state"][0],
+        settings.oidc_client_secret,
+        algorithms=["HS256"],
+    )
+    expected_challenge = (
+        base64.urlsafe_b64encode(
+            hashlib.sha256(state["verifier"].encode()).digest()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
+
+    assert state["return_url"] == "/"
+    assert state["nonce"] == query["nonce"][0]
+    assert query["code_challenge"][0] == expected_challenge
+    assert query["code_challenge_method"] == ["S256"]
+
+
+def test_oidc_callback_rejects_invalid_state_before_token_exchange() -> None:
+    provider = OidcIdentityProvider(production_settings())
+    request = make_request()
+    request.scope["query_string"] = b"code=auth-code&state=not-a-jwt"
+
+    with pytest.raises(HTTPException) as error:
+        provider.handle_callback(request)
+
+    assert error.value.status_code == 400
+
+
+def test_oidc_callback_rejects_nonce_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = production_settings()
+    provider = OidcIdentityProvider(settings)
+    identity_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    now = datetime.now(UTC)
+    state = jwt.encode(
+        {
+            "return_url": "/projects",
+            "nonce": "expected-nonce",
+            "verifier": "pkce-verifier",
+            "exp": now.timestamp() + 600,
+        },
+        settings.oidc_client_secret,
+        algorithm="HS256",
+    )
+    id_token = jwt.encode(
+        {
+            "iss": settings.oidc_issuer_url,
+            "sub": "oidc-user",
+            "aud": settings.oidc_client_id,
+            "email": "oidc.user@utmn.ru",
+            "name": "OIDC User",
+            "nonce": "different-nonce",
+            "iat": now,
+            "exp": now.timestamp() + 600,
+        },
+        identity_key,
+        algorithm="RS256",
+        headers={"kid": "oidc-key"},
+    )
+    monkeypatch.setattr(
+        provider,
+        "_discovery_document",
+        lambda: {
+            "token_endpoint": "https://sso.example/token",
+            "jwks_uri": "https://sso.example/jwks",
+        },
+    )
+
+    class TokenResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, str]:
+            return {"id_token": id_token}
+
+    class JwkClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        def get_signing_key_from_jwt(self, _token: str) -> SimpleNamespace:
+            return SimpleNamespace(key=identity_key.public_key())
+
+    monkeypatch.setattr(identity_module.httpx, "post", lambda *_args, **_kwargs: TokenResponse())
+    monkeypatch.setattr(identity_module.jwt, "PyJWKClient", JwkClient)
+    request = make_request()
+    request.scope["query_string"] = urlencode({"code": "auth-code", "state": state}).encode()
+
+    with pytest.raises(HTTPException) as error:
+        provider.handle_callback(request)
+
+    assert error.value.status_code == 401
+    assert error.value.detail == "OIDC nonce mismatch"
+
+
 def production_settings(**overrides: object) -> AccessSettings:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     values: dict[str, object] = {
@@ -116,7 +231,7 @@ def production_settings(**overrides: object) -> AccessSettings:
         "oidc_enabled": True,
         "oidc_issuer_url": "https://sso.example",
         "oidc_client_id": "prom",
-        "oidc_client_secret": "oidc-client-secret",
+        "oidc_client_secret": "oidc-client-secret-at-least-32-bytes",
         "oidc_redirect_uri": "https://prom.example/api/access/v1/auth/callback",
     }
     values.update(overrides)
@@ -134,6 +249,7 @@ def production_settings(**overrides: object) -> AccessSettings:
         ({"token_issuer": ""}, "ACCESS_TOKEN_ISSUER"),
         ({"token_audiences": ""}, "ACCESS_TOKEN_AUDIENCES"),
         ({"sso_provider": "mock", "oidc_enabled": False}, "SSO_PROVIDER=mock"),
+        ({"oidc_client_secret": "too-short"}, "SSO_CLIENT_SECRET"),
     ],
 )
 def test_production_settings_reject_unsafe_configuration(

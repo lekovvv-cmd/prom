@@ -98,6 +98,12 @@ class AccessSettings(BaseSettings):
                 [self.oidc_issuer_url, self.oidc_client_id, self.oidc_client_secret, self.oidc_redirect_uri]
             ):
                 raise ValueError("OIDC is enabled but its required configuration is incomplete")
+        if (
+            (self.oidc_enabled or self.sso_provider == "oidc")
+            and self.oidc_client_secret
+            and len(self.oidc_client_secret.encode()) < 32
+        ):
+            raise ValueError("SSO_CLIENT_SECRET must contain at least 32 bytes")
         if self.oidc_jwks_cache_ttl_seconds < 30:
             raise ValueError("SSO_JWKS_CACHE_TTL must be at least 30 seconds")
         if self.jwt_rotation_overlap_seconds < self.token_ttl_seconds:

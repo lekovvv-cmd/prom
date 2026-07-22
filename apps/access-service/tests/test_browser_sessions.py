@@ -88,7 +88,7 @@ def test_production_session_cookie_is_secure() -> None:
         oidc_enabled=True,
         oidc_issuer_url="https://sso.example",
         oidc_client_id="prom",
-        oidc_client_secret="client-secret",
+        oidc_client_secret="client-secret-at-least-32-bytes-long",
         oidc_redirect_uri="https://prom.example/auth/callback",
     )
     manager = BrowserSessionManager(settings)
@@ -186,4 +186,3 @@ def test_session_secret_rotates_without_extending_absolute_expiry() -> None:
 )
 def test_return_url_is_local(candidate: str, expected: str) -> None:
     assert safe_return_url(candidate) == expected
-

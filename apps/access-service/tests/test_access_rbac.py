@@ -12,6 +12,7 @@ from access_service.api.router import (
     create_group,
     register_module,
     remove_group_member,
+    remove_group_role,
     upsert_role,
 )
 from access_service.api.schemas import GroupInput, ModuleInput, RoleInput
@@ -102,6 +103,61 @@ def test_duplicate_membership_is_rejected(session: Session) -> None:
     assert error.value.status_code == 409
 
 
+def test_direct_and_group_roles_compose_and_removals_revoke_access(
+    session: Session,
+) -> None:
+    admin = session.get(PlatformUser, "admin")
+    employee = session.get(PlatformUser, "employee")
+    assert admin is not None and employee is not None
+    roles = {role.code: role for role in session.scalars(select(Role)).all()}
+    employee.assignments.append(UserRoleAssignment(role=roles["employee"]))
+    session.commit()
+    group = create_group(
+        GroupInput(code="service-desk-managers", title="Service Desk managers"),
+        request(),
+        admin,
+        session,
+    )
+    add_group_member(group.id, employee.id, request(), admin, session)
+    add_group_role(
+        group.id,
+        roles["service_desk_manager"].id,
+        request(),
+        admin,
+        session,
+    )
+
+    effective = permissions_for(session, employee)
+    assert "projects.respond" in effective
+    assert "service_desk.assign" in effective
+    version_with_group = employee.session_version
+
+    remove_group_role(
+        group.id,
+        roles["service_desk_manager"].id,
+        request(),
+        admin,
+        session,
+    )
+    session.refresh(employee)
+    assert employee.session_version == version_with_group + 1
+    assert "projects.respond" in permissions_for(session, employee)
+    assert "service_desk.assign" not in permissions_for(session, employee)
+
+    add_group_role(
+        group.id,
+        roles["service_desk_manager"].id,
+        request(),
+        admin,
+        session,
+    )
+    version_with_restored_group = employee.session_version
+    remove_group_member(group.id, employee.id, request(), admin, session)
+    session.refresh(employee)
+    assert employee.session_version == version_with_restored_group + 1
+    assert "service_desk.assign" not in permissions_for(session, employee)
+
+
 def test_last_admin_cannot_be_removed_from_admin_group(session: Session) -> None:
     admin = session.get(PlatformUser, "admin")
     assert admin is not None
@@ -167,4 +223,3 @@ def test_temporary_module_is_dynamic_and_role_integrity_is_enforced(session: Ses
             session,
         )
     assert error.value.status_code == 422
-
