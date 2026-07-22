@@ -164,7 +164,7 @@ services:
       ACCESS_DB_STATEMENT_TIMEOUT_MS: ${ACCESS_DB_STATEMENT_TIMEOUT_MS:-30000}
       ACCESS_DB_APPLICATION_NAME: ${ACCESS_DB_APPLICATION_NAME:-prom-access-api}
     depends_on:
-      access-seed: { condition: service_completed_successfully }
+      access-migrate: { condition: service_completed_successfully }
     restart: unless-stopped
 
   access-identity-migrate:
@@ -240,7 +240,7 @@ services:
     environment: *projects-environment
     volumes: ["projects_storage:/workspace/backend/storage/projects"]
     depends_on:
-      projects-seed: { condition: service_completed_successfully }
+      projects-migrate: { condition: service_completed_successfully }
     restart: unless-stopped
 
   projects-outbox-worker:
@@ -336,7 +336,7 @@ services:
     environment: *service-desk-environment
     volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
     depends_on:
-      service-desk-seed: { condition: service_completed_successfully }
+      service-desk-migrate: { condition: service_completed_successfully }
     restart: unless-stopped
 
   service-desk-sla-worker:
