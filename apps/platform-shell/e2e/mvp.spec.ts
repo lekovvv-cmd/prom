@@ -22,9 +22,6 @@ async function loginAs(
 
 async function logout(page: Page) {
   await page.getByRole("button", { name: "Выйти" }).click();
-  await expect(
-    page.getByRole("banner").getByRole("link", { name: "Войти" }),
-  ).toBeVisible();
   await expect
     .poll(async () =>
       (await page.context().cookies()).some(

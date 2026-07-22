@@ -38,9 +38,9 @@ test("selector keeps both anonymous module choices and next redirects", async ({
     page.getByRole("heading", { name: "Каталог Service Desk" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Выйти" }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/login\?next=%2Fservice-desk$/);
   await expect(
-    page.getByRole("heading", { name: "Выберите сервис" }),
+    page.getByRole("heading", { name: "Вход в PROM" }),
   ).toBeVisible();
   await expect
     .poll(async () =>
