@@ -26,6 +26,9 @@ class AttachmentRepository:
             )
         )
 
+    def get_for_cleanup(self, attachment_id: UUID) -> Attachment | None:
+        return self.db.get(Attachment, attachment_id)
+
     def list_for_owner(self, owner_type: AttachmentOwnerType, owner_id: UUID) -> list[Attachment]:
         query = (
             select(Attachment)

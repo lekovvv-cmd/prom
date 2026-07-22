@@ -31,9 +31,10 @@ def get_session() -> Generator[Session]:
     db = SessionLocal()
     try:
         yield db
-        db.commit()
     except Exception:
         db.rollback()
         raise
     finally:
+        if db.in_transaction():
+            db.rollback()
         db.close()

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
 
 from platform_sdk.error_types import EntityNotFound, PermissionDenied, ValidationFailed
 from platform_sdk.storage import IncomingFile, LocalFilesystemStorage, stream_incoming_file
+from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -158,6 +158,17 @@ class AttachmentService:
         *,
         current_user: User,
     ) -> tuple[Attachment, BinaryIO]:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._get_download(attachment_id, current_user=current_user)
+            uow.commit()
+            return result
+
+    def _get_download(
+        self,
+        attachment_id: uuid.UUID,
+        *,
+        current_user: User,
+    ) -> tuple[Attachment, BinaryIO]:
         attachment = self.repo.get_by_id(attachment_id)
         if attachment is None or attachment.status != AttachmentStatus.AVAILABLE:
             raise EntityNotFound("Файл не найден")
@@ -191,14 +202,26 @@ class AttachmentService:
         *,
         current_user: User,
     ) -> None:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            self._request_attachment_deletion(
+                attachment_id,
+                current_user=current_user,
+            )
+            uow.commit()
+
+    def _request_attachment_deletion(
+        self,
+        attachment_id: uuid.UUID,
+        *,
+        current_user: User,
+    ) -> None:
         attachment = self.repo.get_by_id(attachment_id)
         if attachment is None:
             raise EntityNotFound("Файл не найден")
         if attachment.uploaded_by != current_user.id:
             self._require_manage_attachment_owner(attachment, current_user)
         before = self._audit_snapshot(attachment)
-        attachment.status = AttachmentStatus.DELETED
-        attachment.deleted_at = datetime.now(UTC)
+        attachment.status = AttachmentStatus.PENDING_DELETE
         self.db.flush()
         self.events.audit(
             actor=current_user,
@@ -208,12 +231,42 @@ class AttachmentService:
             before=before,
             after=self._audit_snapshot(attachment),
         )
-        if attachment.storage_key:
-            self.storage.delete(attachment.storage_key)
-        else:
-            Path(attachment.storage_path).unlink(missing_ok=True)
+        self.events.publish(
+            event_type="AttachmentDeletionRequested",
+            aggregate_type="attachment",
+            aggregate_id=attachment.id,
+            payload={
+                "attachment_id": str(attachment.id),
+                "storage_key": attachment.storage_key,
+                "storage_path": attachment.storage_path,
+            },
+        )
 
     async def _upload(
+        self,
+        *,
+        owner_type: AttachmentOwnerType,
+        owner_id: uuid.UUID,
+        file: IncomingFile,
+        actor: User,
+    ) -> AttachmentRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = await self._stage_upload(
+                owner_type=owner_type,
+                owner_id=owner_id,
+                file=file,
+                actor=actor,
+            )
+            attachment = self.repo.get_by_id(result.id)
+            try:
+                uow.commit()
+            except BaseException:
+                if attachment is not None and attachment.storage_key:
+                    self.storage.delete(attachment.storage_key)
+                raise
+            return result
+
+    async def _stage_upload(
         self,
         *,
         owner_type: AttachmentOwnerType,

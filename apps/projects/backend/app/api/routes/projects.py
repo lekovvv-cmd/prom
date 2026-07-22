@@ -6,9 +6,9 @@ from fastapi import APIRouter, Header
 from app.api.deps import CurrentUser, DbSession
 from app.core.enums import ProjectStatus, ProjectType
 from app.core.schemas.common import PaginatedResponse
-from app.modules.platform.idempotency import IdempotencyStore, request_fingerprint
 from app.modules.projects.schemas import ProjectDetails, ProjectRecommendationRead, ProjectSummary
-from app.modules.projects.service import ProjectService
+from app.modules.projects.query_service import ProjectQueryService
+from app.modules.projects.recommendation_service import ProjectRecommendationService
 from app.modules.responses.schemas import ProjectResponseCreate, ProjectResponseRead
 from app.modules.responses.service import ProjectResponseService
 
@@ -26,7 +26,7 @@ def list_projects(
     limit: int | None = None,
     offset: int | None = None,
 ) -> PaginatedResponse[ProjectSummary]:
-    return ProjectService(db).list_public(
+    return ProjectQueryService(db).list_public(
         search=search,
         status=status,
         project_type=project_type,
@@ -43,12 +43,12 @@ def list_project_recommendations(
     db: DbSession,
     limit: int | None = None,
 ) -> list[ProjectRecommendationRead]:
-    return ProjectService(db).list_recommendations(current_user, limit=limit)
+    return ProjectRecommendationService(db).list_recommendations(current_user, limit=limit)
 
 
 @router.get("/{project_id}", response_model=ProjectDetails)
 def get_project(project_id: UUID, db: DbSession) -> ProjectDetails:
-    return ProjectService(db).get_public_details(project_id)
+    return ProjectQueryService(db).get_public_details(project_id)
 
 
 @router.post("/{project_id}/responses", response_model=ProjectResponseRead, status_code=201)
@@ -59,22 +59,9 @@ def create_project_response(
     db: DbSession,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> ProjectResponseRead:
-    scope = f"SubmitProjectResponse:{project_id}:{current_user.id}"
-    request_hash = request_fingerprint(payload.model_dump(mode="json"))
-    store = IdempotencyStore(db)
-    replay = store.replay(scope=scope, key=idempotency_key, request_hash=request_hash)
-    if replay is not None:
-        return ProjectResponseRead.model_validate(replay[1])
-    result = ProjectResponseService(db).create_for_project(
+    return ProjectResponseService(db).create_for_project(
         project_id,
         payload,
         current_user=current_user,
+        idempotency_key=idempotency_key,
     )
-    store.save(
-        scope=scope,
-        key=idempotency_key,
-        request_hash=request_hash,
-        response_status=201,
-        response_body=result.model_dump(mode="json"),
-    )
-    return result

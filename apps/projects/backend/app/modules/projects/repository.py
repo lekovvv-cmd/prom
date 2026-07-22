@@ -228,6 +228,17 @@ class ProjectRepository:
         )
         self.db.flush()
 
+    def remove_working_group_member(self, project: Project, user_id: UUID) -> bool:
+        for member in project.members:
+            if (
+                member.user_id == user_id
+                and member.member_role == ProjectMemberRole.WORKING_GROUP_MEMBER
+            ):
+                project.members.remove(member)
+                self.db.flush()
+                return True
+        return False
+
     def archive(self, project: Project) -> None:
         project.status = ProjectStatus.ARCHIVED
         project.archived_at = datetime.now(UTC)

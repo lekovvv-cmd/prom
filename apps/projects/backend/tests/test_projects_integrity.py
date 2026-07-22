@@ -2,15 +2,22 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+import pytest
+
+from app.core.enums import AttachmentStatus
 from app.core.database import SessionLocal
 from app.core.security import create_access_token
+from app.modules.attachments.models import Attachment
 from app.modules.platform.models import (
     ProjectAuditEvent,
     ProjectIdempotencyRecord,
     ProjectOutboxEvent,
 )
+from app.modules.projects.command_service import ProjectCommandService
+from app.modules.projects.models import Project
+from app.modules.projects.schemas import ProjectCreate
 from app.modules.users.repository import UserRepository
 from scripts.attachment_cleanup_worker import cleanup_once
 from scripts.outbox_worker import process_batch
@@ -97,6 +104,53 @@ def test_create_project_is_idempotent_and_writes_audit_and_outbox(client):
     assert len(records) == 1
 
 
+def test_command_service_owns_commit_and_rolls_back_all_side_effects(monkeypatch):
+    durable_title = f"Direct use case {uuid4()}"
+    rolled_back_title = f"Rolled back use case {uuid4()}"
+    with SessionLocal() as db:
+        actor = UserRepository(db).get_by_email("admin@utmn.ru")
+        assert actor is not None
+        result = ProjectCommandService(db).create(
+            ProjectCreate.model_validate(project_payload(durable_title)),
+            actor,
+            idempotency_key=f"direct-{uuid4()}",
+        )
+        durable_id = result.id
+
+    with SessionLocal() as db:
+        assert db.get(Project, durable_id) is not None
+
+    rollback_key = f"rollback-{uuid4()}"
+    with SessionLocal() as db:
+        actor = UserRepository(db).get_by_email("admin@utmn.ru")
+        assert actor is not None
+        service = ProjectCommandService(db)
+
+        def fail_publish(**_kwargs):
+            raise RuntimeError("simulated outbox failure")
+
+        monkeypatch.setattr(service.events, "publish", fail_publish)
+        with pytest.raises(RuntimeError, match="simulated outbox failure"):
+            service.create(
+                ProjectCreate.model_validate(project_payload(rolled_back_title)),
+                actor,
+                idempotency_key=rollback_key,
+            )
+
+    with SessionLocal() as db:
+        assert db.scalar(select(Project).where(Project.title == rolled_back_title)) is None
+        assert db.scalar(
+            select(ProjectIdempotencyRecord).where(
+                ProjectIdempotencyRecord.idempotency_key == rollback_key
+            )
+        ) is None
+        assert db.scalar(
+            select(ProjectAuditEvent).where(
+                ProjectAuditEvent.after["title"].as_string() == rolled_back_title
+            )
+        ) is None
+
+
 def test_project_update_rejects_stale_if_match(client):
     headers = auth_headers("admin@utmn.ru")
     created = client.post(
@@ -172,6 +226,22 @@ def test_attachment_is_streamed_validated_authorized_and_audited(client):
     deleted = client.delete(body["download_url"], headers=admin)
     assert deleted.status_code == 200
     assert client.get(body["download_url"], headers=admin).status_code == 404
+
+    with SessionLocal() as db:
+        attachment = db.get(Attachment, UUID(body["id"]))
+        assert attachment is not None
+        assert attachment.status == AttachmentStatus.PENDING_DELETE
+        storage_path = Path(attachment.storage_path)
+        assert storage_path.exists()
+
+    process_batch(worker_id="attachment-delete-test", batch_size=200)
+
+    with SessionLocal() as db:
+        attachment = db.get(Attachment, UUID(body["id"]))
+        assert attachment is not None
+        assert attachment.status == AttachmentStatus.DELETED
+        assert attachment.deleted_at is not None
+    assert not storage_path.exists()
 
     with SessionLocal() as db:
         actions = {

@@ -99,7 +99,8 @@ export interface paths {
         put?: never;
         /** Add Project Member */
         post: operations["add_project_member_api_admin_projects__project_id__members__user_id__post"];
-        delete?: never;
+        /** Remove Project Member */
+        delete: operations["remove_project_member_api_admin_projects__project_id__members__user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -831,7 +832,7 @@ export interface components {
          * AttachmentStatus
          * @enum {string}
          */
-        AttachmentStatus: "pending" | "quarantined" | "available" | "rejected" | "deleted";
+        AttachmentStatus: "pending" | "quarantined" | "available" | "rejected" | "pending_delete" | "deleted";
         /** Body_upload_project_attachment_api_admin_projects__project_id__attachments_post */
         Body_upload_project_attachment_api_admin_projects__project_id__attachments_post: {
             /** File */
@@ -1969,6 +1970,41 @@ export interface operations {
         };
     };
     add_project_member_api_admin_projects__project_id__members__user_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_project_member_api_admin_projects__project_id__members__user_id__delete: {
         parameters: {
             query?: never;
             header?: {

@@ -2,6 +2,7 @@ from uuid import UUID
 
 from platform_sdk.auth import CurrentPrincipal
 from platform_sdk.error_types import AuthenticationRequired, EntityNotFound
+from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
 from app.core.permissions import bind_principal, compatibility_role
@@ -16,6 +17,12 @@ class UserService:
         self.repo = UserRepository(db)
 
     def sync_principal(self, principal: CurrentPrincipal) -> User:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            user = self._sync_principal(principal)
+            uow.commit()
+            return user
+
+    def _sync_principal(self, principal: CurrentPrincipal) -> User:
         try:
             platform_user_id = UUID(principal.user_id)
         except ValueError as exc:
@@ -64,14 +71,16 @@ class UserService:
         return self.repo.list_directory(search)
 
     def update_profile(self, current_user: User, payload: UserProfileUpdate) -> User:
-        current_user.full_name = payload.full_name
-        current_user.department = payload.department
-        current_user.position = payload.position
-        current_user.competencies = payload.competencies
-        current_user.about = payload.about
-        self.db.flush()
-        self.db.refresh(current_user)
-        return current_user
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            current_user.full_name = payload.full_name
+            current_user.department = payload.department
+            current_user.position = payload.position
+            current_user.competencies = payload.competencies
+            current_user.about = payload.about
+            self.db.flush()
+            self.db.refresh(current_user)
+            uow.commit()
+            return current_user
 
     @staticmethod
     def _default_full_name(email: str) -> str:

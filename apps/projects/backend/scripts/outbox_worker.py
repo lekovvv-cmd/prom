@@ -4,6 +4,9 @@ import argparse
 import logging
 import socket
 import time
+from datetime import UTC, datetime
+from pathlib import Path
+from uuid import UUID
 
 from platform_sdk.observability import (
     get_service_metrics,
@@ -17,9 +20,29 @@ from platform_sdk.outbox import (
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.enums import AttachmentStatus
+from app.modules.attachments.repository import AttachmentRepository
+from app.modules.attachments.storage import object_storage
 from app.modules.platform.models import ProjectOutboxEvent
 
 logger = logging.getLogger("prom.projects.outbox")
+
+
+def _dispatch(event: ProjectOutboxEvent, db) -> None:  # type: ignore[no-untyped-def]
+    if event.event_type != "AttachmentDeletionRequested":
+        return
+    attachment_id = UUID(str(event.payload["attachment_id"]))
+    attachment = AttachmentRepository(db).get_for_cleanup(attachment_id)
+    if attachment is None or attachment.status == AttachmentStatus.DELETED:
+        return
+    storage_key = event.payload.get("storage_key")
+    if storage_key:
+        object_storage().delete(str(storage_key))
+    else:
+        Path(str(event.payload["storage_path"])).unlink(missing_ok=True)
+    attachment.status = AttachmentStatus.DELETED
+    attachment.deleted_at = datetime.now(UTC)
+    db.flush()
 
 
 def process_batch(*, worker_id: str, batch_size: int = 50) -> int:
@@ -32,6 +55,7 @@ def process_batch(*, worker_id: str, batch_size: int = 50) -> int:
         )
         for event in events:
             try:
+                _dispatch(event, db)
                 logger.info(
                     "project_integration_event",
                     extra={

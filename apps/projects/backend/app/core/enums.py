@@ -61,6 +61,7 @@ class AttachmentStatus(StrEnum):
     QUARANTINED = "quarantined"
     AVAILABLE = "available"
     REJECTED = "rejected"
+    PENDING_DELETE = "pending_delete"
     DELETED = "deleted"
 
 

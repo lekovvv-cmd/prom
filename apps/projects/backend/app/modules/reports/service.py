@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from platform_sdk.error_types import EntityNotFound, InvalidRequest, PermissionDenied
+from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
 from app.core.enums import ReportPeriodStatus
@@ -28,6 +29,12 @@ class ReportService:
         return [ReportPeriodRead.model_validate(period) for period in self.repo.list_periods()]
 
     def open_period(self, payload: ReportPeriodCreate, current_user: User) -> ReportPeriodRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._open_period(payload, current_user)
+            uow.commit()
+            return result
+
+    def _open_period(self, payload: ReportPeriodCreate, current_user: User) -> ReportPeriodRead:
         self.repo.close_open_periods()
         period = self.repo.create_period(payload, current_user.id)
         self.db.flush()
@@ -41,6 +48,12 @@ class ReportService:
         return ReportPeriodRead.model_validate(period)
 
     def close_period(self, period_id: UUID, current_user: User) -> ReportPeriodRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._close_period(period_id, current_user)
+            uow.commit()
+            return result
+
+    def _close_period(self, period_id: UUID, current_user: User) -> ReportPeriodRead:
         period = self.repo.get_period(period_id)
         if period is None:
             raise EntityNotFound("Период отчётности не найден")
@@ -73,6 +86,12 @@ class ReportService:
         )
 
     def submit_current_report(self, current_user: User, payload: HalfYearReportPayload) -> HalfYearReportRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._submit_current_report(current_user, payload)
+            uow.commit()
+            return result
+
+    def _submit_current_report(self, current_user: User, payload: HalfYearReportPayload) -> HalfYearReportRead:
         if is_platform_admin(current_user):
             raise PermissionDenied("Администратор не подаёт полугодовой отчёт через профиль")
 

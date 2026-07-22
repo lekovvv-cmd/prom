@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest, PermissionDenied
+from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
 from app.core.enums import AttachmentOwnerType, ProjectResponseStatus, ProjectStatus
@@ -17,7 +18,8 @@ from app.core.security import ensure_utmn_email
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.platform.events import ProjectEventRecorder
-from app.modules.projects.service import ProjectService
+from app.modules.platform.idempotency import IdempotencyStore, request_fingerprint
+from app.modules.projects.service_base import ProjectServiceBase
 from app.modules.responses.models import ProjectResponse
 from app.modules.responses.repository import ProjectResponseRepository
 from app.modules.responses.schemas import (
@@ -42,8 +44,39 @@ class ProjectResponseService:
         payload: ProjectResponseCreate,
         *,
         current_user: User,
+        idempotency_key: str | None = None,
     ) -> ProjectResponseRead:
-        project = ProjectService(self.db).get_existing_project(project_id)
+        scope = f"SubmitProjectResponse:{project_id}:{current_user.id}"
+        request_hash = request_fingerprint(payload.model_dump(mode="json"))
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            store = IdempotencyStore(self.db)
+            replay = store.replay(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+            )
+            if replay is not None:
+                uow.commit()
+                return ProjectResponseRead.model_validate(replay[1])
+            result = self._create_for_project(project_id, payload, current_user=current_user)
+            store.save(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_status=201,
+                response_body=result.model_dump(mode="json"),
+            )
+            uow.commit()
+            return result
+
+    def _create_for_project(
+        self,
+        project_id: UUID,
+        payload: ProjectResponseCreate,
+        *,
+        current_user: User,
+    ) -> ProjectResponseRead:
+        project = ProjectServiceBase(self.db).get_existing_project(project_id)
         if project.status not in {ProjectStatus.ACTIVE, ProjectStatus.PAUSED} or project.archived_at is not None:
             raise InvalidRequest("Отклики доступны только для активных и приостановленных проектов")
 
@@ -139,7 +172,7 @@ class ProjectResponseService:
         limit: int | None,
         offset: int | None,
     ) -> PaginatedResponse[AdminProjectResponseRead]:
-        ProjectService(self.db).get_existing_project(project_id)
+        ProjectServiceBase(self.db).get_existing_project(project_id)
         self._ensure_can_manage_project(project_id, current_user)
         items, total, safe_limit, safe_offset = self.repo.list_project_responses(
             project_id=project_id,
@@ -156,6 +189,17 @@ class ProjectResponseService:
         )
 
     def update_status(
+        self,
+        response_id: UUID,
+        status: ProjectResponseStatus,
+        current_user: User,
+    ) -> AdminProjectResponseRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._update_status(response_id, status, current_user)
+            uow.commit()
+            return result
+
+    def _update_status(
         self,
         response_id: UUID,
         status: ProjectResponseStatus,
@@ -194,6 +238,12 @@ class ProjectResponseService:
         return self._to_admin_read(response)
 
     def withdraw_current_user(self, response_id: UUID, current_user: User) -> UserProjectResponseRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._withdraw_current_user(response_id, current_user)
+            uow.commit()
+            return result
+
+    def _withdraw_current_user(self, response_id: UUID, current_user: User) -> UserProjectResponseRead:
         response = self.repo.get_user_response(response_id, current_user.id)
         if response is None:
             raise EntityNotFound("Отклик не найден")
@@ -215,6 +265,11 @@ class ProjectResponseService:
         return self._to_user_read(response)
 
     def delete_admin(self, response_id: UUID, current_user: User) -> None:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            self._delete_admin(response_id, current_user)
+            uow.commit()
+
+    def _delete_admin(self, response_id: UUID, current_user: User) -> None:
         response = self.repo.get_by_id(response_id)
         if response is None or response.deleted_at is not None:
             raise EntityNotFound("Отклик не найден")

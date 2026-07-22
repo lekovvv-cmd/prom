@@ -2,6 +2,7 @@ from datetime import date
 from uuid import UUID
 
 from platform_sdk.error_types import EntityNotFound, InvalidRequest, PermissionDenied
+from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
 from app.core.enums import AttachmentOwnerType, ProjectMemberRole, ProjectTaskStatus
@@ -15,7 +16,8 @@ from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.platform.events import ProjectEventRecorder
 from app.modules.projects.repository import ProjectRepository
-from app.modules.projects.service import ProjectService
+from app.modules.projects.query_service import ProjectQueryService
+from app.modules.projects.service_base import ProjectServiceBase
 from app.modules.tasks.models import ProjectStage, ProjectTask
 from app.modules.tasks.repository import ProjectTaskRepository
 from app.modules.tasks.schemas import (
@@ -52,6 +54,12 @@ class ProjectTaskService:
         return result
 
     def create_stage(self, project_id: UUID, payload: ProjectStageCreate, current_user: User) -> ProjectStageRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._create_stage(project_id, payload, current_user)
+            uow.commit()
+            return result
+
+    def _create_stage(self, project_id: UUID, payload: ProjectStageCreate, current_user: User) -> ProjectStageRead:
         self._ensure_can_manage_project(project_id, current_user)
         stage = self.repo.create_stage({"project_id": project_id, **payload.model_dump()})
         self.db.flush()
@@ -66,6 +74,18 @@ class ProjectTaskService:
         return ProjectStageRead.model_validate(stage)
 
     def update_stage(
+        self,
+        project_id: UUID,
+        stage_id: UUID,
+        payload: ProjectStageUpdate,
+        current_user: User,
+    ) -> ProjectStageRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._update_stage(project_id, stage_id, payload, current_user)
+            uow.commit()
+            return result
+
+    def _update_stage(
         self,
         project_id: UUID,
         stage_id: UUID,
@@ -89,6 +109,12 @@ class ProjectTaskService:
         return ProjectStageRead.model_validate(stage)
 
     def create_task(self, project_id: UUID, payload: ProjectTaskCreate, current_user: User) -> ProjectTaskRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._create_task(project_id, payload, current_user)
+            uow.commit()
+            return result
+
+    def _create_task(self, project_id: UUID, payload: ProjectTaskCreate, current_user: User) -> ProjectTaskRead:
         self._ensure_can_manage_project(project_id, current_user)
         data = payload.model_dump()
         self._validate_task_links(project_id, data.get("stage_id"), data.get("assignee_user_id"))
@@ -116,6 +142,18 @@ class ProjectTaskService:
         return self._to_task_read(task)
 
     def update_task(
+        self,
+        project_id: UUID,
+        task_id: UUID,
+        payload: ProjectTaskUpdate,
+        current_user: User,
+    ) -> ProjectTaskRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._update_task(project_id, task_id, payload, current_user)
+            uow.commit()
+            return result
+
+    def _update_task(
         self,
         project_id: UUID,
         task_id: UUID,
@@ -155,11 +193,22 @@ class ProjectTaskService:
         return self._to_task_read(task)
 
     def list_current_user_tasks(self, project_id: UUID, current_user: User) -> list[ProjectTaskRead]:
-        ProjectService(self.db).get_current_user_project_details(project_id, current_user)
+        ProjectQueryService(self.db).get_current_user_project_details(project_id, current_user)
         tasks = self.repo.list_assigned_tasks(project_id, current_user.id)
         return [self._to_task_read(task) for task in tasks]
 
     def update_current_user_task(
+        self,
+        task_id: UUID,
+        payload: ProjectTaskStatusUpdate,
+        current_user: User,
+    ) -> ProjectTaskRead:
+        with SqlAlchemyUnitOfWork(self.db) as uow:
+            result = self._update_current_user_task(task_id, payload, current_user)
+            uow.commit()
+            return result
+
+    def _update_current_user_task(
         self,
         task_id: UUID,
         payload: ProjectTaskStatusUpdate,
@@ -221,7 +270,7 @@ class ProjectTaskService:
         )
 
     def _ensure_can_manage_project(self, project_id: UUID, current_user: User) -> None:
-        ProjectService(self.db).get_existing_project(project_id)
+        ProjectServiceBase(self.db).get_existing_project(project_id)
         if can_manage_all_projects(current_user):
             return
         if (
