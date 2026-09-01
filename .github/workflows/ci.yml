@@ -304,6 +304,8 @@ jobs:
           done
       - name: Rehearse dry-run and repeatable apply against PostgreSQL
         run: |
+          mkdir -p outputs/identity-migration
+          chmod 0777 outputs/identity-migration
           docker compose --profile migration run --rm access-identity-migrate --dry-run
           docker compose --profile migration run --rm access-identity-migrate --apply
           docker compose --profile migration run --rm access-identity-migrate --apply
