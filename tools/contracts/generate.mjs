@@ -5,7 +5,7 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import openapiTS, { astToString } from "openapi-typescript";
 
@@ -28,8 +28,12 @@ const workspacePython = resolve(
     ? ".venv/Scripts/python.exe"
     : ".venv/bin/python",
 );
+const configuredPython = process.env.PROM_PYTHON;
 const python =
-  process.env.PROM_PYTHON ??
+  (configuredPython &&
+    (isAbsolute(configuredPython)
+      ? configuredPython
+      : resolve(root, configuredPython))) ??
   (existsSync(workspacePython)
     ? workspacePython
     : process.platform === "win32"
@@ -110,7 +114,15 @@ for (const service of services) {
   );
   if (result.status !== 0) {
     throw new Error(
-      `Could not export ${service.file}: ${result.stderr || result.stdout}`,
+      [
+        `Could not export ${service.file}.`,
+        `command: ${python} ${[...pythonPrefix, "-c", service.bootstrap].join(" ")}`,
+        `cwd: ${service.cwd}`,
+        `exit code: ${result.status ?? "not started"}`,
+        `stdout:\n${result.stdout || "<empty>"}`,
+        `stderr:\n${result.stderr || "<empty>"}`,
+        ...(result.error ? [`spawn error: ${result.error.message}`] : []),
+      ].join("\n"),
     );
   }
   const contract = JSON.parse(result.stdout);
