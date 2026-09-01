@@ -17,11 +17,11 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException, Request, status
-from sqlalchemy import select, text
+from sqlalchemy import delete, or_, select, text, update
 from sqlalchemy.orm import Session
 
 from access_service.bootstrap.config import AccessSettings
-from access_service.domain.models import SigningKey
+from access_service.domain.models import OidcLoginTransaction, SigningKey
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,8 +118,13 @@ class TrustedHeaderIdentityProvider:
 class OidcIdentityProvider:
     """OIDC authorization-code adapter, disabled until real settings exist."""
 
-    def __init__(self, settings: AccessSettings) -> None:
+    def __init__(
+        self,
+        settings: AccessSettings,
+        session_factory: Callable[[], Session],
+    ) -> None:
         self.settings = settings
+        self.session_factory = session_factory
         self._discovery: dict[str, object] | None = None
         self._discovery_fetched_at = 0.0
 
@@ -146,7 +151,7 @@ class OidcIdentityProvider:
         return None
 
     def build_login_redirect(self, return_url: str) -> str:
-        _, client_id, client_secret, redirect_uri = self._require_configured()
+        _, client_id, _, redirect_uri = self._require_configured()
         authorization_endpoint = self._discovery_document().get(
             "authorization_endpoint"
         )
@@ -162,23 +167,29 @@ class OidcIdentityProvider:
             .rstrip(b"=")
             .decode()
         )
-        state_token = jwt.encode(
-            {
-                "return_url": self._safe_return_url(return_url),
-                "nonce": nonce,
-                "verifier": verifier,
-                "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
-            },
-            client_secret,
-            algorithm="HS256",
-        )
+        state = secrets.token_urlsafe(32)
+        now = datetime.now(timezone.utc)
+        with self.session_factory() as session:
+            self._cleanup_transactions(session, now)
+            session.add(
+                OidcLoginTransaction(
+                    state_hash=self._state_hash(state),
+                    nonce=nonce,
+                    pkce_verifier=verifier,
+                    return_url=self._safe_return_url(return_url),
+                    created_at=now,
+                    expires_at=now
+                    + timedelta(seconds=self.settings.oidc_login_transaction_ttl_seconds),
+                )
+            )
+            session.commit()
         query = urlencode(
             {
                 "client_id": client_id,
                 "redirect_uri": redirect_uri,
                 "response_type": "code",
                 "scope": self.settings.oidc_scopes,
-                "state": state_token,
+                "state": state,
                 "nonce": nonce,
                 "code_challenge": challenge,
                 "code_challenge_method": "S256",
@@ -189,24 +200,13 @@ class OidcIdentityProvider:
     def handle_callback(self, request: Request) -> ExternalPrincipal:
         issuer, client_id, client_secret, redirect_uri = self._require_configured()
         code = request.query_params.get("code")
-        state_token = request.query_params.get("state")
-        if not code or not state_token:
+        state_value = request.query_params.get("state")
+        if not code or not state_value:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="OIDC callback is missing code or state",
             )
-        try:
-            state_claims = jwt.decode(
-                state_token,
-                client_secret,
-                algorithms=["HS256"],
-                options={"require": ["exp", "nonce", "verifier"]},
-            )
-        except jwt.PyJWTError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="OIDC callback state is invalid",
-            ) from exc
+        transaction = self._claim_transaction(state_value)
 
         document = self._discovery_document()
         token_endpoint = document.get("token_endpoint")
@@ -225,7 +225,7 @@ class OidcIdentityProvider:
                     "redirect_uri": redirect_uri,
                     "client_id": client_id,
                     "client_secret": client_secret,
-                    "code_verifier": state_claims["verifier"],
+                    "code_verifier": transaction.pkce_verifier,
                 },
                 headers={"Accept": "application/json"},
                 timeout=httpx.Timeout(5.0, connect=2.0),
@@ -274,7 +274,7 @@ class OidcIdentityProvider:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="OIDC ID token is invalid",
             ) from exc
-        if claims.get("nonce") != state_claims.get("nonce"):
+        if claims.get("nonce") != transaction.nonce:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="OIDC nonce mismatch",
@@ -306,9 +306,7 @@ class OidcIdentityProvider:
                 if isinstance(claims.get("department"), str)
                 else None
             ),
-            return_url=self._safe_return_url(
-                str(state_claims.get("return_url") or "/")
-            ),
+            return_url=transaction.return_url,
         )
 
     def build_logout_redirect(self, return_url: str) -> str:
@@ -365,6 +363,61 @@ class OidcIdentityProvider:
         if return_url.startswith("/") and not return_url.startswith("//"):
             return return_url
         return "/"
+
+    @staticmethod
+    def _state_hash(state: str) -> str:
+        return hashlib.sha256(state.encode("utf-8")).hexdigest()
+
+    def _claim_transaction(self, state: str) -> OidcLoginTransaction:
+        """Atomically consume state before token exchange; never hold a DB lock over HTTP."""
+        now = datetime.now(timezone.utc)
+        with self.session_factory() as session:
+            self._cleanup_transactions(session, now)
+            claimed = session.execute(
+                update(OidcLoginTransaction)
+                .where(
+                    OidcLoginTransaction.state_hash == self._state_hash(state),
+                    OidcLoginTransaction.consumed_at.is_(None),
+                    OidcLoginTransaction.expires_at > now,
+                )
+                .values(consumed_at=now)
+                .returning(
+                    OidcLoginTransaction.id,
+                    OidcLoginTransaction.nonce,
+                    OidcLoginTransaction.pkce_verifier,
+                    OidcLoginTransaction.return_url,
+                    OidcLoginTransaction.created_at,
+                    OidcLoginTransaction.expires_at,
+                    OidcLoginTransaction.consumed_at,
+                )
+            ).mappings().one_or_none()
+            session.commit()
+        if claimed is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OIDC callback state is invalid",
+            )
+        return OidcLoginTransaction(**dict(claimed))
+
+    @staticmethod
+    def _cleanup_transactions(session: Session, now: datetime) -> None:
+        stale_ids = list(
+            session.scalars(
+                select(OidcLoginTransaction.id)
+                .where(
+                    or_(
+                        OidcLoginTransaction.expires_at <= now,
+                        OidcLoginTransaction.consumed_at.is_not(None),
+                    )
+                )
+                .order_by(OidcLoginTransaction.expires_at)
+                .limit(100)
+            )
+        )
+        if stale_ids:
+            session.execute(
+                delete(OidcLoginTransaction).where(OidcLoginTransaction.id.in_(stale_ids))
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -676,9 +729,12 @@ class InternalTokenSigner:
         return {"keys": keys}
 
 
-def build_identity_provider(settings: AccessSettings) -> IdentityProvider:
+def build_identity_provider(
+    settings: AccessSettings,
+    session_factory: Callable[[], Session],
+) -> IdentityProvider:
     if settings.sso_provider == "oidc":
-        return OidcIdentityProvider(settings)
+        return OidcIdentityProvider(settings, session_factory)
     if settings.sso_provider == "trusted-header":
         return TrustedHeaderIdentityProvider(settings)
     return LocalMockIdentityProvider()

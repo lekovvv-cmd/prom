@@ -31,7 +31,7 @@ def create_app() -> FastAPI:
         settings,
         DatabaseSigningKeyStore(settings, SessionLocal),
     )
-    app.state.identity_provider = build_identity_provider(settings)
+    app.state.identity_provider = build_identity_provider(settings, SessionLocal)
     app.state.session_manager = BrowserSessionManager(settings)
     app.add_middleware(
         CORSMiddleware,

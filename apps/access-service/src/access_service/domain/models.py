@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -163,3 +164,21 @@ class BrowserSession(Base):
     idle_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class OidcLoginTransaction(Base):
+    """A short-lived, server-owned OIDC authorization-code transaction."""
+
+    __tablename__ = "oidc_login_transactions"
+    __table_args__ = (
+        Index("ix_oidc_login_transactions_cleanup", "expires_at", "consumed_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    state_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    nonce: Mapped[str] = mapped_column(String(128))
+    pkce_verifier: Mapped[str] = mapped_column(String(128))
+    return_url: Mapped[str] = mapped_column(String(2048))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

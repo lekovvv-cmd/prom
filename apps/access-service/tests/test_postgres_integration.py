@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from starlette.requests import Request
@@ -13,8 +17,8 @@ from access_service.api.schemas import GroupInput
 from access_service.application.access import permissions_for
 from access_service.application.catalog import ensure_access_catalog
 from access_service.bootstrap.config import AccessSettings
-from access_service.domain.models import PlatformUser, Role, UserRoleAssignment
-from access_service.infrastructure.identity import DatabaseSigningKeyStore
+from access_service.domain.models import OidcLoginTransaction, PlatformUser, Role, UserRoleAssignment
+from access_service.infrastructure.identity import DatabaseSigningKeyStore, OidcIdentityProvider
 
 
 POSTGRES_URL = os.getenv("ACCESS_TEST_DATABASE_URL")
@@ -102,4 +106,43 @@ def test_postgres_group_rbac_and_persisted_key_rotation() -> None:
         rotated_kid,
     }
 
+    engine.dispose()
+
+
+def test_postgres_oidc_state_claim_allows_exactly_one_concurrent_callback() -> None:
+    assert POSTGRES_URL is not None
+    engine = create_engine(POSTGRES_URL)
+    session_factory = sessionmaker(engine, expire_on_commit=False)
+    provider = OidcIdentityProvider(AccessSettings(database_url=POSTGRES_URL), session_factory)
+    state = uuid.uuid4().hex
+    now = datetime.now(UTC)
+
+    with session_factory() as session:
+        session.add(
+            OidcLoginTransaction(
+                state_hash=provider._state_hash(state),
+                nonce="nonce",
+                pkce_verifier="verifier",
+                return_url="/projects",
+                created_at=now,
+                expires_at=now + timedelta(minutes=5),
+            )
+        )
+        session.commit()
+
+    start = threading.Barrier(2)
+
+    def claim() -> tuple[str, int | str]:
+        start.wait()
+        try:
+            return ("claimed", provider._claim_transaction(state).id)
+        except HTTPException as exc:
+            assert exc.status_code == 400
+            return ("rejected", exc.status_code)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: claim(), range(2)))
+
+    assert [result[0] for result in results].count("claimed") == 1
+    assert [result[0] for result in results].count("rejected") == 1
     engine.dispose()

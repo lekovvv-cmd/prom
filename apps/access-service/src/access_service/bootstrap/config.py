@@ -43,6 +43,10 @@ class AccessSettings(BaseSettings):
     oidc_scopes: str = Field(default="openid profile email", validation_alias="SSO_SCOPES")
     oidc_allowed_audiences: str = Field(default="", validation_alias="SSO_ALLOWED_AUDIENCES")
     oidc_jwks_cache_ttl_seconds: int = Field(default=300, validation_alias="SSO_JWKS_CACHE_TTL")
+    oidc_login_transaction_ttl_seconds: int = Field(
+        default=600,
+        validation_alias="SSO_LOGIN_TRANSACTION_TTL",
+    )
     oidc_post_logout_redirect_uri: str | None = Field(
         default=None,
         validation_alias="SSO_POST_LOGOUT_REDIRECT_URI",
@@ -106,6 +110,8 @@ class AccessSettings(BaseSettings):
             raise ValueError("SSO_CLIENT_SECRET must contain at least 32 bytes")
         if self.oidc_jwks_cache_ttl_seconds < 30:
             raise ValueError("SSO_JWKS_CACHE_TTL must be at least 30 seconds")
+        if not 60 <= self.oidc_login_transaction_ttl_seconds <= 900:
+            raise ValueError("SSO_LOGIN_TRANSACTION_TTL must be between 60 and 900 seconds")
         if self.jwt_rotation_overlap_seconds < self.token_ttl_seconds:
             raise ValueError("ACCESS_JWT_ROTATION_OVERLAP_SECONDS must cover token TTL")
         if self.session_idle_ttl_seconds > self.session_absolute_ttl_seconds:
