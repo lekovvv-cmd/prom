@@ -1883,7 +1883,7 @@ export interface components {
             approval_mode: components["schemas"]["ApprovalMode"];
             /**
              * Name
-             * @default ������������ ������
+             * @default Согласование заявки
              */
             name: string;
             /** Stages */
@@ -1909,7 +1909,7 @@ export interface components {
             is_active: boolean;
             /**
              * Name
-             * @default ������������ ������
+             * @default Согласование заявки
              */
             name: string;
         };

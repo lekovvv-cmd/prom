@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   getAdminProject,
@@ -14,6 +15,7 @@ import { CreateProjectForm } from "../../../features/create-project/ui/CreatePro
 import { EditProjectForm } from "../../../features/edit-project/ui/EditProjectForm";
 import { ProjectFilters } from "../../../features/filter-projects/ui/ProjectFilters";
 import { AdminProjectsTable } from "../../../widgets/admin-projects-table/ui/AdminProjectsTable";
+import { projectsQueryKeys } from "../../../api/queryKeys";
 import { Header } from "@prom/layout";
 import { Button } from "@prom/ui/Button";
 import { Modal } from "@prom/ui/Modal";
@@ -38,6 +40,7 @@ export function getAdminProjectListParams(
 }
 
 export function AdminProjectsPage() {
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<ProjectListParams>({
     sort: "created_at_desc",
     limit: 100,
@@ -169,6 +172,9 @@ export function AdminProjectsPage() {
           <CreateProjectForm
             onCreated={() => {
               setIsCreateOpen(false);
+              void queryClient.invalidateQueries({
+                queryKey: projectsQueryKeys.root,
+              });
               void loadProjects();
             }}
           />

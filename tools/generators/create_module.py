@@ -465,7 +465,7 @@ def _register(change: ChangeSet, name: str) -> None:
       POSTGRES_USER: {package}
       POSTGRES_PASSWORD: ${{{package.upper()}_DB_PASSWORD:-{package}}}
       POSTGRES_DB: {package}
-    volumes: ["{package}_db_data:/var/lib/postgresql/data"]
+    volumes: ["{package}_db_data:/var/lib/postgresql"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U {package} -d {package}"]
       interval: 5s

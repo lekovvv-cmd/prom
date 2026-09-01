@@ -380,7 +380,7 @@
             "$ref": "#/components/schemas/ApprovalMode"
           },
           "name": {
-            "default": "������������ ������",
+            "default": "Согласование заявки",
             "maxLength": 255,
             "minLength": 2,
             "title": "Name",
@@ -440,7 +440,7 @@
             "type": "boolean"
           },
           "name": {
-            "default": "������������ ������",
+            "default": "Согласование заявки",
             "maxLength": 255,
             "minLength": 2,
             "title": "Name",

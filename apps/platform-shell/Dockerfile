@@ -7,11 +7,7 @@ COPY apps/projects/frontend/package.json apps/projects/frontend/package.json
 COPY apps/service-desk/frontend/package.json apps/service-desk/frontend/package.json
 COPY contracts/generated contracts/generated
 COPY packages/frontend packages/frontend
-# npm lockfiles produced on Windows omit Rolldown's Linux optional native
-# package; install the pinned Alpine binding explicitly without mutating the
-# committed lockfile.
-RUN npm ci \
-    && npm install --no-save --package-lock=false @rolldown/binding-linux-x64-musl@1.1.4
+RUN npm ci
 
 COPY apps/platform-shell apps/platform-shell
 COPY apps/projects/frontend apps/projects/frontend

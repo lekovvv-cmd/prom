@@ -120,7 +120,11 @@ for (const service of services) {
     {
       cwd: service.cwd,
       encoding: "utf8",
-      env: { ...contractEnvironment, PYTHONDONTWRITEBYTECODE: "1" },
+      env: {
+        ...contractEnvironment,
+        PYTHONDONTWRITEBYTECODE: "1",
+        PYTHONUTF8: "1",
+      },
     },
   );
   if (result.status !== 0) {

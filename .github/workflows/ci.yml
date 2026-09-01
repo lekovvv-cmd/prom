@@ -290,10 +290,19 @@ jobs:
         run: >
           uv run --frozen --package prom-access-service --extra dev python -m pytest -q
           apps/access-service/tests/test_identity_migration.py
-      - name: Start fresh PostgreSQL schemas and representative seed data
-        run: >
-          docker compose --profile full --profile demo up --build -d --wait
-          access-seed projects-seed service-desk-seed
+      - name: Start long-running PostgreSQL-backed services
+        run: docker compose --profile full up --build -d --wait
+      - name: Run and verify representative seed jobs
+        run: |
+          docker compose --profile full --profile demo up -d \
+            access-seed projects-seed service-desk-seed
+          docker compose wait access-seed projects-seed service-desk-seed
+          for service in access-seed projects-seed service-desk-seed; do
+            container_id="$(docker compose ps -q "$service")"
+            test -n "$container_id"
+            test "$(docker inspect --format '{{.State.Status}}' "$container_id")" = exited
+            test "$(docker inspect --format '{{.State.ExitCode}}' "$container_id")" -eq 0
+          done
       - name: Rehearse dry-run and repeatable apply against PostgreSQL
         run: |
           docker compose --profile migration run --rm access-identity-migrate --dry-run
