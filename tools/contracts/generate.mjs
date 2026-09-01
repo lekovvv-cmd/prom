@@ -45,6 +45,17 @@ const pythonPrefix =
     : process.platform === "win32"
       ? ["-3.14"]
       : [];
+const contractEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(
+    ([key]) =>
+      !(
+        key.startsWith("ACCESS_") ||
+        key.startsWith("PLATFORM_") ||
+        key.startsWith("PROJECTS_") ||
+        key.startsWith("SERVICE_DESK_")
+      ),
+  ),
+);
 
 if (outputFlag >= 0 && !process.argv[outputFlag + 1]) {
   throw new Error("--output requires a directory");
@@ -109,7 +120,7 @@ for (const service of services) {
     {
       cwd: service.cwd,
       encoding: "utf8",
-      env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" },
+      env: { ...contractEnvironment, PYTHONDONTWRITEBYTECODE: "1" },
     },
   );
   if (result.status !== 0) {

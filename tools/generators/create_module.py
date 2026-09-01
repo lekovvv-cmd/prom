@@ -648,6 +648,16 @@ def _refresh_workspace(change: ChangeSet, name: str) -> None:
         ([_tool("uv"), "lock"], "uv lock"),
         (
             [
+                _tool("uv"),
+                "sync",
+                "--locked",
+                "--all-packages",
+                "--all-extras",
+            ],
+            "workspace dependency sync",
+        ),
+        (
+            [
                 _tool("npm"),
                 "install",
                 "--package-lock-only",

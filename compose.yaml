@@ -3,7 +3,7 @@ name: prom
 x-projects-environment: &projects-environment
   PROJECTS_ENV: ${PLATFORM_ENVIRONMENT:-development}
   PROJECTS_DEBUG: ${PLATFORM_DEBUG:-false}
-  PROJECTS_DATABASE_URL: ${PROJECTS_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
+  PROJECTS_DATABASE_URL: ${PROJECTS_COMPOSE_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
   PROJECTS_JWT_SECRET: ${PROJECTS_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
   PROJECTS_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
   PROJECTS_UPLOADS_DIR: ${PROJECTS_UPLOADS_DIR:-/workspace/backend/storage/projects}
@@ -37,7 +37,7 @@ x-projects-environment: &projects-environment
 x-service-desk-environment: &service-desk-environment
   SERVICE_DESK_ENV: ${PLATFORM_ENVIRONMENT:-development}
   SERVICE_DESK_DEBUG: ${PLATFORM_DEBUG:-false}
-  SERVICE_DESK_DATABASE_URL: ${SERVICE_DESK_DATABASE_URL:-postgresql+psycopg://service_desk:service_desk@service-desk-db:5432/service_desk}
+  SERVICE_DESK_DATABASE_URL: ${SERVICE_DESK_COMPOSE_DATABASE_URL:-postgresql+psycopg://service_desk:service_desk@service-desk-db:5432/service_desk}
   SERVICE_DESK_JWT_SECRET: ${SERVICE_DESK_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
   SERVICE_DESK_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
   SERVICE_DESK_STORAGE_DIR: ${SERVICE_DESK_STORAGE_DIR:-/workspace/backend/storage/service-desk}
