@@ -75,6 +75,9 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
         'audit_sample_module_db_data:/var/lib/postgresql"'
         in (tmp_path / "compose.yaml").read_text(encoding="utf-8")
     )
+    assert '"react-router-dom": "7.18.3"' in (
+        tmp_path / "apps/audit-sample-module/frontend/package.json"
+    ).read_text(encoding="utf-8")
     assert _run(tmp_path, "audit-sample-module", "--remove").returncode == 0
     assert _snapshot(tmp_path) == before
 

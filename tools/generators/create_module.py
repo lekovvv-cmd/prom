@@ -367,7 +367,7 @@ CMD ["python", "-m", "uvicorn", "{package}.bootstrap.app:app", "--host", "0.0.0.
                     "@prom/platform-contracts": "0.1.0",
                     "@prom/ui": "0.1.0",
                 },
-                "peerDependencies": {"react": "19.2.7", "react-router-dom": "7.18.1"},
+                "peerDependencies": {"react": "19.2.7", "react-router-dom": "7.18.3"},
                 "devDependencies": {"vitest": "4.1.9"},
             },
             indent=2,
