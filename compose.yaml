@@ -108,6 +108,9 @@ services:
 
   access-migrate:
     image: prom-access-service:local
+    build: &access-build
+      context: .
+      dockerfile: apps/access-service/Dockerfile
     profiles: ["core", "full", "migration"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
@@ -121,6 +124,7 @@ services:
 
   access-seed:
     image: prom-access-service:local
+    build: *access-build
     profiles: ["demo"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
@@ -134,9 +138,7 @@ services:
 
   access-service:
     image: prom-access-service:local
-    build:
-      context: .
-      dockerfile: apps/access-service/Dockerfile
+    build: *access-build
     profiles: ["core", "full"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
@@ -169,9 +171,7 @@ services:
 
   access-identity-migrate:
     image: prom-access-service:local
-    build:
-      context: .
-      dockerfile: apps/access-service/Dockerfile
+    build: *access-build
     profiles: ["migration"]
     environment:
       ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
@@ -223,6 +223,7 @@ services:
 
   projects-seed:
     image: prom-projects-backend:local
+    build: *projects-build
     profiles: ["demo"]
     environment:
       <<: *projects-environment
@@ -236,6 +237,7 @@ services:
 
   projects-backend:
     image: prom-projects-backend:local
+    build: *projects-build
     profiles: ["projects", "full"]
     environment: *projects-environment
     volumes: ["projects_storage:/workspace/backend/storage/projects"]
@@ -245,6 +247,7 @@ services:
 
   projects-outbox-worker:
     image: prom-projects-backend:local
+    build: *projects-build
     profiles: ["projects", "full"]
     environment:
       <<: *projects-environment
@@ -260,6 +263,7 @@ services:
 
   projects-attachment-cleanup-worker:
     image: prom-projects-backend:local
+    build: *projects-build
     profiles: ["projects", "full"]
     environment:
       <<: *projects-environment
@@ -306,6 +310,7 @@ services:
 
   platform-bootstrap:
     image: prom-service-desk-backend:local
+    build: *service-desk-build
     profiles: ["demo"]
     environment:
       <<: *service-desk-environment
@@ -319,6 +324,7 @@ services:
 
   service-desk-seed:
     image: prom-service-desk-backend:local
+    build: *service-desk-build
     profiles: ["demo"]
     environment:
       <<: *service-desk-environment
@@ -332,6 +338,7 @@ services:
 
   service-desk-backend:
     image: prom-service-desk-backend:local
+    build: *service-desk-build
     profiles: ["service-desk", "full"]
     environment: *service-desk-environment
     volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
@@ -341,6 +348,7 @@ services:
 
   service-desk-sla-worker:
     image: prom-service-desk-backend:local
+    build: *service-desk-build
     profiles: ["service-desk", "full"]
     environment:
       <<: *service-desk-environment
@@ -357,6 +365,7 @@ services:
 
   service-desk-notification-worker:
     image: prom-service-desk-backend:local
+    build: *service-desk-build
     profiles: ["service-desk", "full"]
     environment:
       <<: *service-desk-environment
@@ -372,6 +381,7 @@ services:
 
   service-desk-attachment-cleanup-worker:
     image: prom-service-desk-backend:local
+    build: *service-desk-build
     profiles: ["service-desk", "full"]
     environment:
       <<: *service-desk-environment
