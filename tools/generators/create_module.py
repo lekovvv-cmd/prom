@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import shutil
@@ -15,15 +16,17 @@ from pathlib import Path
 
 ROOT = Path(os.getenv("PROM_GENERATOR_ROOT", Path(__file__).resolve().parents[2])).resolve()
 SDK_SOURCE = Path(__file__).resolve().parents[2] / "packages" / "python" / "platform-sdk" / "src"
-if str(SDK_SOURCE) not in sys.path:
-    sys.path.insert(0, str(SDK_SOURCE))
-
-from platform_sdk.modules import (  # noqa: E402
-    module_access_permission,
-    module_python_package,
-    module_token_audience,
-    validate_module_id,
+CONVENTION_SPEC = importlib.util.spec_from_file_location(
+    "prom_module_conventions", SDK_SOURCE / "platform_sdk" / "modules.py"
 )
+if CONVENTION_SPEC is None or CONVENTION_SPEC.loader is None:
+    raise RuntimeError("PROM module conventions are unavailable")
+_conventions = importlib.util.module_from_spec(CONVENTION_SPEC)
+CONVENTION_SPEC.loader.exec_module(_conventions)
+module_access_permission = _conventions.module_access_permission
+module_python_package = _conventions.module_python_package
+module_token_audience = _conventions.module_token_audience
+validate_module_id = _conventions.validate_module_id
 
 
 def _render(value: str) -> str:
