@@ -5,6 +5,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@prom/auth";
 import { FileInput } from "@prom/ui/FileInput";
 import { splitCompetencies } from "../../../entities/competency/lib/competencies";
+import { getProjectProfile } from "../../../entities/user/api/projectUserApi";
+import type { ProjectUser } from "../../../entities/user/model/types";
 import { Button } from "@prom/ui/Button";
 import { Input } from "@prom/ui/Input";
 import { Textarea } from "@prom/ui/Textarea";
@@ -25,10 +27,11 @@ export function ProjectResponseForm({
   projectId: string;
   onSubmitted: () => void;
 }) {
-  const { isLoading, user } = useAuth();
+  const { isAdmin, isLoading, user } = useAuth();
+  const [profile, setProfile] = useState<ProjectUser | null>(null);
   const [form, setForm] = useState({
     ...initialState,
-    full_name: user?.full_name ?? "",
+    full_name: user?.display_name ?? "",
     email: user?.email ?? initialState.email,
   });
   const [files, setFiles] = useState<File[]>([]);
@@ -37,22 +40,39 @@ export function ProjectResponseForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setForm((current) => ({
-        ...current,
-        full_name: user.full_name,
-        email: user.email,
-      }));
+    if (!user) {
+      setProfile(null);
+      return;
     }
+    let active = true;
+    setForm((current) => ({
+      ...current,
+      full_name: user.display_name,
+      email: user.email,
+    }));
+    void getProjectProfile()
+      .then((nextProfile) => {
+        if (!active) return;
+        setProfile(nextProfile);
+        setForm((current) => ({
+          ...current,
+          full_name: nextProfile.full_name,
+          email: nextProfile.email,
+        }));
+      })
+      .catch(() => {
+        if (active) setProfile(null);
+      });
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   function validateForm() {
     if (form.full_name.trim().length < 2) {
       return "Укажите ФИО не короче 2 символов";
     }
-    if (!form.email.trim()) {
-      return "Укажите email";
-    }
+    if (!form.email.trim()) return "Укажите email";
     if (!isUtmnEmail(form.email)) {
       return "Email: введите корректный адрес на домене @utmn.ru";
     }
@@ -87,7 +107,7 @@ export function ProjectResponseForm({
     );
   }
 
-  if (user?.role === "platform_admin") {
+  if (isAdmin) {
     return (
       <section className="form-panel" id="response-form" aria-live="polite">
         <h2>Отклики недоступны</h2>
@@ -117,13 +137,13 @@ export function ProjectResponseForm({
           full_name: form.full_name.trim(),
           email: normalizeEmail(form.email),
           comment: form.comment || null,
-          competencies: user?.competencies || null,
+          competencies: profile?.competencies || null,
         },
         files,
       );
       setForm({
         ...initialState,
-        full_name: user?.full_name ?? "",
+        full_name: profile?.full_name ?? user?.display_name ?? "",
         email: user?.email ?? initialState.email,
       });
       setFiles([]);
@@ -138,6 +158,7 @@ export function ProjectResponseForm({
     }
   }
 
+  const competencies = splitCompetencies(profile?.competencies ?? "");
   return (
     <form className="form-panel" id="response-form" onSubmit={handleSubmit}>
       <h2>Откликнуться на проект</h2>
@@ -172,9 +193,9 @@ export function ProjectResponseForm({
         aria-label="Компетенции из профиля"
       >
         <strong>Компетенции из профиля</strong>
-        {splitCompetencies(user.competencies).length > 0 ? (
+        {competencies.length > 0 ? (
           <div className="chip-list">
-            {splitCompetencies(user.competencies).map((competency) => (
+            {competencies.map((competency) => (
               <span className="chip" key={competency}>
                 {competency}
               </span>

@@ -1,9 +1,15 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { useAuth } from "@prom/auth";
 import { CompetencyPicker } from "../../../entities/competency/ui/CompetencyPicker";
-import { updateMyProfile } from "@prom/auth/api";
-import type { UserProfilePayload } from "@prom/auth";
+import {
+  getProjectProfile,
+  updateProjectProfile,
+} from "../../../entities/user/api/projectUserApi";
+import type {
+  ProjectUser,
+  ProjectUserProfilePayload,
+} from "../../../entities/user/model/types";
 import { HalfYearReportForm } from "../../../features/submit-half-year-report/ui/HalfYearReportForm";
 import { AdminReportControl } from "../../../widgets/admin-report-control/ui/AdminReportControl";
 import { Header } from "@prom/layout";
@@ -14,17 +20,45 @@ import { PageLayout } from "@prom/ui/PageLayout";
 import { Textarea } from "@prom/ui/Textarea";
 
 export function ProfilePage() {
-  const { isAdmin, refreshUser, user } = useAuth();
-  const [form, setForm] = useState<UserProfilePayload>({
-    full_name: user?.full_name ?? "",
-    department: user?.department ?? "",
-    position: user?.position ?? "",
-    competencies: user?.competencies ?? "",
-    about: user?.about ?? "",
+  const { isAdmin, user } = useAuth();
+  const [profile, setProfile] = useState<ProjectUser | null>(null);
+  const [form, setForm] = useState<ProjectUserProfilePayload>({
+    full_name: "",
+    department: "",
+    position: "",
+    competencies: "",
+    about: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getProjectProfile()
+      .then((nextProfile) => {
+        if (!active) return;
+        setProfile(nextProfile);
+        setForm({
+          full_name: nextProfile.full_name,
+          department: nextProfile.department ?? "",
+          position: nextProfile.position ?? "",
+          competencies: nextProfile.competencies ?? "",
+          about: nextProfile.about ?? "",
+        });
+      })
+      .catch((reason: unknown) => {
+        if (active)
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Не удалось загрузить профиль",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -37,14 +71,14 @@ export function ProfilePage() {
       setIsSubmitting(true);
       setError(null);
       setMessage(null);
-      await updateMyProfile({
+      const nextProfile = await updateProjectProfile({
         full_name: form.full_name.trim(),
         department: form.department?.trim() || null,
         position: form.position?.trim() || null,
         competencies: form.competencies?.trim() || null,
         about: form.about?.trim() || null,
       });
-      await refreshUser();
+      setProfile(nextProfile);
       setMessage("Профиль сохранён");
     } catch (err) {
       setError(
@@ -74,7 +108,7 @@ export function ProfilePage() {
               <Input
                 label="Email"
                 name="email"
-                value={user?.email ?? ""}
+                value={profile?.email ?? user?.email ?? ""}
                 disabled
               />
             </div>

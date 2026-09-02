@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useAuth } from "@prom/auth";
 import { Spinner } from "@prom/ui/Spinner";
+import { canManageProjects } from "./entities/user/lib/projectPermissions";
 import "@prom/ui/styles.css";
 import "./styles/index.css";
 const AdminProjectManagePage = lazy(() =>
@@ -74,7 +75,8 @@ function ProtectedRoute({
 }
 
 export default function ProjectsRoutes() {
-  const { canManageProjects, isAdmin } = useAuth();
+  const { hasPermission, isAdmin } = useAuth();
+  const isProjectManager = canManageProjects(hasPermission);
   return (
     <Routes>
       <Route path="/projects" element={<ProjectsListPage />} />
@@ -126,7 +128,7 @@ export default function ProjectsRoutes() {
       <Route
         path="/admin/projects"
         element={
-          <ProtectedRoute allowed={canManageProjects}>
+          <ProtectedRoute allowed={isProjectManager}>
             <AdminProjectsPage />
           </ProtectedRoute>
         }
@@ -134,7 +136,7 @@ export default function ProjectsRoutes() {
       <Route
         path="/admin/projects/:projectId"
         element={
-          <ProtectedRoute allowed={canManageProjects}>
+          <ProtectedRoute allowed={isProjectManager}>
             <AdminProjectManagePage />
           </ProtectedRoute>
         }
@@ -142,7 +144,7 @@ export default function ProjectsRoutes() {
       <Route
         path="/admin/responses"
         element={
-          <ProtectedRoute allowed={canManageProjects}>
+          <ProtectedRoute allowed={isProjectManager}>
             <AdminResponsesPage />
           </ProtectedRoute>
         }

@@ -4,13 +4,12 @@ import { useServiceDeskAccess } from "../../../providers/ServiceDeskAccessProvid
 import {
   createAccessUser,
   getAccessUsers,
+  getPlatformIdentityDirectory,
   replaceUserCapabilities,
   setAccessUserActive,
   updateAccessUser,
 } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import type { ServiceDeskUser } from "../../../entities/service-desk-user/model/types";
-import { getUserDirectory } from "@prom/auth/api";
-import type { User } from "@prom/auth";
 import { Button } from "@prom/ui/Button";
 import { Card } from "@prom/ui/Card";
 import { Input } from "@prom/ui/Input";
@@ -95,8 +94,10 @@ export function ServiceDeskAdminAccessPage() {
   const [pending, setPending] = useState(false);
   const [editing, setEditing] = useState<ServiceDeskUser | null>(null);
   const [projectQuery, setProjectQuery] = useState("");
-  const [projectUsers, setProjectUsers] = useState<User[]>([]);
-  const [selectedProjectUserId, setSelectedProjectUserId] = useState("");
+  const [identityUsers, setIdentityUsers] = useState<
+    Awaited<ReturnType<typeof getPlatformIdentityDirectory>>
+  >([]);
+  const [selectedIdentityUserId, setSelectedIdentityUserId] = useState("");
   const [confirming, setConfirming] = useState<ServiceDeskUser | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<{
     title: string;
@@ -107,9 +108,9 @@ export function ServiceDeskAdminAccessPage() {
   useEffect(() => {
     let active = true;
     const timeout = window.setTimeout(() => {
-      void getUserDirectory(projectQuery.trim() || undefined)
+      void getPlatformIdentityDirectory(projectQuery.trim() || undefined)
         .then((items) => {
-          if (active) setProjectUsers(items);
+          if (active) setIdentityUsers(items);
         })
         .catch((reason: unknown) => {
           if (active)
@@ -175,25 +176,25 @@ export function ServiceDeskAdminAccessPage() {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    const projectUser = projectUsers.find(
-      (user) => user.id === selectedProjectUserId,
+    const identityUser = identityUsers.find(
+      (user) => user.id === selectedIdentityUserId,
     );
-    if (!projectUser) {
+    if (!identityUser) {
       setError("Выберите пользователя UTMN");
       return;
     }
     await mutate(async () => {
       const created = await createAccessUser({
-        identity_user_id: projectUser.id,
-        email: projectUser.email,
-        display_name: projectUser.full_name,
-        department: projectUser.department,
-        position: projectUser.position,
+        identity_user_id: identityUser.id,
+        email: identityUser.email,
+        display_name: identityUser.full_name,
+        department: identityUser.department ?? null,
+        position: identityUser.position ?? null,
         access_type: data.get("type"),
         capabilities: [],
       });
       form.reset();
-      setSelectedProjectUserId("");
+      setSelectedIdentityUserId("");
       return created;
     });
   }
@@ -275,12 +276,14 @@ export function ServiceDeskAdminAccessPage() {
             />
             <Select
               label="Пользователь UTMN"
-              value={selectedProjectUserId}
-              onChange={(event) => setSelectedProjectUserId(event.target.value)}
+              value={selectedIdentityUserId}
+              onChange={(event) =>
+                setSelectedIdentityUserId(event.target.value)
+              }
               required
             >
               <option value="">Выберите пользователя</option>
-              {projectUsers.map((user) => (
+              {identityUsers.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.full_name} · {user.email}
                 </option>

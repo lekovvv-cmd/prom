@@ -19,14 +19,12 @@ import { PageLayout } from "@prom/ui/PageLayout";
 import { Spinner } from "@prom/ui/Spinner";
 
 export function ProjectsListPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAdmin, isAuthenticated } = useAuth();
   const [filters, setFilters] = useState<ProjectListParams>({
     sort: "created_at_desc",
     limit: 50,
   });
-  const canLoadRecommendations = Boolean(
-    isAuthenticated && user?.role !== "platform_admin",
-  );
+  const canLoadRecommendations = Boolean(isAuthenticated && !isAdmin);
   const projectsQuery = useQuery({
     queryKey: projectsQueryKeys.showcase(filters, canLoadRecommendations),
     queryFn: async ({ signal }) => {

@@ -4,8 +4,8 @@ import type {
   ProjectDetails,
   ProjectMutationPayload,
 } from "../../../entities/project/model/types";
-import type { User } from "@prom/auth";
-import { getUserDirectory } from "@prom/auth/api";
+import type { ProjectUser } from "../../../entities/user/model/types";
+import { getProjectUserDirectory } from "../../../entities/user/api/projectUserApi";
 import { normalizeCompetencyBlocks } from "../../../entities/competency/lib/competencyBlocks";
 import {
   normalizeProjectPayload,
@@ -53,7 +53,7 @@ export function EditProjectForm({
     projectToForm(project),
   );
   const [files, setFiles] = useState<File[]>([]);
-  const [responsibleUsers, setResponsibleUsers] = useState<User[]>([]);
+  const [responsibleUsers, setResponsibleUsers] = useState<ProjectUser[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,7 +63,7 @@ export function EditProjectForm({
     async function loadUsers() {
       try {
         setIsUsersLoading(true);
-        const users = await getUserDirectory();
+        const users = await getProjectUserDirectory();
         if (!ignore) {
           setResponsibleUsers(users);
         }

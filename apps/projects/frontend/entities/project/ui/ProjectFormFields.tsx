@@ -1,5 +1,5 @@
 import type { ProjectMutationPayload } from "../model/types";
-import type { User } from "@prom/auth";
+import type { ProjectUser } from "../../user/model/types";
 import { CompetencyBlocksEditor } from "../../competency/ui/CompetencyBlocksEditor";
 import {
   createEmptyCompetencyBlock,
@@ -103,7 +103,7 @@ export function validateProjectForm(form: ProjectMutationPayload) {
   return null;
 }
 
-const ROLE_LABELS: Record<User["role"], string> = {
+const ROLE_LABELS: Record<ProjectUser["role"], string> = {
   platform_admin: "Администратор платформы",
   project_manager: "Руководитель",
   employee: "Сотрудник",
@@ -117,7 +117,7 @@ export function ProjectFormFields({
 }: {
   form: ProjectMutationPayload;
   setForm: (form: ProjectMutationPayload) => void;
-  responsibleUsers?: User[];
+  responsibleUsers?: ProjectUser[];
   isResponsibleUsersLoading?: boolean;
 }) {
   const selectedMemberIds = new Set(form.working_group_member_ids ?? []);

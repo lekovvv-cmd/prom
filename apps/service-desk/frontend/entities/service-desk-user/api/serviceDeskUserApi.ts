@@ -1,4 +1,4 @@
-import { serviceDeskApiClient } from "@prom/api-client";
+import { apiClient, serviceDeskApiClient } from "@prom/api-client";
 import type { ServiceDeskUser } from "../model/types";
 
 export function getCurrentServiceDeskUser() {
@@ -57,3 +57,19 @@ export const setAccessUserActive = (id: string, active: boolean) =>
     `/admin/access/users/${id}/${active ? "activate" : "deactivate"}`,
     { method: "POST" },
   );
+
+/** Minimal identity fields required to create a Service Desk access record. */
+export type PlatformIdentityDirectoryUser = {
+  id: string;
+  email: string;
+  full_name: string;
+  department?: string | null;
+  position?: string | null;
+};
+
+export function getPlatformIdentityDirectory(search?: string) {
+  const query = search ? `?${new URLSearchParams({ search }).toString()}` : "";
+  return apiClient.request<PlatformIdentityDirectoryUser[]>(
+    `/users/directory${query}`,
+  );
+}

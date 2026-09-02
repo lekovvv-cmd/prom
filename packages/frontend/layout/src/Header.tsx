@@ -16,12 +16,6 @@ import { useAuth } from "@prom/auth";
 import { Button } from "@prom/ui/Button";
 import utmnLogo from "./assets/utmn-logo.png";
 
-const roleLabels = {
-  platform_admin: "Администратор платформы",
-  project_manager: "Руководитель проектов",
-  employee: "Сотрудник",
-};
-
 const HeaderToolsContext = createContext<ReactNode>(null);
 
 export function HeaderToolsProvider({
@@ -39,7 +33,7 @@ export function HeaderToolsProvider({
 }
 
 export function Header() {
-  const { canManageProjects, isAdmin, isAuthenticated, logout, modules, user } =
+  const { hasPermission, isAdmin, isAuthenticated, logout, modules, user } =
     useAuth();
   const tools = useContext(HeaderToolsContext);
   const location = useLocation();
@@ -65,6 +59,8 @@ export function Header() {
   const canAccessServiceDesk =
     !isAuthenticated ||
     moduleAccess.some((module) => module.id === "service-desk");
+  const canManageProjects =
+    hasPermission("projects.create") || hasPermission("projects.manage");
 
   return (
     <header className="app-header">
@@ -115,7 +111,7 @@ export function Header() {
                 <FolderKanban size={15} aria-hidden="true" />
                 Витрина
               </NavLink>
-              {isAuthenticated && user?.role !== "platform_admin" ? (
+              {isAuthenticated && !isAdmin ? (
                 <>
                   <NavLink to="/my/projects">
                     <FolderKanban size={15} aria-hidden="true" />
@@ -162,8 +158,8 @@ export function Header() {
                   <span>
                     {isServiceDeskRoute
                       ? "Пользователь Service Desk"
-                      : user
-                        ? roleLabels[user.role]
+                      : isAdmin
+                        ? "Администратор платформы"
                         : "Пользователь"}
                   </span>
                   <small>{user?.email}</small>

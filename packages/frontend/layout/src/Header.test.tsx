@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@prom/auth", () => ({
   useAuth: () => ({
-    canManageProjects: true,
+    hasPermission: () => true,
     isAdmin: true,
     isAuthenticated: true,
     logout: vi.fn(),
@@ -12,7 +12,7 @@ vi.mock("@prom/auth", () => ({
       { id: "projects", permissions: [] },
       { id: "service-desk", permissions: [] },
     ],
-    user: { email: "admin@utmn.ru", role: "platform_admin" },
+    user: { email: "admin@utmn.ru", display_name: "Администратор" },
   }),
 }));
 

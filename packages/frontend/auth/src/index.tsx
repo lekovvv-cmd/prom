@@ -6,27 +6,23 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { components as ProjectsContract } from "@prom/generated-contracts/projects";
 import type { components as AccessContract } from "@prom/generated-contracts/access";
 
-export type UserRole = ProjectsContract["schemas"]["UserRole"];
-export type User = ProjectsContract["schemas"]["UserRead"];
-export type UserProfilePayload =
-  ProjectsContract["schemas"]["UserProfileUpdate"];
+/** The identity returned by the platform Access service. */
+export type PlatformUser = AccessContract["schemas"]["UserOut"];
 export type PlatformModuleAccess = AccessContract["schemas"]["ModuleOut"];
 export type PlatformAuthorization = {
   modules: PlatformModuleAccess[];
   permissions: string[];
 };
-export type AuthSession = PlatformAuthorization & { user: User };
+export type AuthSession = PlatformAuthorization & { user: PlatformUser };
 
 export type AuthContextValue = {
-  user: User | null;
+  user: PlatformUser | null;
   modules: PlatformModuleAccess[];
   permissions: string[];
   isAuthenticated: boolean;
   isAdmin: boolean;
-  canManageProjects: boolean;
   hasPermission: (permission: string) => boolean;
   isLoading: boolean;
   login: (session: AuthSession) => void;
@@ -50,7 +46,7 @@ export function AuthProvider({
   loadSession: () => Promise<AuthSession>;
   closeSession: () => Promise<void>;
 }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<PlatformUser | null>(null);
   const [authorization, setAuthorization] =
     useState<PlatformAuthorization>(EMPTY_AUTHORIZATION);
   const [isLoading, setIsLoading] = useState(true);
@@ -93,10 +89,7 @@ export function AuthProvider({
   }, []);
 
   const isAuthenticated = user !== null;
-  const isAdmin = authorization.permissions.includes("platform.admin");
-  const canManageProjects =
-    authorization.permissions.includes("projects.create") ||
-    authorization.permissions.includes("projects.manage");
+  const { hasPermission, isAdmin } = createAuthFlags(authorization);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -105,9 +98,7 @@ export function AuthProvider({
       permissions: authorization.permissions,
       isAuthenticated,
       isAdmin,
-      canManageProjects,
-      hasPermission: (permission) =>
-        authorization.permissions.includes(permission),
+      hasPermission,
       isLoading,
       login,
       logout,
@@ -116,7 +107,6 @@ export function AuthProvider({
     [
       authorization.modules,
       authorization.permissions,
-      canManageProjects,
       isAdmin,
       isAuthenticated,
       isLoading,
@@ -128,6 +118,15 @@ export function AuthProvider({
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function createAuthFlags(authorization: PlatformAuthorization) {
+  const hasPermission = (permission: string) =>
+    authorization.permissions.includes(permission);
+  return {
+    hasPermission,
+    isAdmin: hasPermission("platform.admin"),
+  };
 }
 
 export function useAuth() {
