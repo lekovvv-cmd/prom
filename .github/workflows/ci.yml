@@ -144,6 +144,10 @@ jobs:
       - run: python tools/generators/create_module.py audit-sample-module --check
       - run: uv run --frozen --package prom-audit-sample-module-backend --extra dev python -m pytest -q apps/audit-sample-module/backend/tests
       - run: docker compose --profile audit-sample-module up --build -d --wait audit-sample-module-backend
+      - name: Verify live generated-module Access authorization
+        run: |
+          docker compose --profile core --profile demo --profile audit-sample-module up --build -d --wait
+          python tools/generators/live_module_authorization_e2e.py
       - run: npm run build
       - run: npm run check:contracts
       - run: node tools/gateway/check.mjs
