@@ -520,7 +520,7 @@ def _register(change: ChangeSet, name: str) -> None:
     nginx = ROOT / "apps/platform-shell/nginx.conf"
     change.replace(nginx, "    set $service_desk_backend http://service-desk-backend:8001;\n", f"    set $service_desk_backend http://service-desk-backend:8001;\n    set ${package}_backend http://{name}-backend:{port};\n")
     location = f'''    location /api/{name}/v1/ {{
-        rewrite ^/api/{name}/v1/(.*)$ /$1 break;
+        rewrite ^/api/{name}/v1/(.*)$ /api/v1/$1 break;
         proxy_pass ${package}_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Request-ID $prom_request_id;

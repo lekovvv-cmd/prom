@@ -86,6 +86,10 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
     assert 'createApiClient("/api/audit-sample-module/v1")' in (
         tmp_path / "apps/audit-sample-module/frontend/api/client.ts"
     ).read_text(encoding="utf-8")
+    assert (
+        "rewrite ^/api/audit-sample-module/v1/(.*)$ /api/v1/$1 break;"
+        in (tmp_path / "apps/platform-shell/nginx.conf").read_text(encoding="utf-8")
+    )
     assert "audit-sample-module" not in (
         tmp_path / "apps/access-service/src/access_service/application/catalog.py"
     ).read_text(encoding="utf-8")
