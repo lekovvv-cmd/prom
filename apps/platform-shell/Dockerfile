@@ -9,9 +9,7 @@ COPY contracts/generated contracts/generated
 COPY packages/frontend packages/frontend
 RUN npm ci
 
-COPY apps/platform-shell apps/platform-shell
-COPY apps/projects/frontend apps/projects/frontend
-COPY apps/service-desk/frontend apps/service-desk/frontend
+COPY apps apps
 ARG VITE_API_BASE_URL=/api/projects/v1
 ARG VITE_SERVICE_DESK_API_BASE_URL=/api/service-desk/v1
 ARG VITE_ACCESS_API_BASE_URL=/api/access/v1
