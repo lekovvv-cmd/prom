@@ -26,7 +26,7 @@ class ModuleAdminOut(BaseModel):
 
 
 class ModuleInput(BaseModel):
-    id: str = Field(pattern=r"^[a-z][a-z0-9-]{1,62}[a-z0-9]$")
+    id: str = Field(pattern=r"^[a-z](?:[a-z0-9]|-[a-z0-9]){2,63}$")
     title: str = Field(min_length=2, max_length=255)
 
 
@@ -47,7 +47,10 @@ class RoleOut(BaseModel):
 class RoleInput(BaseModel):
     code: str = Field(pattern=r"^[a-z0-9_.-]+$")
     title: str = Field(min_length=2, max_length=255)
-    module_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{1,62}[a-z0-9]$")
+    module_id: str | None = Field(
+        default=None,
+        pattern=r"^[a-z](?:[a-z0-9]|-[a-z0-9]){2,63}$",
+    )
     permissions: list[str] = Field(default_factory=list)
 
 

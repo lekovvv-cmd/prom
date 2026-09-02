@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
+from platform_sdk.modules import module_access_permission
 
 from access_service.domain.models import (
     AccessAuditEvent,
@@ -64,12 +65,20 @@ def modules_for_permissions(
     rows = session.execute(
         select(Module.id, Permission.code)
         .join(Permission, Permission.module_id == Module.id)
-        .where(Module.is_active.is_(True), Permission.code.in_(permissions))
+        .where(Module.is_active.is_(True))
         .order_by(Module.id, Permission.code)
     ).all()
     grouped: dict[str, list[str]] = {}
     for module_id, permission_code in rows:
-        grouped.setdefault(module_id, []).append(permission_code)
+        if permission_code in permissions:
+            grouped.setdefault(module_id, []).append(permission_code)
+        elif (
+            "platform.admin" in permissions
+            and permission_code == module_access_permission(module_id)
+        ):
+            # platform.admin is the explicit module-entry bypass. It does not
+            # mutate role membership when a runtime module is registered.
+            grouped.setdefault(module_id, []).append(permission_code)
     return [
         {"id": module_id, "permissions": module_permissions}
         for module_id, module_permissions in grouped.items()

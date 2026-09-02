@@ -14,11 +14,14 @@ from access_service.api.router import (
     remove_group_member,
     remove_group_role,
     upsert_role,
+    token_audiences_for,
 )
 from access_service.api.schemas import GroupInput, ModuleInput, RoleInput
 from access_service.application.access import modules_for_permissions, permissions_for
 from access_service.application.catalog import ensure_access_catalog
-from access_service.domain.models import Base, PlatformUser, Role, UserRoleAssignment
+from access_service.bootstrap.config import AccessSettings
+from access_service.domain.models import Base, Permission, PlatformUser, Role, UserRoleAssignment
+from access_service.infrastructure.identity import InternalTokenSigner
 
 
 def request() -> Request:
@@ -184,6 +187,7 @@ def test_temporary_module_is_dynamic_and_role_integrity_is_enforced(session: Ses
     admin = session.get(PlatformUser, "admin")
     employee = session.get(PlatformUser, "employee")
     assert admin is not None and employee is not None
+    admin_version = admin.session_version
     registered = register_module(
         ModuleInput(id="documents", title="Documents"),
         request(),
@@ -191,6 +195,19 @@ def test_temporary_module_is_dynamic_and_role_integrity_is_enforced(session: Ses
         session,
     )
     assert registered.id == "documents"
+    permission = session.scalar(select(Permission).where(Permission.code == "documents.access"))
+    assert permission is not None
+    assert permission.module_id == "documents"
+    session.refresh(admin)
+    # platform.admin is an explicit access bypass, not an assignment mutation.
+    assert admin.session_version == admin_version
+    assert {"id": "documents", "permissions": ["documents.access"]} in modules_for_permissions(
+        session, permissions_for(session, admin)
+    )
+    assert "documents" in token_audiences_for(
+        session,
+        InternalTokenSigner(AccessSettings(database_url="sqlite+pysqlite:///:memory:")),
+    )
     documents_role = upsert_role(
         RoleInput(
             code="documents_editor",

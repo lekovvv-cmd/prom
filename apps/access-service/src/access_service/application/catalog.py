@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
 from access_service.domain.models import Module, Permission, Role
 
 
@@ -12,36 +11,36 @@ MODULES = {
 }
 
 PERMISSIONS = {
-    "platform.admin": "Platform administration",
-    "projects.access": "Access Projects",
-    "projects.view": "View Projects",
-    "projects.respond": "Respond to projects",
-    "projects.manage_own": "Manage own projects",
-    "projects.manage_all": "Manage all projects",
-    "projects.create": "Create projects",
-    "projects.update_own": "Update own projects",
-    "projects.update_any": "Update any project",
-    "projects.manage_members": "Manage project members",
-    "projects.manage_responses": "Manage project responses",
-    "projects.manage_tasks": "Manage project tasks",
-    "projects.manage_reports": "Manage project reports",
-    "projects.manage_periods": "Manage project report periods",
-    "projects.manage_users": "Manage project users",
-    "projects.manage_settings": "Manage project settings",
-    "projects.audit.view": "View project audit log",
-    "service_desk.access": "Access Service Desk",
-    "service_desk.be_assignee": "Be assigned to Service Desk tickets",
-    "service_desk.assign": "Assign Service Desk tickets",
-    "service_desk.approve": "Approve Service Desk tickets",
-    "service_desk.change_priority": "Change Service Desk ticket priority",
-    "service_desk.view_all_tickets": "View all Service Desk tickets",
-    "service_desk.view_reports": "View Service Desk reports",
-    "service_desk.manage_catalog": "Manage Service Desk catalog",
-    "service_desk.manage_sla": "Manage Service Desk SLA",
-    "service_desk.manage_access": "Manage Service Desk access",
-    "service_desk.manage_templates": "Manage Service Desk templates",
-    "service_desk.manage_routing": "Manage Service Desk routing",
-    "service_desk.manage_approval_workflows": "Manage approval workflows",
+    "platform.admin": ("Platform administration", None),
+    "projects.access": ("Access Projects", "projects"),
+    "projects.view": ("View Projects", "projects"),
+    "projects.respond": ("Respond to projects", "projects"),
+    "projects.manage_own": ("Manage own projects", "projects"),
+    "projects.manage_all": ("Manage all projects", "projects"),
+    "projects.create": ("Create projects", "projects"),
+    "projects.update_own": ("Update own projects", "projects"),
+    "projects.update_any": ("Update any project", "projects"),
+    "projects.manage_members": ("Manage project members", "projects"),
+    "projects.manage_responses": ("Manage project responses", "projects"),
+    "projects.manage_tasks": ("Manage project tasks", "projects"),
+    "projects.manage_reports": ("Manage project reports", "projects"),
+    "projects.manage_periods": ("Manage project report periods", "projects"),
+    "projects.manage_users": ("Manage project users", "projects"),
+    "projects.manage_settings": ("Manage project settings", "projects"),
+    "projects.audit.view": ("View project audit log", "projects"),
+    "service_desk.access": ("Access Service Desk", "service-desk"),
+    "service_desk.be_assignee": ("Be assigned to Service Desk tickets", "service-desk"),
+    "service_desk.assign": ("Assign Service Desk tickets", "service-desk"),
+    "service_desk.approve": ("Approve Service Desk tickets", "service-desk"),
+    "service_desk.change_priority": ("Change Service Desk ticket priority", "service-desk"),
+    "service_desk.view_all_tickets": ("View all Service Desk tickets", "service-desk"),
+    "service_desk.view_reports": ("View Service Desk reports", "service-desk"),
+    "service_desk.manage_catalog": ("Manage Service Desk catalog", "service-desk"),
+    "service_desk.manage_sla": ("Manage Service Desk SLA", "service-desk"),
+    "service_desk.manage_access": ("Manage Service Desk access", "service-desk"),
+    "service_desk.manage_templates": ("Manage Service Desk templates", "service-desk"),
+    "service_desk.manage_routing": ("Manage Service Desk routing", "service-desk"),
+    "service_desk.manage_approval_workflows": ("Manage approval workflows", "service-desk"),
 }
 
 ROLES: dict[str, tuple[str, str | None, set[str]]] = {
@@ -106,14 +105,6 @@ ROLES["platform_admin"] = (
 )
 
 
-def permission_module(code: str) -> str | None:
-    if code.startswith("projects."):
-        return "projects"
-    if code.startswith("service_desk."):
-        return "service-desk"
-    return None
-
-
 def ensure_access_catalog(session: Session) -> dict[str, Role]:
     """Create or reconcile the platform RBAC catalog without creating demo users."""
 
@@ -125,9 +116,8 @@ def ensure_access_catalog(session: Session) -> dict[str, Role]:
             module.title = title
     session.flush()
 
-    for code, title in PERMISSIONS.items():
+    for code, (title, permission_module_id) in PERMISSIONS.items():
         permission = session.scalar(select(Permission).where(Permission.code == code))
-        permission_module_id = permission_module(code)
         if permission is None:
             session.add(
                 Permission(code=code, title=title, module_id=permission_module_id)

@@ -658,6 +658,7 @@ class InternalTokenSigner:
         display_name: str,
         permissions: set[str],
         session_version: int,
+        audiences: list[str] | None = None,
         correlation_id: str | None = None,
     ) -> str:
         active = self._active()
@@ -670,7 +671,7 @@ class InternalTokenSigner:
             "external_sub": external_subject,
             "email": email,
             "display_name": display_name,
-            "aud": list(self.settings.token_audience_values),
+            "aud": audiences or list(self.settings.token_audience_values),
             "permissions": sorted(permissions),
             "sv": session_version,
             "iat": now,

@@ -51,6 +51,12 @@ from .storage import (
     stream_incoming_file,
 )
 from .unit_of_work import SqlAlchemyUnitOfWork
+from .modules import (
+    module_access_permission,
+    module_python_package,
+    module_token_audience,
+    validate_module_id,
+)
 
 __all__ = [
     "AssigneeUnavailable",
@@ -90,6 +96,9 @@ __all__ = [
     "is_production_environment",
     "mark_outbox_failed",
     "mark_outbox_processed",
+    "module_access_permission",
+    "module_python_package",
+    "module_token_audience",
     "outbox_metrics",
     "parse_nonempty_csv",
     "pool_metrics",
@@ -98,4 +107,5 @@ __all__ = [
     "stream_incoming_file",
     "start_worker_metrics_server",
     "validate_production_database_url",
+    "validate_module_id",
 ]

@@ -28,6 +28,23 @@ audiences, permissions, user subject, external subject, and session version.
 Product modules verify locally from cached JWKS and may use a stale key only
 within the configured bounded outage window.
 
+## Runtime module convention
+
+The platform SDK owns the module ABI. A module id is lowercase kebab-case, for
+example `audit-sample-module`. Its backend Python package and entry permission
+are derived once as `audit_sample_module` and
+`audit_sample_module.access`; its JWT audience remains the unmodified module
+id. The generator writes those values to `registration.json`, the frontend
+manifest, and backend configuration. The Access registration API derives the
+same permission and persists its `module_id` ownership; a new module never
+requires an edit to the bootstrap catalog.
+
+Access includes all active module ids in newly issued token audiences. A module
+still validates its own single audience, issuer, signature, and entry
+permission locally through JWKS. Registration does not grant ordinary users
+anything: role/group mutations retain their existing `session_version`
+revocation behavior.
+
 Access persists a key ring with exactly one active signing key plus previous
 verify-only keys. Rotation publishes active + overlap keys; retirement occurs
 only after token TTL, clock skew, and configured overlap. Unknown keys, wrong
@@ -46,6 +63,13 @@ Available product modules are derived from active rows in `modules` referenced
 by the effective permissions. Platform-only permissions do not create false
 product modules. Module registration and role mutation enforce module/permission
 integrity; dangling and cross-module permissions are rejected.
+
+`platform.admin` is an explicit module-entry bypass. It can see and enter every
+active module, including a module registered after the role was bootstrapped,
+without appending a new permission to the role. This is an intentional stable
+administrator capability rather than an implicit permission grant, so runtime
+registration does not silently change ordinary users' sessions or increment
+their session versions.
 
 Every membership or group-role mutation increments affected users'
 `session_version` and records before/after audit data. Direct and group

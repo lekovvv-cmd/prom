@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
+from platform_sdk.modules import module_access_permission, module_token_audience
 
 from access_service.api.schemas import (
     GroupInput,
@@ -132,11 +133,25 @@ def issue_token(request: Request, session: Session, user: PlatformUser) -> Token
             email=user.email,
             display_name=user.display_name,
             permissions=permissions_for(session, user),
+            audiences=token_audiences_for(session, signer),
             session_version=user.session_version,
             correlation_id=getattr(request.state, "request_id", None),
         ),
         session=serialize_session(session, user),
     )
+
+
+def token_audiences_for(session: Session, signer: InternalTokenSigner) -> list[str]:
+    """Issue tokens for every active bounded context, including runtime modules."""
+
+    configured = list(signer.settings.token_audience_values)
+    runtime = [
+        module_token_audience(module_id)
+        for module_id in session.scalars(
+            select(Module.id).where(Module.is_active.is_(True)).order_by(Module.id)
+        ).all()
+    ]
+    return list(dict.fromkeys([*configured, *runtime]))
 
 
 def require_mock_provider(request: Request) -> None:
@@ -581,7 +596,7 @@ def register_module(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Module already exists")
     module = Module(id=payload.id, title=payload.title, is_active=True)
     session.add(module)
-    access_permission_code = f"{payload.id.replace('-', '_')}.access"
+    access_permission_code = module_access_permission(payload.id)
     if session.scalar(select(Permission.id).where(Permission.code == access_permission_code)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -601,7 +616,13 @@ def register_module(
         action="module_registered",
         object_type="module",
         object_id=module.id,
-        after={"id": module.id, "title": module.title, "is_active": True},
+        after={
+            "id": module.id,
+            "title": module.title,
+            "is_active": True,
+            "permission": access_permission_code,
+            "audience": module_token_audience(module.id),
+        },
         request_id=getattr(request.state, "request_id", None),
     )
     session.commit()
