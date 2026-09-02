@@ -36,17 +36,20 @@ def token(email: str) -> dict[str, object]:
 
 def main() -> int:
     admin = token("admin@utmn.ru")
-    employee = token("employee@utmn.ru")
-    admin_token, employee_token = str(admin["access_token"]), str(employee["access_token"])
-    employee_id = str(employee["session"]["user"]["id"])
+    pre_registration_employee = token("employee@utmn.ru")
+    admin_token = str(admin["access_token"])
+    employee_id = str(pre_registration_employee["session"]["user"]["id"])
 
     status, result = request("POST", f"{ACCESS}/admin/modules", payload={"id": MODULE, "title": "Audit Sample Module"}, token=admin_token)
     assert status == 201, result
     status, modules = request("GET", f"{ACCESS}/admin/modules", token=admin_token)
     assert status == 200 and any(item["id"] == MODULE for item in modules), modules
+    employee = token("employee@utmn.ru")
+    employee_token = str(employee["access_token"])
     assert request("GET", f"{ACCESS}/me/modules", token=employee_token) == (200, [])
     assert request("GET", MODULE_API)[0] == 401
     assert request("GET", MODULE_API, token="malformed")[0] == 401
+    assert request("GET", MODULE_API, token=str(pre_registration_employee["access_token"]))[0] == 401
     assert request("GET", MODULE_API, token=employee_token)[0] == 403
 
     status, role = request("POST", f"{ACCESS}/admin/roles", payload={"code": "audit_reader", "title": "Audit reader", "module_id": MODULE, "permissions": [PERMISSION]}, token=admin_token)
