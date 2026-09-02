@@ -28,7 +28,9 @@ def request(method: str, url: str, *, payload: object | None = None, token: str 
     if token:
         headers["Authorization"] = f"Bearer {token}"
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, body, headers, method), timeout=15) as response:
+        with urllib.request.urlopen(
+            urllib.request.Request(url, data=body, headers=headers, method=method), timeout=15
+        ) as response:
             return response.status, json.load(response)
     except urllib.error.HTTPError as error:
         return error.code, json.load(error)
