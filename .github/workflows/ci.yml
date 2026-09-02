@@ -146,8 +146,18 @@ jobs:
       - run: docker compose --profile audit-sample-module up --build -d --wait audit-sample-module-backend
       - name: Verify live generated-module Access authorization
         run: |
-          docker compose --profile core --profile demo --profile audit-sample-module up --build -d --wait
-          python tools/generators/live_module_authorization_e2e.py
+          test_key="$RUNNER_TEMP/prom-live-access-test.pem"
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$test_key"
+          export ACCESS_JWT_PRIVATE_KEY="$(<"$test_key")"
+          export ACCESS_JWT_KEY_ID="live-generator-access"
+          docker compose --profile core --profile audit-sample-module up --build -d --wait \
+            access-db access-migrate access-service \
+            audit-sample-module-db audit-sample-module-migrate audit-sample-module-backend \
+            platform-shell
+          docker compose --profile core run --rm access-seed
+          PROM_LIVE_ACCESS_TEST_KEY_FILE="$test_key" \
+          PROM_LIVE_ACCESS_TEST_KEY_ID="$ACCESS_JWT_KEY_ID" \
+          uv run --frozen --package prom-access-service --extra dev python tools/generators/live_module_authorization_e2e.py
       - run: npm run build
       - run: npm run check:contracts
       - run: node tools/gateway/check.mjs

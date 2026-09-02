@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -39,6 +41,16 @@ def token(email: str) -> dict[str, object]:
     return result
 
 
+def trusted_private_key() -> rsa.RSAPrivateKey:
+    key_file = os.environ["PROM_LIVE_ACCESS_TEST_KEY_FILE"]
+    private_key = serialization.load_pem_private_key(
+        Path(key_file).read_bytes(),
+        password=None,
+    )
+    assert isinstance(private_key, rsa.RSAPrivateKey)
+    return private_key
+
+
 def forged_token(*, issuer: str, private_key: rsa.RSAPrivateKey) -> str:
     now = datetime.now(UTC)
     return jwt.encode(
@@ -58,11 +70,12 @@ def forged_token(*, issuer: str, private_key: rsa.RSAPrivateKey) -> str:
             serialization.NoEncryption(),
         ),
         algorithm="RS256",
-        headers={"kid": "live-negative"},
+        headers={"kid": os.environ["PROM_LIVE_ACCESS_TEST_KEY_ID"]},
     )
 
 
 def main() -> int:
+    trusted_key = trusted_private_key()
     admin = token("admin@utmn.ru")
     admin_session_version = admin["session"]["user"]["session_version"]
     pre_registration_employee = token("employee@utmn.ru")
@@ -85,7 +98,7 @@ def main() -> int:
     assert request("GET", MODULE_API, token=employee_token)[0] == 403
     wrong_issuer = forged_token(
         issuer="wrong-access",
-        private_key=rsa.generate_private_key(public_exponent=65537, key_size=2048),
+        private_key=trusted_key,
     )
     assert request("GET", MODULE_API, token=wrong_issuer)[0] == 401
     wrong_key = forged_token(
