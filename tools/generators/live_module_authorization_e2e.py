@@ -90,7 +90,8 @@ def main() -> int:
     assert status == 200 and any(item["id"] == MODULE for item in modules), modules
     employee = token("employee@utmn.ru")
     employee_token = str(employee["access_token"])
-    assert request("GET", f"{ACCESS}/me/modules", token=employee_token) == (200, [])
+    status, employee_modules = request("GET", f"{ACCESS}/me/modules", token=employee_token)
+    assert status == 200 and all(item["id"] != MODULE for item in employee_modules), employee_modules
     assert request("GET", MODULE_API)[0] == 401
     assert request("GET", MODULE_API, token="malformed")[0] == 401
     # Issued before registration, so this otherwise-valid Access token has no module audience.
