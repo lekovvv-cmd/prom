@@ -152,8 +152,17 @@ jobs:
       - run: npm run check:contracts
       - run: node tools/gateway/check.mjs
       - run: python tools/architecture/check.py
-      - run: docker compose --profile audit-sample-module down -v --remove-orphans
-      - run: python tools/generators/create_module.py audit-sample-module --remove
+      - name: Capture generator acceptance diagnostics
+        if: always()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color access-service access-migrate audit-sample-module-backend audit-sample-module-migrate audit-sample-module-db
+      - name: Stop generator acceptance stack
+        if: always()
+        run: docker compose down -v --remove-orphans
+      - name: Remove generated module
+        if: always()
+        run: python tools/generators/create_module.py audit-sample-module --remove
       - run: git diff --exit-code
 
   python-lint:
