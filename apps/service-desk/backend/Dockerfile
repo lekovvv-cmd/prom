@@ -13,9 +13,7 @@ WORKDIR /workspace
 
 COPY pyproject.toml uv.lock ./
 COPY packages/python/platform-sdk packages/python/platform-sdk
-COPY apps/access-service/pyproject.toml apps/access-service/pyproject.toml
-COPY apps/projects/backend/pyproject.toml apps/projects/backend/pyproject.toml
-COPY apps/service-desk/backend apps/service-desk/backend
+COPY apps apps
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --package shpiu-service-desk-backend --no-editable

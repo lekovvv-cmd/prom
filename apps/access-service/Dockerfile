@@ -12,10 +12,8 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /uvx /bin/
 WORKDIR /workspace
 
 COPY pyproject.toml uv.lock ./
-COPY apps/projects/backend/pyproject.toml apps/projects/backend/pyproject.toml
-COPY apps/service-desk/backend/pyproject.toml apps/service-desk/backend/pyproject.toml
 COPY packages/python/platform-sdk packages/python/platform-sdk
-COPY apps/access-service apps/access-service
+COPY apps apps
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --package prom-access-service --no-editable
