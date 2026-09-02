@@ -568,7 +568,6 @@ def _register(change: ChangeSet, name: str) -> None:
       {package.upper()}_ACCESS_TOKEN_AUDIENCE: {module_token_audience(name)}
     depends_on:
       {name}-migrate: {{ condition: service_completed_successfully }}
-      access-service: {{ condition: service_healthy }}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{port}/health/live')"]
       interval: 10s

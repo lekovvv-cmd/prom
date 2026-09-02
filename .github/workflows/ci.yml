@@ -133,6 +133,8 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --group dev
       - run: uv run --frozen python -m pytest -q tools/generators/test_create_module.py
+      - name: Verify generated-module authorization flow
+        run: uv run --frozen --package prom-access-service --extra dev python -m pytest -q tools/generators/test_module_authorization_e2e.py
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
