@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -15,7 +14,16 @@ from pathlib import Path
 
 
 ROOT = Path(os.getenv("PROM_GENERATOR_ROOT", Path(__file__).resolve().parents[2])).resolve()
-NAME_PATTERN = re.compile(r"[a-z][a-z0-9-]{1,48}")
+SDK_SOURCE = Path(__file__).resolve().parents[2] / "packages" / "python" / "platform-sdk" / "src"
+if str(SDK_SOURCE) not in sys.path:
+    sys.path.insert(0, str(SDK_SOURCE))
+
+from platform_sdk.modules import (  # noqa: E402
+    module_access_permission,
+    module_python_package,
+    module_token_audience,
+    validate_module_id,
+)
 
 
 def _render(value: str) -> str:
@@ -90,12 +98,12 @@ class ChangeSet:
 
 
 def _validate_name(name: str) -> None:
-    if not NAME_PATTERN.fullmatch(name):
-        raise ValueError("Module name must use lowercase letters, digits, and hyphens")
+    validate_module_id(name)
 
 
 def _module_values(name: str) -> tuple[str, str, str, int]:
-    package = name.replace("-", "_")
+    name = validate_module_id(name)
+    package = module_python_package(name)
     component = "".join(part.title() for part in package.split("_"))
     variable = package.split("_")[0] + "".join(part.title() for part in package.split("_")[1:])
     port = 8100 + (zlib.crc32(name.encode("utf-8")) % 800)
@@ -105,11 +113,12 @@ def _module_values(name: str) -> tuple[str, str, str, int]:
 def _files(name: str) -> dict[Path, str]:
     package, component, variable, port = _module_values(name)
     module = Path("apps") / name
-    permission = f"{name}.access"
+    permission = module_access_permission(name)
     registration = {
         "id": name,
         "title": component,
         "permission": permission,
+        "audience": module_token_audience(name),
         "backendPackage": package,
         "backendService": f"{name}-backend",
         "backendPort": port,
@@ -138,6 +147,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="{package.upper()}_", extra="ignore")
     database_url: str = "postgresql+psycopg://{package}:{package}@{name}-db:5432/{package}"
+    access_jwks_url: str = "http://access-service:8002/.well-known/jwks.json"
+    access_token_issuer: str = "prom-access"
+    access_token_audience: str = "{module_token_audience(name)}"
+    access_jwks_cache_ttl_seconds: int = 300
+    access_jwks_stale_if_error_seconds: int = 3600
+    access_clock_skew_seconds: int = 30
 
 
 settings = Settings()
@@ -177,6 +192,43 @@ from platform_sdk.error_types import EntityNotFound, InvalidRequest
 __all__ = ["EntityNotFound", "InvalidRequest"]
 """
         ),
+        module / "backend" / "src" / package / "security.py": _render(
+            f'''
+from functools import lru_cache
+from typing import Annotated
+
+from fastapi import Header, HTTPException, status
+from platform_sdk.auth import CachedJwksVerifier, CurrentPrincipal
+
+from .config import settings
+
+
+@lru_cache(maxsize=1)
+def _platform_verifier() -> CachedJwksVerifier:
+    return CachedJwksVerifier(
+        jwks_url=settings.access_jwks_url,
+        audience=settings.access_token_audience,
+        issuer=settings.access_token_issuer,
+        cache_ttl_seconds=settings.access_jwks_cache_ttl_seconds,
+        stale_if_error_seconds=settings.access_jwks_stale_if_error_seconds,
+        clock_skew_seconds=settings.access_clock_skew_seconds,
+    )
+
+
+def require_module_access(
+    authorization: Annotated[str | None, Header()] = None,
+) -> CurrentPrincipal:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    try:
+        principal = _platform_verifier().verify(authorization.split(" ", maxsplit=1)[1])
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid platform token") from exc
+    if not principal.has_permission("{permission}"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+    return principal
+'''
+        ),
         module / "backend" / "src" / package / "unit_of_work.py": _render(
             """
 from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
@@ -202,10 +254,12 @@ class OutboxEvent(OutboxEventMixin, Base):
         module / "backend" / "src" / package / "bootstrap" / "app.py": _render(
             f"""
 from fastapi import Depends, FastAPI
+from platform_sdk.auth import CurrentPrincipal
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..database import get_session
+from ..security import require_module_access
 
 
 def create_app() -> FastAPI:
@@ -219,6 +273,10 @@ def create_app() -> FastAPI:
     def ready(db: Session = Depends(get_session)) -> dict[str, str]:
         db.execute(text("SELECT 1"))
         return {{"status": "ready"}}
+
+    @app.get("/api/v1/me", tags=["identity"])
+    def me(principal: CurrentPrincipal = Depends(require_module_access)) -> dict[str, str]:
+        return {{"user_id": principal.user_id, "module_id": "{name}"}}
 
     return app
 
@@ -289,12 +347,28 @@ def downgrade() -> None:
         module / "backend" / "tests" / "test_health.py": _render(
             f"""
 from fastapi.testclient import TestClient
+from platform_sdk.auth import CurrentPrincipal
 
 from {package}.bootstrap.app import create_app
+from {package} import security
 
 
 def test_liveness() -> None:
     assert TestClient(create_app()).get("/health/live").json() == {{"status": "live"}}
+
+
+def test_module_endpoint_requires_the_canonical_access_permission(monkeypatch) -> None:
+    class Verifier:
+        def verify(self, _token: str) -> CurrentPrincipal:
+            return CurrentPrincipal(
+                user_id="user-1", external_subject=None, email=None, display_name=None,
+                permissions=frozenset({{"{permission}"}}), audiences=frozenset({{"{module_token_audience(name)}"}}),
+            )
+
+    monkeypatch.setattr(security, "_platform_verifier", lambda: Verifier())
+    client = TestClient(create_app())
+    assert client.get("/api/v1/me").status_code == 401
+    assert client.get("/api/v1/me", headers={{"Authorization": "Bearer valid"}}).json() == {{"user_id": "user-1", "module_id": "{name}"}}
 """
         ),
         module / "backend" / "tests" / "conftest.py": _render(
@@ -422,7 +496,7 @@ describe("{component}Page", () => {{
             f"""
 import {{ createApiClient }} from "@prom/api-client";
 
-export const {variable}Api = createApiClient({{ baseUrl: "/api/{name}/v1" }});
+export const {variable}Api = createApiClient("/api/{name}/v1");
 """
         ),
         module / "frontend" / "api" / "queryKeys.ts": f'export const {variable}QueryKeys = {{ root: ["{name}"] as const }};\n',
@@ -439,10 +513,6 @@ def _register(change: ChangeSet, name: str) -> None:
         f'import {{ {variable}Manifest }} from "../../../../{name}/frontend/manifest";\n',
     )
     change.replace(registry, "  serviceDeskManifest,\n", f"  serviceDeskManifest,\n  {variable}Manifest,\n")
-
-    catalog = ROOT / "apps/access-service/src/access_service/application/catalog.py"
-    change.replace(catalog, '    "service-desk": "Service Desk",\n', f'    "service-desk": "Service Desk",\n    "{name}": "{component}",\n')
-    change.replace(catalog, '    "platform.admin": "Platform administration",\n', f'    "platform.admin": "Platform administration",\n    "{name}.access": "Access {component}",\n')
 
     nginx = ROOT / "apps/platform-shell/nginx.conf"
     change.replace(nginx, "    set $service_desk_backend http://service-desk-backend:8001;\n", f"    set $service_desk_backend http://service-desk-backend:8001;\n    set ${package}_backend http://{name}-backend:{port};\n")
@@ -490,8 +560,12 @@ def _register(change: ChangeSet, name: str) -> None:
     profiles: ["{name}", "full"]
     environment:
       {package.upper()}_DATABASE_URL: postgresql+psycopg://{package}:${{{package.upper()}_DB_PASSWORD:-{package}}}@{name}-db:5432/{package}
+      {package.upper()}_ACCESS_JWKS_URL: ${{{package.upper()}_ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}}
+      {package.upper()}_ACCESS_TOKEN_ISSUER: ${{{package.upper()}_ACCESS_TOKEN_ISSUER:-prom-access}}
+      {package.upper()}_ACCESS_TOKEN_AUDIENCE: {module_token_audience(name)}
     depends_on:
       {name}-migrate: {{ condition: service_completed_successfully }}
+      access-service: {{ condition: service_healthy }}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{port}/health/live')"]
       interval: 10s
@@ -514,15 +588,11 @@ def _unregister(change: ChangeSet, name: str) -> None:
     registration = json.loads(registration_path.read_text(encoding="utf-8"))
     package = str(registration["backendPackage"])
     variable = Path(str(registration["generatedFile"])).stem
-    component = str(registration["title"])
     port = int(registration["backendPort"])
 
     registry = ROOT / "apps/platform-shell/src/app/modules/registry.ts"
     change.replace(registry, f'import {{ {variable}Manifest }} from "../../../../{name}/frontend/manifest";\n', "")
     change.replace(registry, f"  {variable}Manifest,\n", "")
-    catalog = ROOT / "apps/access-service/src/access_service/application/catalog.py"
-    change.replace(catalog, f'    "{name}": "{component}",\n', "")
-    change.replace(catalog, f'    "{name}.access": "Access {component}",\n', "")
     nginx = ROOT / "apps/platform-shell/nginx.conf"
     change.replace(nginx, f"    set ${package}_backend http://{name}-backend:{port};\n", "")
     start = f"    location /api/{name}/v1/ {{\n"
@@ -567,7 +637,7 @@ def check(name: str) -> int:
         values = json.loads(registration.read_text(encoding="utf-8"))
         needles = {
             ROOT / "apps/platform-shell/src/app/modules/registry.ts": f'../../../../{name}/frontend/manifest',
-            ROOT / "apps/access-service/src/access_service/application/catalog.py": f'"{name}.access"',
+            ROOT / "apps" / name / "frontend" / "manifest.ts": str(values["permission"]),
             ROOT / "apps/platform-shell/nginx.conf": str(values["gatewayPrefix"]),
             ROOT / "compose.yaml": f"  {name}-backend:",
         }

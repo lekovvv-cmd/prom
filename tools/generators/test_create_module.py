@@ -78,6 +78,17 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
     assert '"react-router-dom": "7.18.3"' in (
         tmp_path / "apps/audit-sample-module/frontend/package.json"
     ).read_text(encoding="utf-8")
+    registration = (tmp_path / "apps/audit-sample-module/platform/registration.json").read_text(
+        encoding="utf-8"
+    )
+    assert '"permission": "audit_sample_module.access"' in registration
+    assert '"audience": "audit-sample-module"' in registration
+    assert 'createApiClient("/api/audit-sample-module/v1")' in (
+        tmp_path / "apps/audit-sample-module/frontend/api/client.ts"
+    ).read_text(encoding="utf-8")
+    assert "audit-sample-module" not in (
+        tmp_path / "apps/access-service/src/access_service/application/catalog.py"
+    ).read_text(encoding="utf-8")
     assert _run(tmp_path, "audit-sample-module", "--remove").returncode == 0
     assert _snapshot(tmp_path) == before
 
@@ -88,3 +99,16 @@ def test_failure_rolls_back_files_and_registrations(tmp_path: Path) -> None:
     result = _run(tmp_path, "rollback-sample", failure=True)
     assert result.returncode != 0
     assert _snapshot(tmp_path) == before
+
+
+def test_invalid_module_name_is_rejected(tmp_path: Path) -> None:
+    _workspace(tmp_path)
+    result = _run(tmp_path, "audit_sample")
+    assert result.returncode != 0
+
+
+def test_duplicate_module_is_rejected(tmp_path: Path) -> None:
+    _workspace(tmp_path)
+    assert _run(tmp_path, "audit-sample-module").returncode == 0
+    duplicate = _run(tmp_path, "audit-sample-module")
+    assert duplicate.returncode != 0
