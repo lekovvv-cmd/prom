@@ -327,10 +327,11 @@ jobs:
             fi
             test "$exit_code" -eq 0
           done
-      - name: Rehearse dry-run and repeatable apply against PostgreSQL
+      - name: Rehearse dry-run, partial recovery, and repeatable apply against PostgreSQL
         run: |
           mkdir -p outputs/identity-migration
           chmod 0777 outputs/identity-migration
+          docker compose --profile migration run --rm --entrypoint python access-identity-migrate scripts/rehearse_identity_resumability.py
           docker compose --profile migration run --rm access-identity-migrate --dry-run
           docker compose --profile migration run --rm access-identity-migrate --apply
           docker compose --profile migration run --rm access-identity-migrate --apply

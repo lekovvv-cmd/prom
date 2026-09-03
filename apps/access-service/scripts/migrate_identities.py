@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from access_service.application.identity_migration import (
+    IdentityMigrationApplyFailed,
     IdentityMigrationConflict,
     migrate_identities,
 )
@@ -15,8 +16,12 @@ def parse_args() -> argparse.Namespace:
         description="Reconcile legacy Projects and Service Desk users with Access Service",
     )
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--dry-run", action="store_true", help="Analyze only; do not mutate databases")
-    mode.add_argument("--apply", action="store_true", help="Apply an unambiguous reconciliation plan")
+    mode.add_argument(
+        "--dry-run", action="store_true", help="Analyze only; do not mutate databases"
+    )
+    mode.add_argument(
+        "--apply", action="store_true", help="Apply an unambiguous reconciliation plan"
+    )
     parser.add_argument(
         "--projects-database-url",
         default=os.getenv("PROJECTS_DATABASE_URL"),
@@ -59,13 +64,18 @@ def main() -> int:
             apply=args.apply,
             report_dir=args.report_dir,
         )
+    except IdentityMigrationApplyFailed as exc:
+        print(f"Identity migration partial: phase={exc.phase} reason={exc.reason}")
+        print(f"Reports: {args.report_dir.resolve()}")
+        return 1
     except IdentityMigrationConflict as exc:
         print(f"Identity migration blocked: {exc}")
+        print(f"Reports: {args.report_dir.resolve()}")
         return 2
     summary = report["summary"]
     print(
         f"Identity migration {report['mode']}: identities={summary['identities']} "
-        f"conflicts={summary['conflicts']} applied={report['applied']}"
+        f"conflicts={summary['conflicts']} status={report['status']} applied={report['applied']}"
     )
     print(f"Reports: {args.report_dir.resolve()}")
     return 0
@@ -73,4 +83,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

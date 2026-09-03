@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +38,16 @@ class IdentityMigrationConflict(RuntimeError):
     pass
 
 
+class IdentityMigrationApplyFailed(RuntimeError):
+    """A committed migration phase failed before all projections converged."""
+
+    def __init__(self, *, phase: str, reason: str, report: dict[str, Any]) -> None:
+        super().__init__(f"Identity migration failed during {phase}: {reason}")
+        self.phase = phase
+        self.reason = reason
+        self.report = report
+
+
 @dataclass
 class IdentityRecord:
     user_id: str
@@ -68,7 +79,15 @@ class ReconciliationPlan:
     def can_apply(self) -> bool:
         return not self.conflicts
 
-    def report_dict(self, *, mode: str, applied: bool) -> dict[str, Any]:
+    def report_dict(
+        self,
+        *,
+        mode: str,
+        applied: bool,
+        status: str,
+        phases: dict[str, dict[str, str | None]],
+        failure: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         action_counts: dict[str, int] = {}
         for record in self.records:
             action_counts[record.action] = action_counts.get(record.action, 0) + 1
@@ -76,6 +95,10 @@ class ReconciliationPlan:
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "mode": mode,
             "applied": applied,
+            "status": status,
+            "rerun_safe": status in {"dry_run", "partial", "completed"},
+            "phases": phases,
+            "failure": failure,
             "can_apply": self.can_apply,
             "summary": {
                 "identities": len(self.records),
@@ -157,9 +180,7 @@ def _detect_source_duplicates(
                     "type": "duplicate_email",
                     "source": source,
                     "record_id": str(row.get("id", "")),
-                    "detail": (
-                        f"{email} belongs to both {previous.get('id')} and {row.get('id')}"
-                    ),
+                    "detail": (f"{email} belongs to both {previous.get('id')} and {row.get('id')}"),
                 }
             )
             continue
@@ -269,7 +290,7 @@ def build_reconciliation_plan(
             candidate_id = source_identity_id or projection_id
             try:
                 uuid.UUID(candidate_id)
-            except (ValueError, AttributeError):
+            except ValueError, AttributeError:
                 candidate_id = projection_id
             service_record = IdentityRecord(
                 user_id=candidate_id,
@@ -283,9 +304,7 @@ def build_reconciliation_plan(
         elif service_record.external_subject is None:
             service_record.external_subject = _string_value(row.get("external_subject"))
         service_record.service_desk_user_ids.append(projection_id)
-        service_record.is_active = service_record.is_active and bool(
-            row.get("is_active", True)
-        )
+        service_record.is_active = service_record.is_active and bool(row.get("is_active", True))
         role = SERVICE_DESK_ROLE_MAP.get(_enum_value(row.get("access_type")))
         if role is None:
             plan.conflicts.append(
@@ -361,7 +380,9 @@ def build_reconciliation_plan(
     return plan
 
 
-def _rekey_access_user(session: Session, old_user: PlatformUser, record: IdentityRecord) -> PlatformUser:
+def _rekey_access_user(
+    session: Session, old_user: PlatformUser, record: IdentityRecord
+) -> PlatformUser:
     old_id = old_user.id
     old_subject = old_user.external_subject
     old_email = old_user.email
@@ -464,9 +485,7 @@ def _apply_access(plan: ReconciliationPlan, access_engine: Engine) -> None:
             session.flush()
             assigned_role_ids = set(
                 session.scalars(
-                    select(UserRoleAssignment.role_id).where(
-                        UserRoleAssignment.user_id == user.id
-                    )
+                    select(UserRoleAssignment.role_id).where(UserRoleAssignment.user_id == user.id)
                 ).all()
             )
             for role_code in sorted(record.role_codes):
@@ -520,16 +539,42 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Generated: `{report['generated_at']}`",
         f"- Mode: `{report['mode']}`",
+        f"- Status: `{report['status']}`",
         f"- Applied: `{report['applied']}`",
         f"- Can apply: `{report['can_apply']}`",
+        f"- Safe to rerun: `{report['rerun_safe']}`",
         f"- Identities: {summary['identities']}",
         f"- Conflicts: {summary['conflicts']}",
         "",
-        "## Identities",
+        "## Phases",
         "",
-        "| Email | Platform UUID | Action | Roles | Projects | Service Desk |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Phase | Status | Reason |",
+        "| --- | --- | --- |",
     ]
+    for name, phase in report["phases"].items():
+        lines.append(f"| {name} | {phase['status']} | {phase.get('reason') or ''} |")
+    lines.extend(
+        [
+            "",
+            "## Failure",
+            "",
+        ]
+    )
+    if report["failure"]:
+        lines.append(
+            f"- Phase: `{report['failure']['phase']}`\n- Reason: {report['failure']['reason']}"
+        )
+    else:
+        lines.append("None.")
+    lines.extend(
+        [
+            "",
+            "## Identities",
+            "",
+            "| Email | Platform UUID | Action | Roles | Projects | Service Desk |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
     for item in report["identities"]:
         lines.append(
             "| {email} | `{user_id}` | {action} | {roles} | {projects} | {service_desk} |".format(
@@ -570,6 +615,7 @@ def migrate_identities(
     access_database_url: str,
     apply: bool,
     report_dir: Path,
+    after_access_commit: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     projects_engine = create_engine(projects_database_url)
     service_desk_engine = create_engine(service_desk_database_url)
@@ -580,18 +626,87 @@ def migrate_identities(
             service_desk_engine=service_desk_engine,
             access_engine=access_engine,
         )
-        applied = False
-        if apply:
-            if not plan.can_apply:
-                report = plan.report_dict(mode="apply", applied=False)
-                write_reconciliation_report(report, report_dir)
-                raise IdentityMigrationConflict(
-                    f"Identity migration has {len(plan.conflicts)} blocking conflict(s)"
-                )
+        phases: dict[str, dict[str, str | None]] = {
+            "reconciliation": {"status": "completed", "reason": None},
+            "access": {"status": "pending", "reason": None},
+            "service_desk": {"status": "pending", "reason": None},
+        }
+        if not apply:
+            phases["access"]["status"] = "skipped"
+            phases["service_desk"]["status"] = "skipped"
+            report = plan.report_dict(
+                mode="dry-run",
+                applied=False,
+                status="dry_run",
+                phases=phases,
+            )
+            write_reconciliation_report(report, report_dir)
+            return report
+        if not plan.can_apply:
+            phases["reconciliation"] = {
+                "status": "failed",
+                "reason": f"{len(plan.conflicts)} blocking conflict(s)",
+            }
+            phases["access"]["status"] = "skipped"
+            phases["service_desk"]["status"] = "skipped"
+            report = plan.report_dict(
+                mode="apply",
+                applied=False,
+                status="blocked",
+                phases=phases,
+                failure={
+                    "phase": "reconciliation",
+                    "reason": phases["reconciliation"]["reason"] or "blocked",
+                },
+            )
+            write_reconciliation_report(report, report_dir)
+            raise IdentityMigrationConflict(
+                f"Identity migration has {len(plan.conflicts)} blocking conflict(s)"
+            )
+
+        try:
             _apply_access(plan, access_engine)
+            phases["access"]["status"] = "completed"
+        except Exception as exc:
+            phases["access"] = {"status": "failed", "reason": str(exc)}
+            phases["service_desk"]["status"] = "skipped"
+            report = plan.report_dict(
+                mode="apply",
+                applied=False,
+                status="partial",
+                phases=phases,
+                failure={"phase": "access", "reason": str(exc)},
+            )
+            write_reconciliation_report(report, report_dir)
+            raise IdentityMigrationApplyFailed(
+                phase="access", reason=str(exc), report=report
+            ) from exc
+
+        try:
+            if after_access_commit is not None:
+                after_access_commit()
             _apply_service_desk(plan, service_desk_engine)
-            applied = True
-        report = plan.report_dict(mode="apply" if apply else "dry-run", applied=applied)
+            phases["service_desk"]["status"] = "completed"
+        except Exception as exc:
+            phases["service_desk"] = {"status": "failed", "reason": str(exc)}
+            report = plan.report_dict(
+                mode="apply",
+                applied=False,
+                status="partial",
+                phases=phases,
+                failure={"phase": "service_desk", "reason": str(exc)},
+            )
+            write_reconciliation_report(report, report_dir)
+            raise IdentityMigrationApplyFailed(
+                phase="service_desk", reason=str(exc), report=report
+            ) from exc
+
+        report = plan.report_dict(
+            mode="apply",
+            applied=True,
+            status="completed",
+            phases=phases,
+        )
         write_reconciliation_report(report, report_dir)
         return report
     finally:

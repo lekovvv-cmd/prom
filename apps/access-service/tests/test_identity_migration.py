@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import importlib.util
 import uuid
 from pathlib import Path
 
@@ -8,10 +10,19 @@ from sqlalchemy import Boolean, Column, MetaData, String, Table, create_engine, 
 from sqlalchemy.orm import Session
 
 from access_service.application.identity_migration import (
+    IdentityMigrationApplyFailed,
     IdentityMigrationConflict,
     migrate_identities,
 )
-from access_service.domain.models import Base, PlatformUser, Role, UserRoleAssignment
+from access_service.domain.models import (
+    AccessAuditEvent,
+    Base,
+    Group,
+    GroupMembership,
+    PlatformUser,
+    Role,
+    UserRoleAssignment,
+)
 from access_service.bootstrap.config import AccessSettings
 from access_service.infrastructure.identity import InternalTokenSigner
 
@@ -171,9 +182,13 @@ def test_dry_run_does_not_mutate_and_apply_preserves_projects_uuid(tmp_path: Pat
         )
         assert role_codes == {"project_manager", "service_desk_manager"}
     with create_engine(service_desk_url).connect() as connection:
-        projection = connection.execute(
-            select(service_desk_users).where(service_desk_users.c.id == service_desk_user_id)
-        ).mappings().one()
+        projection = (
+            connection.execute(
+                select(service_desk_users).where(service_desk_users.c.id == service_desk_user_id)
+            )
+            .mappings()
+            .one()
+        )
         assert projection["identity_user_id"] == project_user_id
         assert projection["email"] == "legacy.user@utmn.ru"
 
@@ -211,9 +226,7 @@ def test_apply_is_idempotent_and_email_change_keeps_identity(tmp_path: Path) -> 
             .values(email="renamed.user@utmn.ru")
         )
     with service_desk_engine.begin() as connection:
-        connection.execute(
-            service_desk_users.update().values(email="renamed.user@utmn.ru")
-        )
+        connection.execute(service_desk_users.update().values(email="renamed.user@utmn.ru"))
     migrate_identities(**arguments)
 
     access_engine = create_engine(access_url)
@@ -224,6 +237,260 @@ def test_apply_is_idempotent_and_email_change_keeps_identity(tmp_path: Path) -> 
         assert user.email == "renamed.user@utmn.ru"
         assert user.external_subject == "sso:legacy-user"
         assert user.is_active is False
+
+
+def _identity_state(
+    *,
+    access_url: str,
+    service_desk_url: str,
+    service_desk_users: Table,
+    user_id: str,
+    service_desk_user_id: str,
+) -> tuple[object, ...]:
+    with Session(create_engine(access_url)) as session:
+        user = session.get(PlatformUser, user_id)
+        assert user is not None
+        roles = tuple(sorted(assignment.role.code for assignment in user.assignments))
+        memberships = session.scalar(
+            select(func.count())
+            .select_from(GroupMembership)
+            .where(GroupMembership.user_id == user_id)
+        )
+        audits = tuple(
+            sorted(
+                session.scalars(
+                    select(AccessAuditEvent.action).where(
+                        AccessAuditEvent.object_id == user_id,
+                        AccessAuditEvent.source == "identity-migration",
+                    )
+                ).all()
+            )
+        )
+        access = (
+            session.scalar(select(func.count()).select_from(PlatformUser)),
+            user.id,
+            user.email,
+            user.external_subject,
+            user.session_version,
+            roles,
+            memberships,
+            audits,
+        )
+    with create_engine(service_desk_url).connect() as connection:
+        projection = (
+            connection.execute(
+                select(service_desk_users).where(service_desk_users.c.id == service_desk_user_id)
+            )
+            .mappings()
+            .one()
+        )
+        service_desk = (projection["identity_user_id"], projection["email"])
+    return access + service_desk
+
+
+def test_partial_access_commit_is_reported_and_rerun_converges_rekey(
+    tmp_path: Path,
+) -> None:
+    canonical_id = str(uuid.uuid4())
+    old_access_id = str(uuid.uuid4())
+
+    def setup(root: Path) -> tuple[str, str, str, Table, str, str]:
+        root.mkdir()
+        projects_url, service_desk_url, access_url, projects_users, service_desk_users = (
+            legacy_databases(root)
+        )
+        projection_id = insert_legacy_user(
+            projects_url=projects_url,
+            service_desk_url=service_desk_url,
+            projects_users=projects_users,
+            service_desk_users=service_desk_users,
+            project_user_id=canonical_id,
+            access_projection_id=old_access_id,
+        )
+        with Session(create_engine(access_url)) as session:
+            group = Group(id=str(uuid.uuid4()), code=f"legacy-{canonical_id}", title="Legacy")
+            session.add(
+                PlatformUser(
+                    id=old_access_id,
+                    email="legacy.user@utmn.ru",
+                    display_name="Old Access Name",
+                    external_subject="sso:legacy-user",
+                )
+            )
+            session.add_all(
+                [
+                    group,
+                    GroupMembership(group_id=group.id, user_id=old_access_id),
+                    AccessAuditEvent(
+                        actor_user_id=old_access_id,
+                        action="legacy_action",
+                        object_type="legacy",
+                        object_id="legacy-object",
+                        before=None,
+                        after=None,
+                        request_id=None,
+                        source="legacy-test",
+                    ),
+                ]
+            )
+            session.commit()
+        return (
+            projects_url,
+            service_desk_url,
+            access_url,
+            service_desk_users,
+            canonical_id,
+            projection_id,
+        )
+
+    clean = setup(tmp_path / "clean")
+    recovered = setup(tmp_path / "recovered")
+    clean_arguments = {
+        "projects_database_url": clean[0],
+        "service_desk_database_url": clean[1],
+        "access_database_url": clean[2],
+        "apply": True,
+        "report_dir": tmp_path / "clean-report",
+    }
+    assert migrate_identities(**clean_arguments)["status"] == "completed"
+
+    recovered_arguments = {
+        "projects_database_url": recovered[0],
+        "service_desk_database_url": recovered[1],
+        "access_database_url": recovered[2],
+        "apply": True,
+        "report_dir": tmp_path / "recovered-report",
+    }
+
+    with pytest.raises(IdentityMigrationApplyFailed) as failed:
+        migrate_identities(
+            **recovered_arguments,
+            after_access_commit=lambda: (_ for _ in ()).throw(
+                RuntimeError("injected failure after Access commit")
+            ),
+        )
+
+    partial = failed.value.report
+    assert partial["status"] == "partial"
+    assert partial["applied"] is False
+    assert partial["rerun_safe"] is True
+    assert partial["phases"] == {
+        "reconciliation": {"status": "completed", "reason": None},
+        "access": {"status": "completed", "reason": None},
+        "service_desk": {
+            "status": "failed",
+            "reason": "injected failure after Access commit",
+        },
+    }
+    assert partial["failure"] == {
+        "phase": "service_desk",
+        "reason": "injected failure after Access commit",
+    }
+    report_json = (tmp_path / "recovered-report" / "identity-reconciliation.json").read_text(
+        encoding="utf-8"
+    )
+    report_markdown = (tmp_path / "recovered-report" / "identity-reconciliation.md").read_text(
+        encoding="utf-8"
+    )
+    assert '"status": "partial"' in report_json
+    assert "| service_desk | failed | injected failure after Access commit |" in report_markdown
+
+    with Session(create_engine(recovered[2])) as session:
+        canonical = session.get(PlatformUser, recovered[4])
+        assert canonical is not None
+        assert canonical.external_subject == "sso:legacy-user"
+        assert canonical.session_version == 2
+        assert session.scalar(select(func.count()).select_from(PlatformUser)) == 1
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(GroupMembership)
+                .where(GroupMembership.user_id == recovered[4])
+            )
+            == 1
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AccessAuditEvent)
+                .where(
+                    AccessAuditEvent.action == "legacy_action",
+                    AccessAuditEvent.actor_user_id == recovered[4],
+                )
+            )
+            == 1
+        )
+    with create_engine(recovered[1]).connect() as connection:
+        partial_projection = (
+            connection.execute(select(recovered[3]).where(recovered[3].c.id == recovered[5]))
+            .mappings()
+            .one()
+        )
+        assert partial_projection["identity_user_id"] != recovered[4]
+        assert partial_projection["email"] == "LEGACY.USER@UTMN.RU"
+
+    rerun = migrate_identities(**recovered_arguments)
+    third_run = migrate_identities(**recovered_arguments)
+    assert rerun["status"] == "completed"
+    assert third_run["status"] == "completed"
+    assert third_run["summary"]["actions"] == {"noop": 1}
+    assert _identity_state(
+        access_url=recovered[2],
+        service_desk_url=recovered[1],
+        service_desk_users=recovered[3],
+        user_id=recovered[4],
+        service_desk_user_id=recovered[5],
+    )[7] == ("legacy_identity_migrated", "legacy_identity_rekeyed")
+
+    assert _identity_state(
+        access_url=clean[2],
+        service_desk_url=clean[1],
+        service_desk_users=clean[3],
+        user_id=clean[4],
+        service_desk_user_id=clean[5],
+    ) == _identity_state(
+        access_url=recovered[2],
+        service_desk_url=recovered[1],
+        service_desk_users=recovered[3],
+        user_id=recovered[4],
+        service_desk_user_id=recovered[5],
+    )
+
+
+def test_cli_returns_nonzero_and_names_report_for_partial_failure(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    script_path = Path(__file__).parents[1] / "scripts" / "migrate_identities.py"
+    spec = importlib.util.spec_from_file_location("identity_migration_cli", script_path)
+    assert spec is not None and spec.loader is not None
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    report_dir = tmp_path / "reports"
+    monkeypatch.setattr(
+        cli,
+        "parse_args",
+        lambda: argparse.Namespace(
+            projects_database_url="projects",
+            service_desk_database_url="service-desk",
+            access_database_url="access",
+            apply=True,
+            report_dir=report_dir,
+        ),
+    )
+
+    def fail_after_access_commit(**_: object) -> None:
+        raise IdentityMigrationApplyFailed(
+            phase="service_desk",
+            reason="injected failure after Access commit",
+            report={"status": "partial"},
+        )
+
+    monkeypatch.setattr(cli, "migrate_identities", fail_after_access_commit)
+    assert cli.main() == 1
+    output = capsys.readouterr().out
+    assert "partial: phase=service_desk" in output
+    assert "injected failure after Access commit" in output
+    assert str(report_dir.resolve()) in output
 
 
 def test_duplicate_normalized_email_blocks_apply(tmp_path: Path) -> None:
@@ -340,9 +607,7 @@ def test_migrated_identity_keeps_all_legacy_relationships_and_token_subject(
     service_desk_engine = create_engine(service_desk_url)
     tickets_metadata.create_all(service_desk_engine)
     with service_desk_engine.begin() as connection:
-        connection.execute(
-            tickets.insert().values(id=str(uuid.uuid4()), requester_user_id=user_id)
-        )
+        connection.execute(tickets.insert().values(id=str(uuid.uuid4()), requester_user_id=user_id))
 
     migrate_identities(
         projects_database_url=projects_url,
@@ -353,17 +618,13 @@ def test_migrated_identity_keeps_all_legacy_relationships_and_token_subject(
     )
 
     with projects_engine.connect() as connection:
-        assert {
-            connection.scalar(select(table.c.user_id)) for table in relationships
-        } == {user_id}
+        assert {connection.scalar(select(table.c.user_id)) for table in relationships} == {user_id}
     with service_desk_engine.connect() as connection:
         assert connection.scalar(select(tickets.c.requester_user_id)) == user_id
     with Session(create_engine(access_url)) as session:
         migrated = session.get(PlatformUser, user_id)
         assert migrated is not None
-        role_codes = {
-            assignment.role.code for assignment in migrated.assignments
-        }
+        role_codes = {assignment.role.code for assignment in migrated.assignments}
     signer = InternalTokenSigner(AccessSettings(database_url=access_url))
     token = signer.issue(
         user_id=user_id,
