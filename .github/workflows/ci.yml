@@ -479,7 +479,18 @@ jobs:
       - run: npm run test
       - run: npm run check:styles
       - run: npm run check:dead-code
-      - run: npm audit --omit=dev --audit-level=high
+      - name: Audit production npm dependencies
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm audit --omit=dev --audit-level=high; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+          done
 
   frontend-build:
     name: Frontend production build
@@ -679,7 +690,18 @@ jobs:
       - run: uv sync --locked --all-packages --all-extras --group dev
       - run: uv run --frozen --group dev pip-audit --local --skip-editable
       - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high
+      - name: Audit production npm dependencies
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npm audit --omit=dev --audit-level=high; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+          done
       - name: Scan repository for critical vulnerabilities, secrets, and misconfiguration
         run: >
           docker run --rm
