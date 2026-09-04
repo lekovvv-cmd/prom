@@ -164,7 +164,12 @@ def require_mock_provider(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
-@router.get("/auth/mock/login", response_model=None)
+@router.get(
+    "/auth/mock/login",
+    response_class=RedirectResponse,
+    status_code=status.HTTP_302_FOUND,
+    response_model=None,
+)
 def mock_login(request: Request, return_url: str = "/") -> RedirectResponse:
     """Hand the local-only SSO entrypoint to the shell's mock-user chooser.
 
@@ -272,7 +277,12 @@ def mock_logout(
     manager.clear_cookies(response)
 
 
-@router.get("/auth/login", response_model=None)
+@router.get(
+    "/auth/login",
+    response_class=RedirectResponse,
+    status_code=status.HTTP_302_FOUND,
+    response_model=None,
+)
 def login(
     request: Request,
     return_url: str = "/",
@@ -295,7 +305,12 @@ def login(
     return response
 
 
-@router.get("/auth/callback", response_model=None)
+@router.get(
+    "/auth/callback",
+    response_class=RedirectResponse,
+    status_code=status.HTTP_302_FOUND,
+    response_model=None,
+)
 def oidc_callback(
     request: Request,
     session: Session = Depends(get_session),
@@ -314,7 +329,12 @@ def oidc_callback(
     return response
 
 
-@router.post("/auth/logout", response_model=None)
+@router.post(
+    "/auth/logout",
+    response_class=RedirectResponse,
+    status_code=status.HTTP_302_FOUND,
+    response_model=None,
+)
 def logout(
     request: Request,
     return_url: str = "/",

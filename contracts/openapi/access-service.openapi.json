@@ -1193,12 +1193,7 @@
       "get": {
         "operationId": "oidc_callback_auth_callback_get",
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "302": {
             "description": "Successful Response"
           }
         },
@@ -1221,12 +1216,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "302": {
             "description": "Successful Response"
           },
           "422": {
@@ -1259,12 +1249,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "302": {
             "description": "Successful Response"
           },
           "422": {
@@ -1336,12 +1321,7 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "302": {
             "description": "Successful Response"
           },
           "422": {

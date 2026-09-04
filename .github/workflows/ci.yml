@@ -652,6 +652,8 @@ jobs:
         run: docker compose --profile full --profile demo up -d --wait
       - name: Record clean-stack health
         run: docker compose ps --all
+      - name: Verify live Access SSO routing through the public gateway
+        run: python tools/gateway/live_access_sso_e2e.py
       - name: Run Playwright through the versioned gateway
         env:
           E2E_BASE_URL: http://127.0.0.1:5173
