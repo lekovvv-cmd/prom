@@ -41,6 +41,7 @@ jobs:
         with:
           filters: |
             access:
+              - '.github/workflows/**'
               - 'apps/access-service/**'
               - 'packages/python/platform-sdk/**'
               - 'packages/frontend/auth/**'
@@ -48,6 +49,7 @@ jobs:
               - 'packages/frontend/ui/**'
               - 'tools/gateway/**'
             projects:
+              - '.github/workflows/**'
               - 'apps/projects/**'
               - 'packages/python/platform-sdk/**'
               - 'packages/frontend/auth/**'
@@ -55,6 +57,7 @@ jobs:
               - 'packages/frontend/ui/**'
               - 'tools/gateway/**'
             service_desk:
+              - '.github/workflows/**'
               - 'apps/service-desk/**'
               - 'packages/python/platform-sdk/**'
               - 'packages/frontend/auth/**'
@@ -62,6 +65,7 @@ jobs:
               - 'packages/frontend/ui/**'
               - 'tools/gateway/**'
             frontend:
+              - '.github/workflows/**'
               - 'apps/platform-shell/**'
               - 'apps/*/frontend/**'
               - 'packages/frontend/**'
@@ -73,8 +77,10 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
             sdk:
+              - '.github/workflows/**'
               - 'packages/python/platform-sdk/**'
             contracts:
+              - '.github/workflows/**'
               - 'contracts/**'
               - 'tools/contracts/**'
               - 'apps/access-service/src/access_service/api/**'
@@ -83,6 +89,7 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
             infra:
+              - '.github/workflows/**'
               - 'compose.yaml'
               - '.env.example'
               - 'apps/**/Dockerfile'
@@ -92,6 +99,7 @@ jobs:
               - 'dev.ps1'
               - 'dev.cmd'
             python:
+              - '.github/workflows/**'
               - 'apps/access-service/**'
               - 'apps/projects/backend/**'
               - 'apps/service-desk/backend/**'
