@@ -147,15 +147,18 @@ def _seed(
                 )
             )
         with Session(access_engine) as session:
+            session.add(
+                PlatformUser(
+                    id=old_access_id,
+                    email="legacy.user@utmn.ru",
+                    display_name="Old Access Name",
+                    external_subject="sso:legacy-user",
+                )
+            )
+            session.add(Group(id=group_id, code=f"legacy-{canonical_id}", title="Legacy"))
+            session.flush()
             session.add_all(
                 [
-                    PlatformUser(
-                        id=old_access_id,
-                        email="legacy.user@utmn.ru",
-                        display_name="Old Access Name",
-                        external_subject="sso:legacy-user",
-                    ),
-                    Group(id=group_id, code=f"legacy-{canonical_id}", title="Legacy"),
                     GroupMembership(group_id=group_id, user_id=old_access_id),
                     AccessAuditEvent(
                         actor_user_id=old_access_id,
