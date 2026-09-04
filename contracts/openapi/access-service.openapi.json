@@ -1319,6 +1319,45 @@
         "summary": "Mock Code"
       }
     },
+    "/auth/mock/login": {
+      "get": {
+        "description": "Hand the local-only SSO entrypoint to the shell's mock-user chooser.\n\nKeeping this route means the generic ``/auth/login`` flow remains usable\nin development.  Authentication itself still happens only through the\ncode/verify endpoint, which creates the browser session after the user\nchooses a seeded account in the shell.",
+        "operationId": "mock_login_auth_mock_login_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_url",
+            "required": false,
+            "schema": {
+              "default": "/",
+              "title": "Return Url",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mock Login"
+      }
+    },
     "/auth/mock/logout": {
       "post": {
         "operationId": "mock_logout_auth_mock_logout_post",

@@ -10,6 +10,9 @@ const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
 
 const requiredNginxFragments = [
   "location /api/access/v1/",
+  "location /api/access/v1/auth/",
+  "rewrite ^/api/access/v1/auth/(.*)$ /auth/$1 break;",
+  "location /auth/",
   "location /api/projects/v1/",
   "location /api/service-desk/v1/",
   "location /api/",

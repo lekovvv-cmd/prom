@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -160,6 +162,23 @@ def require_mock_provider(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     if signer.settings.sso_provider != "mock":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+
+@router.get("/auth/mock/login", response_model=None)
+def mock_login(request: Request, return_url: str = "/") -> RedirectResponse:
+    """Hand the local-only SSO entrypoint to the shell's mock-user chooser.
+
+    Keeping this route means the generic ``/auth/login`` flow remains usable
+    in development.  Authentication itself still happens only through the
+    code/verify endpoint, which creates the browser session after the user
+    chooses a seeded account in the shell.
+    """
+
+    require_mock_provider(request)
+    return RedirectResponse(
+        url=f"/login?{urlencode({'next': safe_return_url(return_url)})}",
+        status_code=status.HTTP_302_FOUND,
+    )
 
 
 @router.post("/auth/mock/code", response_model=MockCodeOut)
