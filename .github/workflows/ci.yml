@@ -237,11 +237,13 @@ jobs:
           uv run --frozen --group dev deptry packages/python/platform-sdk/src --config packages/python/platform-sdk/pyproject.toml
           uv run --frozen --group dev deptry apps/access-service/src --config apps/access-service/pyproject.toml
           for module in apps/*/backend; do
+            sources=()
             for source in "$module/src" "$module/app" "$module/scripts"; do
               if [ -d "$source" ]; then
-                uv run --frozen --group dev deptry "$source" --config "$module/pyproject.toml"
+                sources+=("$source")
               fi
             done
+            uv run --frozen --group dev deptry "${sources[@]}" --config "$module/pyproject.toml"
           done
 
   python-type-check:
