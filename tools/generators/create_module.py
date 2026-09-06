@@ -496,12 +496,30 @@ export default function {component}Routes() {{
         ),
         module / "frontend" / "src" / f"{component}Page.tsx": _render(
             f"""
+import {{ useEffect, useState }} from "react";
+
+import {{ PageLayout }} from "@prom/ui/PageLayout";
+import {{ {variable}Api }} from "../api/client";
+import {{ {variable}QueryKeys }} from "../api/queryKeys";
+
 export function {component}Page() {{
+  const [moduleId, setModuleId] = useState<string | null>(null);
+
+  useEffect(() => {{
+    void {variable}Api
+      .request<{{ module_id: string }}>("/me")
+      .then((response) => setModuleId(response.module_id));
+  }}, []);
+
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <h1 className="text-2xl font-semibold">{component}</h1>
-      <p className="mt-2 text-slate-600">Module scaffold is ready.</p>
-    </main>
+    <PageLayout title="{component}" subtitle="Module scaffold is ready.">
+      <p
+        className="text-slate-600"
+        data-query-key={{String({variable}QueryKeys.root[0])}}
+      >
+        {{moduleId ? `Connected to ${{moduleId}}.` : "Connecting to module API…"}}
+      </p>
+    </PageLayout>
   );
 }}
 """
