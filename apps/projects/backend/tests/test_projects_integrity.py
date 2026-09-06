@@ -8,7 +8,7 @@ import pytest
 
 from app.core.enums import AttachmentStatus
 from app.core.database import SessionLocal
-from app.core.security import create_access_token
+from conftest import platform_test_token
 from app.modules.attachments.models import Attachment
 from app.modules.platform.models import (
     ProjectAuditEvent,
@@ -28,7 +28,7 @@ def auth_headers(email: str) -> dict[str, str]:
     with SessionLocal() as db:
         user = UserRepository(db).get_by_email(email)
         assert user is not None
-        token = create_access_token(str(user.id), user.role)
+        token = platform_test_token(str(user.id), user.role)
     return {"Authorization": f"Bearer {token}"}
 
 

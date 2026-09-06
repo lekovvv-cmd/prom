@@ -43,9 +43,11 @@ patterns are present in `.gitignore`.
 - `packages/frontend/api-client/src/authTokenStorage.ts` is intentionally retained.
   It stores only a short-lived bearer in module memory; the browser session secret
   remains in an HttpOnly cookie and is never readable from JavaScript.
-- Projects and Service Desk legacy-token decoders remain behind explicit
-  `*_ALLOW_LEGACY_TOKENS` flags that default to `false`. They are still required by
-  migration compatibility tests and cannot activate in production settings.
+- Projects now consumes only Access-issued platform principals; its temporary
+  legacy-token decoder and test-only token issuer were removed. Service Desk's
+  separately scoped migration compatibility decoder remains behind its explicit
+  `SERVICE_DESK_ALLOW_LEGACY_TOKENS` flag, which defaults to `false` and cannot
+  activate in production settings.
 - CLI scripts, workers, Alembic environments, lazy frontend routes, Docker entry
   points, source fixtures, migrations, and OpenAPI snapshots were checked before
   deletion candidates were accepted. They remain because static import graphs do

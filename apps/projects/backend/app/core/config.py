@@ -1,30 +1,22 @@
 from platform_sdk.config import (
     has_cors_wildcard,
-    is_insecure_secret,
     is_production_environment,
     validate_production_database_url,
 )
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DEFAULT_JWT_SECRET = "change-me-in-production-at-least-32-bytes"
-
-
 class Settings(BaseSettings):
     app_name: str = "Project Showcase SHPIU"
     env: str = "development"
     debug: bool = False
     database_url: str = "postgresql+psycopg://project_showcase:project_showcase@localhost:5432/project_showcase"
-    jwt_secret: str = DEFAULT_JWT_SECRET
-    jwt_algorithm: str = "HS256"
     access_jwks_url: str | None = None
     access_token_issuer: str = "prom-access"
     access_token_audience: str = "projects"
     access_jwks_cache_ttl_seconds: int = 300
     access_jwks_stale_if_error_seconds: int = 3600
     access_clock_skew_seconds: int = 30
-    allow_legacy_tokens: bool = False
-    access_token_expire_minutes: int = 1440
     frontend_origin: str = "http://localhost:5173"
     uploads_dir: str = "storage/uploads"
     storage_backend: str = "local"
@@ -70,13 +62,6 @@ class Settings(BaseSettings):
             )
             if self.debug:
                 raise ValueError("PROJECTS_DEBUG must be false in production")
-            if is_insecure_secret(
-                self.jwt_secret,
-                known_defaults=(DEFAULT_JWT_SECRET,),
-            ):
-                raise ValueError("PROJECTS_JWT_SECRET cannot use a default value in production")
-            if self.allow_legacy_tokens:
-                raise ValueError("PROJECTS_ALLOW_LEGACY_TOKENS must be false in production")
             if not self.access_jwks_url:
                 raise ValueError("PROJECTS_ACCESS_JWKS_URL is required in production")
             if not self.access_token_issuer.strip():
