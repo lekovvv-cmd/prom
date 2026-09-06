@@ -149,6 +149,11 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
       - run: uv lock --check
+      - name: Run architecture and CI tooling regression tests
+        run: >
+          uv run --frozen python -m pytest -q
+          tools/architecture/test_check.py
+          tools/ci/test_discover_generated_modules.py
       - run: python tools/architecture/check.py
       - uses: actions/setup-node@v4
         with:
