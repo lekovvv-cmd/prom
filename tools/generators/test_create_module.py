@@ -86,7 +86,7 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
     )
     assert '"permission": "audit_sample_module.access"' in registration
     assert '"audience": "audit-sample-module"' in registration
-    assert 'createApiClient("/api/audit-sample-module/v1")' in (
+    assert '"/api/audit-sample-module/v1"' in (
         tmp_path / "apps/audit-sample-module/frontend/api/client.ts"
     ).read_text(encoding="utf-8")
     assert (

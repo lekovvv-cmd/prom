@@ -468,7 +468,14 @@ export const {variable}Manifest: PlatformModuleManifest = {{
   routePrefixes: ["/{name}"],
   requiredPermissions: ["{permission}"],
   loadRoutes: () => import("./routes"),
-  navigation: [{{ id: "{name}", title: "{component}", path: "/{name}", requiredPermissions: ["{permission}"] }}],
+  navigation: [
+    {{
+      id: "{name}",
+      title: "{component}",
+      path: "/{name}",
+      requiredPermissions: ["{permission}"],
+    }},
+  ],
 }};
 """
         ),
@@ -479,14 +486,23 @@ import {{ {component}Page }} from "./src/{component}Page";
 import "./src/theme.css";
 
 export default function {component}Routes() {{
-  return <Routes><Route path="/{name}" element={{<{component}Page />}} /></Routes>;
+  return (
+    <Routes>
+      <Route path="/{name}" element={{<{component}Page />}} />
+    </Routes>
+  );
 }}
 """
         ),
         module / "frontend" / "src" / f"{component}Page.tsx": _render(
             f"""
 export function {component}Page() {{
-  return <main className="mx-auto max-w-5xl p-6"><h1 className="text-2xl font-semibold">{component}</h1><p className="mt-2 text-slate-600">Module scaffold is ready.</p></main>;
+  return (
+    <main className="mx-auto max-w-5xl p-6">
+      <h1 className="text-2xl font-semibold">{component}</h1>
+      <p className="mt-2 text-slate-600">Module scaffold is ready.</p>
+    </main>
+  );
 }}
 """
         ),
@@ -496,19 +512,28 @@ import {{ describe, expect, it }} from "vitest";
 import {{ {component}Page }} from "./{component}Page";
 
 describe("{component}Page", () => {{
-  it("exports the example page", () => expect({component}Page).toBeTypeOf("function"));
+  it("exports the example page", () =>
+    expect({component}Page).toBeTypeOf("function"));
 }});
 """
         ),
-        module / "frontend" / "src" / "theme.css": '@import "tailwindcss";\n@theme { --color-brand-600: #2563eb; }\n',
+        module / "frontend" / "src" / "theme.css": (
+            '@import "tailwindcss";\n@theme {\n  --color-brand-600: #2563eb;\n}\n'
+        ),
         module / "frontend" / "api" / "client.ts": _render(
             f"""
 import {{ createApiClient }} from "@prom/api-client";
 
-export const {variable}Api = createApiClient("/api/{name}/v1");
+export const {variable}Api = createApiClient(
+  "/api/{name}/v1",
+);
 """
         ),
-        module / "frontend" / "api" / "queryKeys.ts": f'export const {variable}QueryKeys = {{ root: ["{name}"] as const }};\n',
+        module / "frontend" / "api" / "queryKeys.ts": (
+            f"export const {variable}QueryKeys = {{\n"
+            f'  root: ["{name}"] as const,\n'
+            "};\n"
+        ),
     }
 
 
