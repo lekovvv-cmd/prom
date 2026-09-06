@@ -55,18 +55,25 @@ def business_logic_sources(module: Path) -> list[Path]:
     return legacy_sources + generated_sources
 
 
-def main() -> int:
-    access = ROOT / "apps" / "access-service"
-    sdk = ROOT / "packages" / "python" / "platform-sdk"
-    app_roots = sorted(path for path in (ROOT / "apps").iterdir() if path.is_dir())
-    business_modules = [
+def discover_business_modules(root: Path) -> list[Path]:
+    """Discover every product module without naming historical modules."""
+    access = root / "apps" / "access-service"
+    return [
         path
-        for path in app_roots
-        if path != access and ((path / "backend").is_dir() or (path / "frontend").is_dir())
+        for path in sorted((root / "apps").iterdir())
+        if path.is_dir()
+        and path != access
+        and ((path / "backend").is_dir() or (path / "frontend").is_dir())
     ]
-    violations: list[str] = []
 
+
+def business_import_boundary_violations(root: Path, business_modules: list[Path]) -> list[str]:
+    """Check product, Access, and SDK imports using the discovered module set."""
+    access = root / "apps" / "access-service"
+    sdk = root / "packages" / "python" / "platform-sdk"
+    violations: list[str] = []
     module_names = [module.name.replace("-", "_") for module in business_modules]
+
     for module in business_modules:
         module_sources = files(module / "backend" / "src", ("*.py",))
         module_sources += files(module / "backend" / "app", ("*.py",))
@@ -86,7 +93,7 @@ def main() -> int:
                 f"{module.name} imports business module {other.name}",
             )
 
-    business_imports = "|".join(re.escape(name) for name in module_names if name != "projects")
+    business_imports = "|".join(re.escape(name) for name in module_names)
     if business_imports:
         violations += assert_no_match(
             files(access, ("*.py",)),
@@ -98,6 +105,13 @@ def main() -> int:
             rf"(?:from\s+(?:{business_imports})\b|import\s+(?:{business_imports})\b)",
             "Platform SDK imports a business module",
         )
+    return violations
+
+
+def main() -> int:
+    access = ROOT / "apps" / "access-service"
+    business_modules = discover_business_modules(ROOT)
+    violations = business_import_boundary_violations(ROOT, business_modules)
 
     business_source_sets = [business_logic_sources(module) for module in business_modules] + [
         files(access / "src" / "access_service" / "application", ("*.py",)),

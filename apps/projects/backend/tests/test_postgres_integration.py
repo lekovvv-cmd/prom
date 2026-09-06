@@ -236,6 +236,86 @@ def test_parallel_conflicting_response_decisions_allow_one_winner(monkeypatch) -
     assert len(events) == (1 if persisted.status == ProjectResponseStatus.ACCEPTED else 0)
 
 
+def test_parallel_accept_response_decisions_apply_side_effects_once(monkeypatch) -> None:
+    project_id, admin_id, employee_id = _active_project_and_users()
+    with SessionLocal() as db:
+        response = ProjectResponse(
+            project_id=project_id,
+            user_id=employee_id,
+            full_name="Employee User",
+            email="employee@utmn.ru",
+            status=ProjectResponseStatus.NEW,
+        )
+        db.add(response)
+        db.commit()
+        response_id = response.id
+
+    barrier = Barrier(2)
+    from app.modules.responses.repository import ProjectResponseRepository
+
+    original_get = ProjectResponseRepository.get_by_id
+
+    def synchronized_get(self, *args, **kwargs):
+        response = original_get(self, *args, **kwargs)
+        barrier.wait()
+        return response
+
+    monkeypatch.setattr(ProjectResponseRepository, "get_by_id", synchronized_get)
+
+    def accept(command_number: int) -> str:
+        with SessionLocal() as db:
+            admin = UserRepository(db).get_by_id(admin_id)
+            assert admin is not None
+            try:
+                result = ProjectResponseService(db).update_status(
+                    response_id,
+                    ProjectResponseStatus.ACCEPTED,
+                    admin,
+                    idempotency_key=f"accept-decision-{command_number}",
+                )
+                return result.status.value
+            except Exception as exc:
+                return type(exc).__name__
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(accept, range(2)))
+
+    assert outcomes.count(ProjectResponseStatus.ACCEPTED.value) == 1
+    assert outcomes.count("ConflictDetected") == 1
+    with SessionLocal() as db:
+        persisted = db.get(ProjectResponse, response_id)
+        assert persisted is not None
+        audits = list(
+            db.scalars(
+                select(ProjectAuditEvent).where(
+                    ProjectAuditEvent.object_id == str(response_id),
+                    ProjectAuditEvent.action == "project.response_status_changed",
+                )
+            )
+        )
+        events = list(
+            db.scalars(
+                select(ProjectOutboxEvent).where(
+                    ProjectOutboxEvent.aggregate_id == str(response_id),
+                    ProjectOutboxEvent.event_type == "ProjectResponseAccepted",
+                )
+            )
+        )
+        members = list(
+            db.scalars(
+                select(ProjectMember).where(
+                    ProjectMember.project_id == project_id,
+                    ProjectMember.user_id == employee_id,
+                )
+            )
+        )
+    assert persisted.status == ProjectResponseStatus.ACCEPTED
+    assert len(audits) == 1
+    assert len(events) == 1
+    # Accepted responses grant access through the response itself; they do not create members.
+    assert members == []
+
+
 def test_parallel_period_open_keeps_one_open_period_and_one_audit(monkeypatch) -> None:
     with SessionLocal() as db:
         admin = UserRepository(db).get_by_email("admin@utmn.ru")
