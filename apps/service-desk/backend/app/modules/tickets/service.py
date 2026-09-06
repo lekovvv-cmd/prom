@@ -442,12 +442,6 @@ class TicketService:
             return str(raw_value.get("name") or raw_value.get("label") or raw_value.get("value") or "Не указано")
         return option_labels.get(str(raw_value), str(raw_value))
 
-    def _require_active_user(self, user_id: uuid.UUID) -> ServiceDeskUser:
-        user = self.db.get(ServiceDeskUser, user_id)
-        if not user or not user.is_active:
-            raise PermissionDenied("Нет доступа к Service Desk")
-        return user
-
     def _require_ticket_for_update(self, ticket_id: uuid.UUID) -> ServiceDeskTicket:
         ticket = self.repository.get_ticket_for_update(ticket_id)
         if not ticket:

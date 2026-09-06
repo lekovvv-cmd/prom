@@ -137,21 +137,6 @@ class AttachmentService:
             actor=current_user,
         )
 
-    def list_project_files(self, project_id: uuid.UUID) -> list[AttachmentRead]:
-        return self._to_read_many(
-            self.repo.list_for_owner(AttachmentOwnerType.PROJECT, project_id)
-        )
-
-    def list_response_files(self, response_id: uuid.UUID) -> list[AttachmentRead]:
-        return self._to_read_many(
-            self.repo.list_for_owner(AttachmentOwnerType.RESPONSE, response_id)
-        )
-
-    def list_task_files(self, task_id: uuid.UUID) -> list[AttachmentRead]:
-        return self._to_read_many(
-            self.repo.list_for_owner(AttachmentOwnerType.TASK, task_id)
-        )
-
     def get_download(
         self,
         attachment_id: uuid.UUID,
@@ -452,9 +437,6 @@ class AttachmentService:
         ):
             return
         raise PermissionDenied("Недостаточно прав для управления вложениями проекта")
-
-    def _to_read_many(self, attachments: list[Attachment]) -> list[AttachmentRead]:
-        return [self._to_read(attachment) for attachment in attachments]
 
     @staticmethod
     def _to_read(attachment: Attachment) -> AttachmentRead:

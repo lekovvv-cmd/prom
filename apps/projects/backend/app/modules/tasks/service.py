@@ -301,20 +301,6 @@ class ProjectTaskService:
         self.db.refresh(task)
         return self._to_task_read(task)
 
-    def ensure_can_attach_result(self, task_id: UUID, current_user: User) -> ProjectTask:
-        task = self.repo.get_task(task_id)
-        if task is None:
-            raise EntityNotFound("Задача не найдена")
-        if can_manage_all_projects(current_user) or (
-            can_manage_own_projects(current_user)
-            and has_permission(current_user, PROJECTS_MANAGE_TASKS)
-            and self.project_repo.user_can_manage_project(task.project_id, current_user.id)
-        ):
-            return task
-        if task.assignee_user_id == current_user.id:
-            return task
-        raise PermissionDenied("Недостаточно прав для загрузки результата к этой задаче")
-
     def _build_unassigned_stage(
         self,
         project_id: UUID,

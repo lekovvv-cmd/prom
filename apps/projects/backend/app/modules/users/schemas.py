@@ -51,24 +51,3 @@ class UserProfileUpdate(BaseModel):
             return None
         normalized = value.strip()
         return normalized or None
-
-
-class AuthEmailRequest(BaseModel):
-    email: str
-
-
-class AuthVerifyRequest(BaseModel):
-    email: str
-    code: str
-
-
-class AuthCodeResponse(BaseModel):
-    email: str
-    dev_code: str
-    message: str
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserRead
