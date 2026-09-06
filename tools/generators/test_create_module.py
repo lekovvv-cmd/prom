@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -7,6 +8,15 @@ from pathlib import Path
 
 
 GENERATOR = Path(__file__).with_name("create_module.py")
+ARCHITECTURE_CHECKER = Path(__file__).parents[1] / "architecture" / "check.py"
+
+
+def _architecture_checker():
+    spec = importlib.util.spec_from_file_location("architecture_check", ARCHITECTURE_CHECKER)
+    assert spec and spec.loader
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    return checker
 
 
 def _workspace(root: Path) -> None:
@@ -23,9 +33,7 @@ def _workspace(root: Path) -> None:
             "    set $service_desk_backend http://service-desk-backend:8001;\n"
             "    location = /index.html {\n"
         ),
-        "compose.yaml": (
-            "services:\n  platform-shell:\nvolumes:\n  service_desk_storage:\n"
-        ),
+        "compose.yaml": ("services:\n  platform-shell:\nvolumes:\n  service_desk_storage:\n"),
         "contracts/generated/package.json": (
             '{"exports": {\n    "./service-desk": "./src/serviceDesk.ts"\n  }}\n'
         ),
@@ -69,12 +77,13 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
     assert _snapshot(tmp_path) == before
     assert _run(tmp_path, "audit-sample-module").returncode == 0
     assert _run(tmp_path, "audit-sample-module", "--check").returncode == 0
-    assert (tmp_path / "apps/audit-sample-module/backend/alembic/versions/0001_initial.py").is_file()
-    assert (tmp_path / "apps/audit-sample-module/frontend/src/theme.css").is_file()
     assert (
-        'audit_sample_module_db_data:/var/lib/postgresql"'
-        in (tmp_path / "compose.yaml").read_text(encoding="utf-8")
-    )
+        tmp_path / "apps/audit-sample-module/backend/alembic/versions/0001_initial.py"
+    ).is_file()
+    assert (tmp_path / "apps/audit-sample-module/frontend/src/theme.css").is_file()
+    assert 'audit_sample_module_db_data:/var/lib/postgresql"' in (
+        tmp_path / "compose.yaml"
+    ).read_text(encoding="utf-8")
     assert '"react-router-dom": "7.18.3"' in (
         tmp_path / "apps/audit-sample-module/frontend/package.json"
     ).read_text(encoding="utf-8")
@@ -89,15 +98,34 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
     assert '"/api/audit-sample-module/v1"' in (
         tmp_path / "apps/audit-sample-module/frontend/api/client.ts"
     ).read_text(encoding="utf-8")
-    assert (
-        "rewrite ^/api/audit-sample-module/v1/(.*)$ /api/v1/$1 break;"
-        in (tmp_path / "apps/platform-shell/nginx.conf").read_text(encoding="utf-8")
-    )
+    assert "rewrite ^/api/audit-sample-module/v1/(.*)$ /api/v1/$1 break;" in (
+        tmp_path / "apps/platform-shell/nginx.conf"
+    ).read_text(encoding="utf-8")
     assert "audit-sample-module" not in (
         tmp_path / "apps/access-service/src/access_service/application/catalog.py"
     ).read_text(encoding="utf-8")
     assert _run(tmp_path, "audit-sample-module", "--remove").returncode == 0
     assert _snapshot(tmp_path) == before
+
+
+def test_generated_transport_adapter_is_not_treated_as_business_logic(tmp_path: Path) -> None:
+    _workspace(tmp_path)
+    assert _run(tmp_path, "audit-sample-module").returncode == 0
+    checker = _architecture_checker()
+    module = tmp_path / "apps" / "audit-sample-module"
+
+    sources = checker.business_logic_sources(module)
+
+    assert module / "backend" / "src" / "audit_sample_module" / "security.py" not in sources
+    assert not any("bootstrap" in path.relative_to(module).parts for path in sources)
+    assert (
+        checker.assert_no_match(
+            sources,
+            r"^\s*(?:from\s+fastapi\b|import\s+fastapi\b)",
+            "Business code imports FastAPI transport",
+        )
+        == []
+    )
 
 
 def test_failure_rolls_back_files_and_registrations(tmp_path: Path) -> None:

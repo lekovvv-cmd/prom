@@ -10,7 +10,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def files(root: Path, patterns: tuple[str, ...]) -> list[Path]:
-    return [path for pattern in patterns for path in root.rglob(pattern) if "__pycache__" not in path.parts]
+    return [
+        path
+        for pattern in patterns
+        for path in root.rglob(pattern)
+        if "__pycache__" not in path.parts
+    ]
 
 
 def assert_no_match(paths: list[Path], pattern: str, rule: str) -> list[str]:
@@ -29,6 +34,25 @@ def assert_contains(path: Path, pattern: str, rule: str) -> list[str]:
     if re.search(pattern, path.read_text(encoding="utf-8"), re.MULTILINE):
         return []
     return [f"{rule}: {path.relative_to(ROOT)}"]
+
+
+def business_logic_sources(module: Path) -> list[Path]:
+    """Return domain/application code, excluding a generated transport adapter.
+
+    Modules using the legacy layout keep their business code in ``app/modules``.
+    A generated module starts with a deliberately small package whose FastAPI
+    composition root and HTTP authentication adapter live in ``bootstrap`` and
+    ``security.py``.  Those are transport code, not a carve-out for domain
+    code: every other generated-package source remains subject to the rule.
+    """
+    legacy_sources = files(module / "backend" / "app" / "modules", ("*.py",))
+    generated_root = module / "backend" / "src" / module.name.replace("-", "_")
+    generated_sources = [
+        path
+        for path in files(generated_root, ("*.py",))
+        if "bootstrap" not in path.relative_to(generated_root).parts and path.name != "security.py"
+    ]
+    return legacy_sources + generated_sources
 
 
 def main() -> int:
@@ -75,18 +99,13 @@ def main() -> int:
             "Platform SDK imports a business module",
         )
 
-    business_roots = [
-        module / "backend" / "app" / "modules" for module in business_modules
-    ] + [
-        module / "backend" / "src" / module.name.replace("-", "_")
-        for module in business_modules
-    ] + [
-        access / "src" / "access_service" / "application",
-        access / "src" / "access_service" / "domain",
+    business_source_sets = [business_logic_sources(module) for module in business_modules] + [
+        files(access / "src" / "access_service" / "application", ("*.py",)),
+        files(access / "src" / "access_service" / "domain", ("*.py",)),
     ]
-    for module_root in business_roots:
+    for source_set in business_source_sets:
         violations += assert_no_match(
-            files(module_root, ("*.py",)),
+            source_set,
             r"^\s*(?:from\s+fastapi\b|import\s+fastapi\b)",
             "Business code imports FastAPI transport",
         )
@@ -123,7 +142,9 @@ def main() -> int:
             "Backend image bypasses the uv lockfile",
         )
 
-    violations += assert_contains(ROOT / "uv.lock", r"^version = \d+", "Committed uv lockfile is required")
+    violations += assert_contains(
+        ROOT / "uv.lock", r"^version = \d+", "Committed uv lockfile is required"
+    )
     violations += assert_contains(
         ROOT / ".github" / "workflows" / "ci.yml",
         r"uv lock --check",
