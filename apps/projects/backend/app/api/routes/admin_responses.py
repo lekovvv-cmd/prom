@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 
 from app.api.deps import AdminUser, DbSession
 from app.core.enums import ProjectResponseStatus
@@ -41,11 +41,13 @@ def update_response_status(
     payload: ProjectResponseStatusUpdate,
     current_user: AdminUser,
     db: DbSession,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> AdminProjectResponseRead:
     return ProjectResponseService(db).update_status(
         response_id=response_id,
         status=payload.status,
         current_user=current_user,
+        idempotency_key=idempotency_key,
     )
 
 

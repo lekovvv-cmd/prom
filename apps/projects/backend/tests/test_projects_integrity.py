@@ -179,6 +179,65 @@ def test_project_update_rejects_stale_if_match(client):
     assert stale.json()["code"] == "CONFLICT_DETECTED"
 
 
+def test_response_decision_is_idempotent_and_records_side_effects_once(client):
+    admin_headers = auth_headers("admin@utmn.ru")
+    employee_headers = auth_headers("employee@utmn.ru")
+    project = client.post(
+        "/api/admin/projects",
+        json=project_payload(f"Response decision {uuid4()}"),
+        headers=admin_headers,
+    )
+    assert project.status_code == 201, project.text
+    submitted = client.post(
+        f"/api/projects/{project.json()['id']}/responses",
+        json={"full_name": "Employee User", "email": "employee@utmn.ru"},
+        headers=employee_headers,
+    )
+    assert submitted.status_code == 201, submitted.text
+    response_id = submitted.json()["id"]
+    decision_headers = {**admin_headers, "Idempotency-Key": f"decision-{uuid4()}"}
+
+    first = client.patch(
+        f"/api/admin/responses/{response_id}",
+        json={"status": "accepted"},
+        headers=decision_headers,
+    )
+    replay = client.patch(
+        f"/api/admin/responses/{response_id}",
+        json={"status": "accepted"},
+        headers=decision_headers,
+    )
+    conflicting_key_reuse = client.patch(
+        f"/api/admin/responses/{response_id}",
+        json={"status": "rejected"},
+        headers=decision_headers,
+    )
+    assert first.status_code == 200, first.text
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == first.json()
+    assert conflicting_key_reuse.status_code == 409
+
+    with SessionLocal() as db:
+        audits = list(
+            db.scalars(
+                select(ProjectAuditEvent).where(
+                    ProjectAuditEvent.object_id == response_id,
+                    ProjectAuditEvent.action == "project.response_status_changed",
+                )
+            )
+        )
+        events = list(
+            db.scalars(
+                select(ProjectOutboxEvent).where(
+                    ProjectOutboxEvent.aggregate_id == response_id,
+                    ProjectOutboxEvent.event_type == "ProjectResponseAccepted",
+                )
+            )
+        )
+    assert len(audits) == 1
+    assert len(events) == 1
+
+
 def test_attachment_is_streamed_validated_authorized_and_audited(client):
     admin = auth_headers("admin@utmn.ru")
     employee = auth_headers("employee@utmn.ru")

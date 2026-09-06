@@ -5,7 +5,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import Date, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, Uuid
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,6 +39,15 @@ class ReportPeriod(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
+    __table_args__ = (
+        Index(
+            "uq_report_periods_one_open",
+            status,
+            unique=True,
+            postgresql_where=status == ReportPeriodStatus.OPEN,
+            sqlite_where=status == ReportPeriodStatus.OPEN,
+        ),
     )
 
     opener: Mapped["User"] = relationship("User", foreign_keys=[opened_by])

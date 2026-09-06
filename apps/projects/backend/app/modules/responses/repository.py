@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.enums import ProjectMemberRole, ProjectResponseStatus
@@ -22,6 +22,32 @@ class ProjectResponseRepository:
 
     def get_by_id(self, response_id: UUID) -> ProjectResponse | None:
         return self.db.get(ProjectResponse, response_id)
+
+    def transition(
+        self,
+        response: ProjectResponse,
+        *,
+        status: ProjectResponseStatus,
+        processed_by: UUID,
+        processed_at: datetime,
+    ) -> bool:
+        """Apply a response decision only if the state read by this command is current."""
+        result = self.db.execute(
+            update(ProjectResponse)
+            .where(
+                ProjectResponse.id == response.id,
+                ProjectResponse.status == response.status,
+                ProjectResponse.deleted_at.is_(None),
+            )
+            .values(
+                status=status,
+                processed_by=processed_by,
+                processed_at=processed_at,
+                updated_at=processed_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        return int(getattr(result, "rowcount", 0) or 0) == 1
 
     def exists_for_project_email(self, project_id: UUID, email: str) -> bool:
         query = (

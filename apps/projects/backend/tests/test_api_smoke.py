@@ -795,10 +795,24 @@ def test_project_tasks_workspace_and_result_files(client):
             "status": "todo",
             "due_date": "2026-01-15",
         },
-        headers=manager_headers,
+        headers={**manager_headers, "Idempotency-Key": "task-workspace-create"},
     )
     assert task.status_code == 201, task.text
     task_id = task.json()["id"]
+    task_replay = client.post(
+        f"/api/admin/projects/{project_id}/tasks",
+        json={
+            "title": "Prepare research notes",
+            "description": "Collect project context and attach result.",
+            "stage_id": stage.json()["id"],
+            "assignee_user_id": employee["id"],
+            "status": "todo",
+            "due_date": "2026-01-15",
+        },
+        headers={**manager_headers, "Idempotency-Key": "task-workspace-create"},
+    )
+    assert task_replay.status_code == 201, task_replay.text
+    assert task_replay.json()["id"] == task_id
     assert task.json()["is_overdue"] is True
     assert task.json()["assignee"]["id"] == employee["id"]
 
@@ -813,10 +827,17 @@ def test_project_tasks_workspace_and_result_files(client):
     updated = client.patch(
         f"/api/me/project-tasks/{task_id}",
         json={"status": "in_progress"},
-        headers=employee_headers,
+        headers={**employee_headers, "If-Match": str(task.json()["version"])},
     )
     assert updated.status_code == 200, updated.text
     assert updated.json()["status"] == "in_progress"
+
+    stale_manager_update = client.patch(
+        f"/api/admin/projects/{project_id}/tasks/{task_id}",
+        json={"title": "Concurrent stale overwrite"},
+        headers={**manager_headers, "If-Match": str(task.json()["version"])},
+    )
+    assert stale_manager_update.status_code == 409
 
     forbidden_update = client.patch(
         f"/api/me/project-tasks/{task_id}",

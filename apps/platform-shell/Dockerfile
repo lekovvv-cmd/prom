@@ -2,14 +2,11 @@ FROM node:24.13.1-alpine@sha256:4f696fbf39f383c1e486030ba6b289a5d9af541642fc78ab
 WORKDIR /workspace
 
 COPY package.json package-lock.json ./
-COPY apps/platform-shell/package.json apps/platform-shell/package.json
-COPY apps/projects/frontend/package.json apps/projects/frontend/package.json
-COPY apps/service-desk/frontend/package.json apps/service-desk/frontend/package.json
 COPY contracts/generated contracts/generated
 COPY packages/frontend packages/frontend
+COPY apps apps
 RUN npm ci
 
-COPY apps apps
 ARG VITE_API_BASE_URL=/api/projects/v1
 ARG VITE_SERVICE_DESK_API_BASE_URL=/api/service-desk/v1
 ARG VITE_ACCESS_API_BASE_URL=/api/access/v1

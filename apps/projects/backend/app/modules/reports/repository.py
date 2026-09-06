@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.enums import ReportPeriodStatus
@@ -51,6 +51,23 @@ class ReportRepository:
         period.closed_at = datetime.now(UTC)
         self.db.flush()
         return period
+
+    def close_period_if_open(self, period: ReportPeriod) -> bool:
+        closed_at = datetime.now(UTC)
+        result = self.db.execute(
+            update(ReportPeriod)
+            .where(
+                ReportPeriod.id == period.id,
+                ReportPeriod.status == ReportPeriodStatus.OPEN,
+            )
+            .values(
+                status=ReportPeriodStatus.CLOSED,
+                closed_at=closed_at,
+                updated_at=closed_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        return int(getattr(result, "rowcount", 0) or 0) == 1
 
     def get_user_report(self, period_id: UUID, user_id: UUID) -> HalfYearReport | None:
         query = select(HalfYearReport).where(

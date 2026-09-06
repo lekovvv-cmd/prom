@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from platform_sdk.error_types import EntityNotFound, InvalidRequest, PermissionDenied
+from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest, PermissionDenied
 from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.core.permissions import (
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
 from app.modules.platform.events import ProjectEventRecorder
+from app.modules.platform.idempotency import IdempotencyStore, request_fingerprint
 from app.modules.projects.repository import ProjectRepository
 from app.modules.projects.query_service import ProjectQueryService
 from app.modules.projects.service_base import ProjectServiceBase
@@ -53,9 +54,30 @@ class ProjectTaskService:
             result.append(unassigned_stage)
         return result
 
-    def create_stage(self, project_id: UUID, payload: ProjectStageCreate, current_user: User) -> ProjectStageRead:
+    def create_stage(
+        self,
+        project_id: UUID,
+        payload: ProjectStageCreate,
+        current_user: User,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ProjectStageRead:
+        scope = f"CreateProjectStage:{project_id}:{current_user.id}"
+        request_hash = request_fingerprint(payload.model_dump(mode="json"))
         with SqlAlchemyUnitOfWork(self.db) as uow:
+            store = IdempotencyStore(self.db)
+            replay = store.replay(scope=scope, key=idempotency_key, request_hash=request_hash)
+            if replay is not None:
+                uow.commit()
+                return ProjectStageRead.model_validate(replay[1])
             result = self._create_stage(project_id, payload, current_user)
+            store.save(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_status=201,
+                response_body=result.model_dump(mode="json"),
+            )
             uow.commit()
             return result
 
@@ -79,9 +101,13 @@ class ProjectTaskService:
         stage_id: UUID,
         payload: ProjectStageUpdate,
         current_user: User,
+        *,
+        expected_version: int | None = None,
     ) -> ProjectStageRead:
         with SqlAlchemyUnitOfWork(self.db) as uow:
-            result = self._update_stage(project_id, stage_id, payload, current_user)
+            result = self._update_stage(
+                project_id, stage_id, payload, current_user, expected_version=expected_version
+            )
             uow.commit()
             return result
 
@@ -91,10 +117,14 @@ class ProjectTaskService:
         stage_id: UUID,
         payload: ProjectStageUpdate,
         current_user: User,
+        *,
+        expected_version: int | None,
     ) -> ProjectStageRead:
         self._ensure_can_manage_project(project_id, current_user)
         stage = self._get_stage(project_id, stage_id)
         before = {"title": stage.title, "position": stage.position}
+        if not self.repo.claim_stage_version(stage, expected_version):
+            raise ConflictDetected("Этап был изменён другим пользователем; обновите данные")
         self.repo.update_stage(stage, payload.model_dump(exclude_unset=True))
         self.db.flush()
         self.events.audit(
@@ -108,9 +138,30 @@ class ProjectTaskService:
         self.db.refresh(stage)
         return ProjectStageRead.model_validate(stage)
 
-    def create_task(self, project_id: UUID, payload: ProjectTaskCreate, current_user: User) -> ProjectTaskRead:
+    def create_task(
+        self,
+        project_id: UUID,
+        payload: ProjectTaskCreate,
+        current_user: User,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ProjectTaskRead:
+        scope = f"CreateProjectTask:{project_id}:{current_user.id}"
+        request_hash = request_fingerprint(payload.model_dump(mode="json"))
         with SqlAlchemyUnitOfWork(self.db) as uow:
+            store = IdempotencyStore(self.db)
+            replay = store.replay(scope=scope, key=idempotency_key, request_hash=request_hash)
+            if replay is not None:
+                uow.commit()
+                return ProjectTaskRead.model_validate(replay[1])
             result = self._create_task(project_id, payload, current_user)
+            store.save(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_status=201,
+                response_body=result.model_dump(mode="json"),
+            )
             uow.commit()
             return result
 
@@ -147,9 +198,13 @@ class ProjectTaskService:
         task_id: UUID,
         payload: ProjectTaskUpdate,
         current_user: User,
+        *,
+        expected_version: int | None = None,
     ) -> ProjectTaskRead:
         with SqlAlchemyUnitOfWork(self.db) as uow:
-            result = self._update_task(project_id, task_id, payload, current_user)
+            result = self._update_task(
+                project_id, task_id, payload, current_user, expected_version=expected_version
+            )
             uow.commit()
             return result
 
@@ -159,6 +214,8 @@ class ProjectTaskService:
         task_id: UUID,
         payload: ProjectTaskUpdate,
         current_user: User,
+        *,
+        expected_version: int | None,
     ) -> ProjectTaskRead:
         self._ensure_can_manage_project(project_id, current_user)
         task = self._get_task(project_id, task_id)
@@ -167,6 +224,8 @@ class ProjectTaskService:
         self._validate_task_links(project_id, data.get("stage_id"), data.get("assignee_user_id"))
         if (target_status := data.get("status")) is not None:
             ensure_task_transition(task.status, target_status)
+        if not self.repo.claim_task_version(task, expected_version):
+            raise ConflictDetected("Задача была изменена другим пользователем; обновите данные")
         self.repo.update_task(task, data)
         self.db.flush()
         after = self._audit_snapshot(task)
@@ -202,9 +261,13 @@ class ProjectTaskService:
         task_id: UUID,
         payload: ProjectTaskStatusUpdate,
         current_user: User,
+        *,
+        expected_version: int | None = None,
     ) -> ProjectTaskRead:
         with SqlAlchemyUnitOfWork(self.db) as uow:
-            result = self._update_current_user_task(task_id, payload, current_user)
+            result = self._update_current_user_task(
+                task_id, payload, current_user, expected_version=expected_version
+            )
             uow.commit()
             return result
 
@@ -213,6 +276,8 @@ class ProjectTaskService:
         task_id: UUID,
         payload: ProjectTaskStatusUpdate,
         current_user: User,
+        *,
+        expected_version: int | None,
     ) -> ProjectTaskRead:
         task = self.repo.get_task(task_id)
         if task is None:
@@ -221,6 +286,8 @@ class ProjectTaskService:
             raise PermissionDenied("Можно менять статус только своих задач")
         before = self._audit_snapshot(task)
         ensure_task_transition(task.status, payload.status)
+        if not self.repo.claim_task_version(task, expected_version):
+            raise ConflictDetected("Задача была изменена другим пользователем; обновите данные")
         task.status = payload.status
         self.db.flush()
         self.events.audit(
@@ -259,6 +326,7 @@ class ProjectTaskService:
         now = tasks[0].created_at
         return ProjectStageWithTasksRead(
             id=UUID("00000000-0000-0000-0000-000000000000"),
+            version=0,
             project_id=project_id,
             title="Без этапа",
             position=9999,
@@ -326,6 +394,7 @@ class ProjectTaskService:
         attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.TASK, task.id)
         return ProjectTaskRead(
             id=task.id,
+            version=task.version,
             project_id=task.project_id,
             stage_id=task.stage_id,
             title=task.title,
@@ -361,6 +430,7 @@ class ProjectTaskService:
     @staticmethod
     def _audit_snapshot(task: ProjectTask) -> dict[str, str | None]:
         return {
+            "version": str(task.version),
             "project_id": str(task.project_id),
             "stage_id": str(task.stage_id) if task.stage_id else None,
             "assignee_user_id": (

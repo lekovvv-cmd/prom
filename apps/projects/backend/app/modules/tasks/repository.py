@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.modules.tasks.models import ProjectStage, ProjectTask
@@ -21,6 +21,21 @@ class ProjectTaskRepository:
             setattr(stage, key, value)
         self.db.flush()
         return stage
+
+    def claim_stage_version(self, stage: ProjectStage, expected_version: int | None = None) -> bool:
+        current_version = stage.version
+        if expected_version is not None and expected_version != current_version:
+            return False
+        result = self.db.execute(
+            update(ProjectStage)
+            .where(ProjectStage.id == stage.id, ProjectStage.version == current_version)
+            .values(version=current_version + 1)
+            .execution_options(synchronize_session=False)
+        )
+        if int(getattr(result, "rowcount", 0) or 0) != 1:
+            return False
+        stage.version = current_version + 1
+        return True
 
     def get_stage(self, stage_id: UUID) -> ProjectStage | None:
         return self.db.get(ProjectStage, stage_id)
@@ -45,6 +60,21 @@ class ProjectTaskRepository:
             setattr(task, key, value)
         self.db.flush()
         return task
+
+    def claim_task_version(self, task: ProjectTask, expected_version: int | None = None) -> bool:
+        current_version = task.version
+        if expected_version is not None and expected_version != current_version:
+            return False
+        result = self.db.execute(
+            update(ProjectTask)
+            .where(ProjectTask.id == task.id, ProjectTask.version == current_version)
+            .values(version=current_version + 1)
+            .execution_options(synchronize_session=False)
+        )
+        if int(getattr(result, "rowcount", 0) or 0) != 1:
+            return False
+        task.version = current_version + 1
+        return True
 
     def get_task(self, task_id: UUID) -> ProjectTask | None:
         query = (

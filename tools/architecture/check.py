@@ -32,23 +32,58 @@ def assert_contains(path: Path, pattern: str, rule: str) -> list[str]:
 
 
 def main() -> int:
-    projects = ROOT / "apps" / "projects"
-    service_desk = ROOT / "apps" / "service-desk"
     access = ROOT / "apps" / "access-service"
     sdk = ROOT / "packages" / "python" / "platform-sdk"
+    app_roots = sorted(path for path in (ROOT / "apps").iterdir() if path.is_dir())
+    business_modules = [
+        path
+        for path in app_roots
+        if path != access and ((path / "backend").is_dir() or (path / "frontend").is_dir())
+    ]
     violations: list[str] = []
 
-    violations += assert_no_match(files(projects, ("*.py", "*.ts", "*.tsx")), r"service_desk|service-desk", "Projects imports Service Desk")
-    violations += assert_no_match(files(service_desk, ("*.py", "*.ts", "*.tsx")), r"projects_database_url|PROJECTS_DATABASE_URL|from\s+projects|import\s+projects", "Service Desk imports Projects")
-    violations += assert_no_match(files(access, ("*.py",)), r"from\s+(projects|service_desk)|import\s+(projects|service_desk)", "Access imports a product module")
-    violations += assert_no_match(files(sdk, ("*.py",)), r"from\s+(projects|service_desk)|import\s+(projects|service_desk)", "Platform SDK imports a business module")
+    module_names = [module.name.replace("-", "_") for module in business_modules]
+    for module in business_modules:
+        module_sources = files(module / "backend" / "src", ("*.py",))
+        module_sources += files(module / "backend" / "app", ("*.py",))
+        module_sources += files(module / "frontend", ("*.ts", "*.tsx"))
+        violations += assert_no_match(
+            module_sources,
+            r"(?:from\s+access_service\b|import\s+access_service\b|apps[/\\]access-service)",
+            f"{module.name} imports Access internals",
+        )
+        for other in business_modules:
+            if other == module:
+                continue
+            other_name = other.name.replace("-", "_")
+            violations += assert_no_match(
+                module_sources,
+                rf"(?:from\s+{re.escape(other_name)}\b|import\s+{re.escape(other_name)}\b|apps[/\\]{re.escape(other.name)}[/\\])",
+                f"{module.name} imports business module {other.name}",
+            )
 
-    business_roots = (
-        projects / "backend" / "app" / "modules",
-        service_desk / "backend" / "app" / "modules",
+    business_imports = "|".join(re.escape(name) for name in module_names if name != "projects")
+    if business_imports:
+        violations += assert_no_match(
+            files(access, ("*.py",)),
+            rf"(?:from\s+(?:{business_imports})\b|import\s+(?:{business_imports})\b)",
+            "Access imports a business module",
+        )
+        violations += assert_no_match(
+            files(sdk, ("*.py",)),
+            rf"(?:from\s+(?:{business_imports})\b|import\s+(?:{business_imports})\b)",
+            "Platform SDK imports a business module",
+        )
+
+    business_roots = [
+        module / "backend" / "app" / "modules" for module in business_modules
+    ] + [
+        module / "backend" / "src" / module.name.replace("-", "_")
+        for module in business_modules
+    ] + [
         access / "src" / "access_service" / "application",
         access / "src" / "access_service" / "domain",
-    )
+    ]
     for module_root in business_roots:
         violations += assert_no_match(
             files(module_root, ("*.py",)),
@@ -56,8 +91,11 @@ def main() -> int:
             "Business code imports FastAPI transport",
         )
 
-    repository_files = files(projects / "backend", ("*repository.py",))
-    repository_files += files(service_desk / "backend", ("*repository.py",))
+    repository_files = [
+        path
+        for module in business_modules
+        for path in files(module / "backend", ("*repository.py",))
+    ]
     repository_files += files(access, ("*repository.py",))
     violations += assert_no_match(
         repository_files,
@@ -65,11 +103,9 @@ def main() -> int:
         "Repository owns a transaction boundary",
     )
 
-    dockerfiles = (
-        projects / "backend" / "Dockerfile",
-        service_desk / "backend" / "Dockerfile",
-        access / "Dockerfile",
-    )
+    dockerfiles = [module / "backend" / "Dockerfile" for module in business_modules] + [
+        access / "Dockerfile"
+    ]
     for dockerfile in dockerfiles:
         violations += assert_contains(
             dockerfile,
@@ -108,10 +144,7 @@ def main() -> int:
         r'"name": "@prom/ui"',
         "Shared frontend UI package is required",
     )
-    manifests = [
-        projects / "frontend" / "manifest.ts",
-        service_desk / "frontend" / "manifest.ts",
-    ]
+    manifests = [module / "frontend" / "manifest.ts" for module in business_modules]
     violations += assert_no_match(
         manifests,
         r"platform-shell/src",
@@ -128,10 +161,7 @@ def main() -> int:
         r"getPlatformModuleForPath",
         "Platform shell must dispatch routes through module manifests",
     )
-    for frontend_root in (
-        projects / "frontend",
-        service_desk / "frontend",
-    ):
+    for frontend_root in (module / "frontend" for module in business_modules):
         violations += assert_no_match(
             files(frontend_root, ("*.ts", "*.tsx")),
             r"platform-shell/src",
@@ -140,7 +170,7 @@ def main() -> int:
     shared_frontend = ROOT / "packages" / "frontend"
     violations += assert_no_match(
         files(shared_frontend, ("*.ts", "*.tsx")),
-        r"(?:apps[/\\](?:projects|service-desk)|(?:projects|service-desk)[/\\]frontend)",
+        r"(?:apps[/\\][^/\\]+[/\\]frontend|\.\./\.\./\.\./apps[/\\])",
         "Shared frontend package imports a product module",
     )
     shared_transport = shared_frontend / "api-client" / "src" / "client.ts"

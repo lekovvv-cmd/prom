@@ -3,6 +3,7 @@ from uuid import UUID
 
 from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest, PermissionDenied
 from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.enums import AttachmentOwnerType, ProjectResponseStatus, ProjectStatus
@@ -48,26 +49,31 @@ class ProjectResponseService:
     ) -> ProjectResponseRead:
         scope = f"SubmitProjectResponse:{project_id}:{current_user.id}"
         request_hash = request_fingerprint(payload.model_dump(mode="json"))
-        with SqlAlchemyUnitOfWork(self.db) as uow:
-            store = IdempotencyStore(self.db)
-            replay = store.replay(
-                scope=scope,
-                key=idempotency_key,
-                request_hash=request_hash,
-            )
-            if replay is not None:
+        try:
+            with SqlAlchemyUnitOfWork(self.db) as uow:
+                store = IdempotencyStore(self.db)
+                replay = store.replay(
+                    scope=scope,
+                    key=idempotency_key,
+                    request_hash=request_hash,
+                )
+                if replay is not None:
+                    uow.commit()
+                    return ProjectResponseRead.model_validate(replay[1])
+                result = self._create_for_project(project_id, payload, current_user=current_user)
+                store.save(
+                    scope=scope,
+                    key=idempotency_key,
+                    request_hash=request_hash,
+                    response_status=201,
+                    response_body=result.model_dump(mode="json"),
+                )
                 uow.commit()
-                return ProjectResponseRead.model_validate(replay[1])
-            result = self._create_for_project(project_id, payload, current_user=current_user)
-            store.save(
-                scope=scope,
-                key=idempotency_key,
-                request_hash=request_hash,
-                response_status=201,
-                response_body=result.model_dump(mode="json"),
-            )
-            uow.commit()
-            return result
+                return result
+        except IntegrityError as exc:
+            # The partial unique indexes are the concurrency authority; the pre-check only
+            # improves the ordinary request path with a friendly error.
+            raise ConflictDetected("Вы уже откликнулись на этот проект") from exc
 
     def _create_for_project(
         self,
@@ -193,9 +199,29 @@ class ProjectResponseService:
         response_id: UUID,
         status: ProjectResponseStatus,
         current_user: User,
+        *,
+        idempotency_key: str | None = None,
     ) -> AdminProjectResponseRead:
+        scope = f"DecideProjectResponse:{response_id}:{current_user.id}"
+        request_hash = request_fingerprint({"response_id": str(response_id), "status": status.value})
         with SqlAlchemyUnitOfWork(self.db) as uow:
+            store = IdempotencyStore(self.db)
+            replay = store.replay(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+            )
+            if replay is not None:
+                uow.commit()
+                return AdminProjectResponseRead.model_validate(replay[1])
             result = self._update_status(response_id, status, current_user)
+            store.save(
+                scope=scope,
+                key=idempotency_key,
+                request_hash=request_hash,
+                response_status=200,
+                response_body=result.model_dump(mode="json"),
+            )
             uow.commit()
             return result
 
@@ -209,12 +235,20 @@ class ProjectResponseService:
         if response is None or response.deleted_at is not None:
             raise EntityNotFound("Отклик не найден")
         self._ensure_can_manage_project(response.project_id, current_user)
+        if response.status == status:
+            return self._to_admin_read(response)
         before = self._audit_snapshot(response)
         ensure_response_transition(response.status, status)
-        response.status = status
-        response.processed_by = current_user.id
-        response.processed_at = datetime.now(UTC)
-        self.db.flush()
+        decided_at = datetime.now(UTC)
+        if not self.repo.transition(
+            response,
+            status=status,
+            processed_by=current_user.id,
+            processed_at=decided_at,
+        ):
+            raise ConflictDetected("Отклик уже был обработан другим пользователем")
+        self.db.expire(response)
+        self.db.refresh(response)
         self.events.audit(
             actor=current_user,
             action="project.response_status_changed",

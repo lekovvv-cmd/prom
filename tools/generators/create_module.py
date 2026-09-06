@@ -423,10 +423,7 @@ WORKDIR /workspace
 ENV PATH="/workspace/.venv/bin:$PATH" UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
 COPY pyproject.toml uv.lock ./
 COPY packages/python/platform-sdk packages/python/platform-sdk
-COPY apps/access-service/pyproject.toml apps/access-service/pyproject.toml
-COPY apps/projects/backend/pyproject.toml apps/projects/backend/pyproject.toml
-COPY apps/service-desk/backend/pyproject.toml apps/service-desk/backend/pyproject.toml
-COPY apps/{name}/backend apps/{name}/backend
+COPY apps apps
 RUN uv sync --locked --no-dev --package prom-{name}-backend
 WORKDIR /workspace/apps/{name}/backend
 USER 65532

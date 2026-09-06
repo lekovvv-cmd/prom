@@ -25,6 +25,7 @@ class ProjectStage(Base):
     __tablename__ = "project_stages"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     project_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
     )
@@ -49,6 +50,7 @@ class ProjectTask(Base):
     __tablename__ = "project_tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     project_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
     )

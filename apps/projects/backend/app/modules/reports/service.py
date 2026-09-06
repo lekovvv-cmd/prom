@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from platform_sdk.error_types import EntityNotFound, InvalidRequest, PermissionDenied
+from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest, PermissionDenied
 from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.enums import ReportPeriodStatus
@@ -29,10 +30,13 @@ class ReportService:
         return [ReportPeriodRead.model_validate(period) for period in self.repo.list_periods()]
 
     def open_period(self, payload: ReportPeriodCreate, current_user: User) -> ReportPeriodRead:
-        with SqlAlchemyUnitOfWork(self.db) as uow:
-            result = self._open_period(payload, current_user)
-            uow.commit()
-            return result
+        try:
+            with SqlAlchemyUnitOfWork(self.db) as uow:
+                result = self._open_period(payload, current_user)
+                uow.commit()
+                return result
+        except IntegrityError as exc:
+            raise ConflictDetected("Период отчётности уже был открыт другим администратором") from exc
 
     def _open_period(self, payload: ReportPeriodCreate, current_user: User) -> ReportPeriodRead:
         self.repo.close_open_periods()
@@ -60,8 +64,12 @@ class ReportService:
         if period.status == ReportPeriodStatus.CLOSED:
             return ReportPeriodRead.model_validate(period)
         before = {"status": period.status.value, "title": period.title}
-        self.repo.close_period(period)
-        self.db.flush()
+        if not self.repo.close_period_if_open(period):
+            self.db.expire(period)
+            self.db.refresh(period)
+            return ReportPeriodRead.model_validate(period)
+        self.db.expire(period)
+        self.db.refresh(period)
         self.events.audit(
             actor=current_user,
             action="project.report_period_closed",

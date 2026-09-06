@@ -104,6 +104,7 @@ class ProjectTaskStatusUpdate(BaseModel):
 
 class ProjectTaskRead(BaseModel):
     id: UUID
+    version: int
     project_id: UUID
     stage_id: UUID | None
     title: str
@@ -121,6 +122,7 @@ class ProjectTaskRead(BaseModel):
 
 class ProjectStageRead(BaseModel):
     id: UUID
+    version: int
     project_id: UUID
     title: str
     position: int

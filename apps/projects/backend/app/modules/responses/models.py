@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, Uuid, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,6 +44,32 @@ class ProjectResponse(Base):
     processed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    __table_args__ = (
+        Index(
+            "uq_project_responses_active_project_email",
+            project_id,
+            func.lower(email),
+            unique=True,
+            postgresql_where=(status != ProjectResponseStatus.CANCELLED) & deleted_at.is_(None),
+            sqlite_where=(status != ProjectResponseStatus.CANCELLED) & deleted_at.is_(None),
+        ),
+        Index(
+            "uq_project_responses_active_project_user",
+            project_id,
+            user_id,
+            unique=True,
+            postgresql_where=(
+                user_id.is_not(None)
+                & (status != ProjectResponseStatus.CANCELLED)
+                & deleted_at.is_(None)
+            ),
+            sqlite_where=(
+                user_id.is_not(None)
+                & (status != ProjectResponseStatus.CANCELLED)
+                & deleted_at.is_(None)
+            ),
+        ),
+    )
 
     project: Mapped["Project"] = relationship("Project", back_populates="responses")
     user: Mapped["User | None"] = relationship("User", foreign_keys=[user_id])

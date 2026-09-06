@@ -10,11 +10,7 @@
       "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
       "ignoreDependencies": ["tailwindcss"]
     },
-    "apps/projects/frontend": {
-      "entry": ["manifest.ts", "routes.tsx"],
-      "project": ["**/*.{ts,tsx}"]
-    },
-    "apps/service-desk/frontend": {
+    "apps/*/frontend": {
       "entry": ["manifest.ts", "routes.tsx"],
       "project": ["**/*.{ts,tsx}"]
     },

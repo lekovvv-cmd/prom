@@ -1,8 +1,9 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 
 from app.api.deps import AdminUser, CurrentUser, DbSession
+from app.core.http import parse_if_match
 from app.modules.tasks.schemas import (
     ProjectStageCreate,
     ProjectStageRead,
@@ -33,8 +34,11 @@ def create_admin_project_stage(
     payload: ProjectStageCreate,
     current_user: AdminUser,
     db: DbSession,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> ProjectStageRead:
-    return ProjectTaskService(db).create_stage(project_id, payload, current_user)
+    return ProjectTaskService(db).create_stage(
+        project_id, payload, current_user, idempotency_key=idempotency_key
+    )
 
 
 @router.patch("/admin/projects/{project_id}/stages/{stage_id}", response_model=ProjectStageRead)
@@ -44,8 +48,11 @@ def update_admin_project_stage(
     payload: ProjectStageUpdate,
     current_user: AdminUser,
     db: DbSession,
+    if_match: str | None = Header(default=None, alias="If-Match"),
 ) -> ProjectStageRead:
-    return ProjectTaskService(db).update_stage(project_id, stage_id, payload, current_user)
+    return ProjectTaskService(db).update_stage(
+        project_id, stage_id, payload, current_user, expected_version=parse_if_match(if_match)
+    )
 
 
 @router.post("/admin/projects/{project_id}/tasks", response_model=ProjectTaskRead, status_code=201)
@@ -54,8 +61,11 @@ def create_admin_project_task(
     payload: ProjectTaskCreate,
     current_user: AdminUser,
     db: DbSession,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> ProjectTaskRead:
-    return ProjectTaskService(db).create_task(project_id, payload, current_user)
+    return ProjectTaskService(db).create_task(
+        project_id, payload, current_user, idempotency_key=idempotency_key
+    )
 
 
 @router.patch("/admin/projects/{project_id}/tasks/{task_id}", response_model=ProjectTaskRead)
@@ -65,8 +75,11 @@ def update_admin_project_task(
     payload: ProjectTaskUpdate,
     current_user: AdminUser,
     db: DbSession,
+    if_match: str | None = Header(default=None, alias="If-Match"),
 ) -> ProjectTaskRead:
-    return ProjectTaskService(db).update_task(project_id, task_id, payload, current_user)
+    return ProjectTaskService(db).update_task(
+        project_id, task_id, payload, current_user, expected_version=parse_if_match(if_match)
+    )
 
 
 @router.get("/me/projects/{project_id}/tasks", response_model=list[ProjectTaskRead])
@@ -84,5 +97,8 @@ def update_my_project_task_status(
     payload: ProjectTaskStatusUpdate,
     current_user: CurrentUser,
     db: DbSession,
+    if_match: str | None = Header(default=None, alias="If-Match"),
 ) -> ProjectTaskRead:
-    return ProjectTaskService(db).update_current_user_task(task_id, payload, current_user)
+    return ProjectTaskService(db).update_current_user_task(
+        task_id, payload, current_user, expected_version=parse_if_match(if_match)
+    )

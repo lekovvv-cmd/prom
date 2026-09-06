@@ -34,6 +34,9 @@ jobs:
       contracts: ${{ steps.filter.outputs.contracts }}
       infra: ${{ steps.filter.outputs.infra }}
       python: ${{ steps.filter.outputs.python }}
+      modules: ${{ steps.filter.outputs.modules }}
+      generated_matrix: ${{ steps.generated.outputs.matrix }}
+      business_matrix: ${{ steps.business.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v4.0.1
@@ -101,12 +104,29 @@ jobs:
             python:
               - '.github/workflows/**'
               - 'apps/access-service/**'
-              - 'apps/projects/backend/**'
-              - 'apps/service-desk/backend/**'
+              - 'apps/*/backend/**'
               - 'packages/python/platform-sdk/**'
               - 'tools/**/*.py'
               - 'pyproject.toml'
               - 'uv.lock'
+            modules:
+              - '.github/workflows/**'
+              - 'apps/*/backend/**'
+              - 'apps/*/frontend/**'
+              - 'apps/*/platform/registration.json'
+              - 'packages/python/platform-sdk/**'
+              - 'packages/frontend/**'
+              - 'tools/**'
+              - 'compose.yaml'
+              - 'apps/platform-shell/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'pyproject.toml'
+              - 'uv.lock'
+      - id: generated
+        run: echo "matrix=$(python tools/ci/discover_generated_modules.py)" >> "$GITHUB_OUTPUT"
+      - id: business
+        run: echo "matrix=$(python tools/ci/discover_generated_modules.py --business)" >> "$GITHUB_OUTPUT"
 
   architecture-check:
     name: Architecture boundaries
@@ -150,6 +170,9 @@ jobs:
       - run: npm ci
       - run: python tools/generators/create_module.py audit-sample-module
       - run: python tools/generators/create_module.py audit-sample-module --check
+      - run: uv run --frozen --group dev ruff check apps/audit-sample-module/backend
+      - run: .venv/bin/mypy apps/audit-sample-module/backend/src
+      - run: uv run --frozen --group dev deptry apps/audit-sample-module/backend/src --config apps/audit-sample-module/backend/pyproject.toml
       - run: uv run --frozen --package prom-audit-sample-module-backend --extra dev python -m pytest -q apps/audit-sample-module/backend/tests
       - run: docker compose --profile audit-sample-module up --build -d --wait audit-sample-module-backend
       - name: Verify live generated-module Access authorization
@@ -166,6 +189,13 @@ jobs:
           PROM_LIVE_ACCESS_TEST_KEY_FILE="$test_key" \
           PROM_LIVE_ACCESS_TEST_KEY_ID="$ACCESS_JWT_KEY_ID" \
           uv run --frozen --package prom-access-service --extra dev python tools/generators/live_module_authorization_e2e.py
+      - run: npm run format:check
+      - run: npm run check:architecture
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run check:styles
+      - run: npm run check:dead-code
       - run: npm run build
       - run: npm run check:contracts
       - run: node tools/gateway/check.mjs
@@ -200,15 +230,19 @@ jobs:
           uv run --frozen --group dev ruff check
           packages/python/platform-sdk
           apps/access-service
-          apps/projects/backend
-          apps/service-desk/backend
+          apps/*/backend
           tools
       - name: Check Python dependency ownership
         run: |
           uv run --frozen --group dev deptry packages/python/platform-sdk/src --config packages/python/platform-sdk/pyproject.toml
           uv run --frozen --group dev deptry apps/access-service/src --config apps/access-service/pyproject.toml
-          uv run --frozen --group dev deptry apps/projects/backend/app apps/projects/backend/scripts --config apps/projects/backend/pyproject.toml
-          uv run --frozen --group dev deptry apps/service-desk/backend/app apps/service-desk/backend/scripts --config apps/service-desk/backend/pyproject.toml
+          for module in apps/*/backend; do
+            for source in "$module/src" "$module/app" "$module/scripts"; do
+              if [ -d "$source" ]; then
+                uv run --frozen --group dev deptry "$source" --config "$module/pyproject.toml"
+              fi
+            done
+          done
 
   python-type-check:
     name: Python type check
@@ -223,15 +257,17 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
       - run: uv sync --locked --all-packages --all-extras --group dev
-      - working-directory: packages/python/platform-sdk
-        run: ../../../.venv/bin/mypy src
-      - working-directory: apps/access-service
-        run: ../../.venv/bin/mypy src
-      - working-directory: apps/projects/backend
-        run: ../../../.venv/bin/mypy app
-      - name: Type-check Service Desk
-        working-directory: apps/service-desk/backend
-        run: ../../../.venv/bin/mypy app
+      - name: Type-check workspace packages and every business backend
+        run: |
+          (cd packages/python/platform-sdk && ../../../.venv/bin/mypy src)
+          (cd apps/access-service && ../../.venv/bin/mypy src)
+          for module in apps/*/backend; do
+            if [ -d "$module/src" ]; then
+              .venv/bin/mypy "$module/src"
+            else
+              .venv/bin/mypy "$module/app"
+            fi
+          done
 
   platform-sdk-tests:
     name: Platform SDK tests
@@ -247,6 +283,24 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --package prom-platform-sdk --extra dev
       - run: uv run --frozen --package prom-platform-sdk --extra dev python -m pytest -q packages/python/platform-sdk/tests
+
+  business-module-tests:
+    name: Business module tests (${{ matrix.module }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.business_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+      - run: uv sync --locked --all-packages --all-extras --group dev
+      - run: uv run --frozen --package "${{ matrix.package }}" --extra dev python -m pytest -q "${{ matrix.tests }}"
 
   access-service-tests:
     name: Access Service tests
@@ -526,7 +580,8 @@ jobs:
       needs.detect-changes.outputs.contracts == 'true' ||
       needs.detect-changes.outputs.access == 'true' ||
       needs.detect-changes.outputs.projects == 'true' ||
-      needs.detect-changes.outputs.service_desk == 'true'
+      needs.detect-changes.outputs.service_desk == 'true' ||
+      needs.detect-changes.outputs.modules == 'true'
     runs-on: ubuntu-latest
     env:
       PROM_PYTHON: .venv/bin/python
@@ -554,6 +609,7 @@ jobs:
       needs.detect-changes.outputs.access == 'true' ||
       needs.detect-changes.outputs.projects == 'true' ||
       needs.detect-changes.outputs.service_desk == 'true' ||
+      needs.detect-changes.outputs.modules == 'true' ||
       needs.detect-changes.outputs.frontend == 'true' ||
       needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
@@ -580,6 +636,26 @@ jobs:
           "aquasec/trivy:${TRIVY_VERSION}"
           image --exit-code 1 --ignore-unfixed --severity CRITICAL
           "prom/${{ matrix.name }}:${GITHUB_SHA}"
+
+  generated-module-docker-build:
+    name: Generated module Docker build and image scan (${{ matrix.module }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.generated_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SHA-tagged generated module image
+        run: docker build --file "${{ matrix.dockerfile }}" --tag "prom/${{ matrix.module }}:${GITHUB_SHA}" .
+      - name: Scan image for fixed critical vulnerabilities
+        run: >
+          docker run --rm
+          -v /var/run/docker.sock:/var/run/docker.sock
+          "aquasec/trivy:${TRIVY_VERSION}"
+          image --exit-code 1 --ignore-unfixed --severity CRITICAL
+          "prom/${{ matrix.module }}:${GITHUB_SHA}"
 
   module-e2e:
     name: Module profile smoke (${{ matrix.module }})
@@ -620,6 +696,29 @@ jobs:
           path: |
             docker-compose-ps.txt
             docker-compose.log
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+  generated-module-e2e:
+    name: Generated module profile smoke (${{ matrix.module }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.generated_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start generated module profile through the gateway
+        run: docker compose --profile core --profile "${{ matrix.module }}" up --build -d --wait
+      - name: Verify generated module health through its registered gateway prefix
+        run: |
+          curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:5173/healthz
+          curl --fail --retry 10 --retry-delay 2 "http://127.0.0.1:5173${{ matrix.health_path }}"
+      - name: Capture diagnostics
+        if: always()
+        run: docker compose logs --no-color
       - name: Stop stack
         if: always()
         run: docker compose down -v --remove-orphans

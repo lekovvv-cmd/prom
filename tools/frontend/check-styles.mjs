@@ -4,8 +4,10 @@ import { extname, relative, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "../..");
 const sourceRoots = [
   resolve(root, "apps/platform-shell"),
-  resolve(root, "apps/projects/frontend"),
-  resolve(root, "apps/service-desk/frontend"),
+  ...readdirSync(resolve(root, "apps"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => resolve(root, "apps", entry.name, "frontend"))
+    .filter(existsSync),
   resolve(root, "packages/frontend"),
 ];
 const ignoredSegments = new Set([
@@ -40,11 +42,14 @@ const globalPath = resolve(
   root,
   "apps/platform-shell/src/app/styles/globals.css",
 );
-const deprecatedProductSheets = [
-  resolve(root, "apps/projects/frontend/styles.css"),
-  resolve(root, "apps/projects/frontend/platform-foundation.css"),
-  resolve(root, "apps/service-desk/frontend/styles.css"),
-];
+const deprecatedProductSheets = readdirSync(resolve(root, "apps"), {
+  withFileTypes: true,
+})
+  .filter((entry) => entry.isDirectory())
+  .flatMap((entry) => [
+    resolve(root, "apps", entry.name, "frontend/styles.css"),
+    resolve(root, "apps", entry.name, "frontend/platform-foundation.css"),
+  ]);
 
 for (const path of deprecatedProductSheets) {
   if (existsSync(path))
@@ -89,10 +94,7 @@ for (const path of cssFiles) {
       `${relativePath}: undocumented !important (${important.length})`,
     );
   }
-  if (
-    relativePath.startsWith("apps/projects/frontend/") ||
-    relativePath.startsWith("apps/service-desk/frontend/")
-  ) {
+  if (/^apps\/[^/]+\/frontend\//.test(relativePath)) {
     const forbidden = content.match(
       /(?:^|\})\s*\.(?:button|card|modal)(?=[\s,:>{\[])/gm,
     );
