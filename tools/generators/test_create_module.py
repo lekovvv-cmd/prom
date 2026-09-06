@@ -78,6 +78,9 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
     assert '"react-router-dom": "7.18.3"' in (
         tmp_path / "apps/audit-sample-module/frontend/package.json"
     ).read_text(encoding="utf-8")
+    assert "[tool.deptry]" in (
+        tmp_path / "apps/audit-sample-module/backend/pyproject.toml"
+    ).read_text(encoding="utf-8")
     registration = (tmp_path / "apps/audit-sample-module/platform/registration.json").read_text(
         encoding="utf-8"
     )

@@ -410,6 +410,15 @@ dev = ["httpx>=0.28,<1", "pytest>=9,<10", "ruff>=0.15,<1"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.deptry]
+known_first_party = ["{package}"]
+package_module_name_map = {{ prom-platform-sdk = "platform_sdk" }}
+optional_dependencies_dev_groups = ["dev"]
+# Alembic, the DB driver and Uvicorn are executed by the runtime rather than
+# imported from application modules.  TestClient pulls httpx transitively;
+# pytest and Ruff are runner/tool dependencies.
+per_rule_ignores = {{ DEP002 = ["alembic", "psycopg", "uvicorn", "httpx", "pytest", "ruff"] }}
+
 [tool.uv.sources]
 prom-platform-sdk = {{ workspace = true }}
 """
