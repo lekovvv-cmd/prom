@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     s3_access_key: str | None = None
     s3_secret_key: str | None = None
     s3_region: str | None = None
-    storage_signed_url_ttl_seconds: int = 60
     antivirus_backend: str = "noop"
     clamav_host: str = "clamav"
     clamav_port: int = 3310
