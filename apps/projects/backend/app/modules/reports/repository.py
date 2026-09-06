@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.enums import ReportPeriodStatus
@@ -85,8 +86,22 @@ class ReportRepository:
     ) -> HalfYearReport:
         report = self.get_user_report(period.id, user_id)
         if report is None:
-            report = HalfYearReport(period_id=period.id, user_id=user_id, completed_work=payload.completed_work)
-            self.db.add(report)
+            try:
+                # A user's report is deliberately an owner-only last-write-wins
+                # document.  The savepoint turns the first-insert race into an
+                # update of the row committed by the competing request.
+                with self.db.begin_nested():
+                    report = HalfYearReport(
+                        period_id=period.id,
+                        user_id=user_id,
+                        completed_work=payload.completed_work,
+                    )
+                    self.db.add(report)
+                    self.db.flush()
+            except IntegrityError:
+                report = self.get_user_report(period.id, user_id)
+                if report is None:
+                    raise
 
         report.completed_work = payload.completed_work
         report.project_results = payload.project_results

@@ -21,8 +21,9 @@ from app.core.enums import (
 from app.core.database import SessionLocal
 from app.modules.platform.models import ProjectAuditEvent, ProjectOutboxEvent
 from app.modules.projects.models import Project, ProjectMember
-from app.modules.reports.models import ReportPeriod
-from app.modules.reports.schemas import ReportPeriodCreate
+from app.modules.reports.models import HalfYearReport, ReportPeriod
+from app.modules.reports.repository import ReportRepository
+from app.modules.reports.schemas import HalfYearReportPayload, ReportPeriodCreate
 from app.modules.reports.service import ReportService
 from app.modules.responses.models import ProjectResponse
 from app.modules.responses.schemas import ProjectResponseCreate
@@ -282,6 +283,52 @@ def test_parallel_period_open_keeps_one_open_period_and_one_audit(monkeypatch) -
             )
         )
     assert len(audits) == 1
+
+
+def test_parallel_first_report_submissions_upsert_one_owner_report(monkeypatch) -> None:
+    with SessionLocal() as db:
+        admin = UserRepository(db).get_by_email("admin@utmn.ru")
+        employee = UserRepository(db).get_by_email("employee@utmn.ru")
+        assert admin is not None
+        assert employee is not None
+        period = ReportService(db).open_period(ReportPeriodCreate(title="Concurrent user reports"), admin)
+        employee_id = employee.id
+        period_id = period.id
+
+    barrier = Barrier(2)
+    original_get = ReportRepository.get_user_report
+
+    def synchronized_get(self, *args, **kwargs):
+        report = original_get(self, *args, **kwargs)
+        if report is None:
+            barrier.wait()
+        return report
+
+    monkeypatch.setattr(ReportRepository, "get_user_report", synchronized_get)
+
+    def submit(completed_work: str) -> str:
+        with SessionLocal() as db:
+            employee = UserRepository(db).get_by_id(employee_id)
+            assert employee is not None
+            return ReportService(db).submit_current_report(
+                employee,
+                HalfYearReportPayload(completed_work=completed_work),
+            ).id.hex
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        report_ids = list(executor.map(submit, ("First concurrent report", "Second concurrent report")))
+
+    assert len(set(report_ids)) == 1
+    with SessionLocal() as db:
+        reports = list(
+            db.scalars(
+                select(HalfYearReport).where(
+                    HalfYearReport.period_id == period_id,
+                    HalfYearReport.user_id == employee_id,
+                )
+            )
+        )
+    assert len(reports) == 1
 
 
 def test_parallel_membership_insert_keeps_one_member_row() -> None:

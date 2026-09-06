@@ -100,6 +100,13 @@ class ReportService:
             return result
 
     def _submit_current_report(self, current_user: User, payload: HalfYearReportPayload) -> HalfYearReportRead:
+        """Persist the owner's current report with intentional last-write-wins semantics.
+
+        Reports are edited only by their author; unlike periods they are not a
+        shared administrative entity.  The repository still makes a concurrent
+        first submission a safe upsert so the unique DB invariant never escapes
+        as an IntegrityError.
+        """
         if is_platform_admin(current_user):
             raise PermissionDenied("Администратор не подаёт полугодовой отчёт через профиль")
 
