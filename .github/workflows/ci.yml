@@ -36,6 +36,7 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       modules: ${{ steps.filter.outputs.modules }}
       generated_matrix: ${{ steps.generated.outputs.matrix }}
+      has_generated_modules: ${{ steps.generated.outputs.has_modules }}
       business_matrix: ${{ steps.business.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
@@ -124,7 +125,14 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
       - id: generated
-        run: echo "matrix=$(python tools/ci/discover_generated_modules.py)" >> "$GITHUB_OUTPUT"
+        run: |
+          matrix="$(python tools/ci/discover_generated_modules.py)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          if [ "$matrix" = '{"include":[]}' ]; then
+            echo "has_modules=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_modules=true" >> "$GITHUB_OUTPUT"
+          fi
       - id: business
         run: echo "matrix=$(python tools/ci/discover_generated_modules.py --business)" >> "$GITHUB_OUTPUT"
 
@@ -641,7 +649,9 @@ jobs:
   generated-module-docker-build:
     name: Generated module Docker build and image scan (${{ matrix.module }})
     needs: detect-changes
-    if: needs.detect-changes.outputs.modules == 'true'
+    if: >
+      needs.detect-changes.outputs.modules == 'true' &&
+      needs.detect-changes.outputs.has_generated_modules == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -704,7 +714,9 @@ jobs:
   generated-module-e2e:
     name: Generated module profile smoke (${{ matrix.module }})
     needs: detect-changes
-    if: needs.detect-changes.outputs.modules == 'true'
+    if: >
+      needs.detect-changes.outputs.modules == 'true' &&
+      needs.detect-changes.outputs.has_generated_modules == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
