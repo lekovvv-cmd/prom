@@ -1298,6 +1298,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Version */
+            version: number;
         };
         /** ProjectStageUpdate */
         ProjectStageUpdate: {
@@ -1342,6 +1344,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Version */
+            version: number;
         };
         /**
          * ProjectStatus
@@ -1434,6 +1438,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Version */
+            version: number;
         };
         /**
          * ProjectTaskStatus
@@ -2147,6 +2153,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "Idempotency-Key"?: string | null;
                 authorization?: string | null;
             };
             path: {
@@ -2184,6 +2191,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "If-Match"?: string | null;
                 authorization?: string | null;
             };
             path: {
@@ -2260,6 +2268,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "Idempotency-Key"?: string | null;
                 authorization?: string | null;
             };
             path: {
@@ -2297,6 +2306,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "If-Match"?: string | null;
                 authorization?: string | null;
             };
             path: {
@@ -2537,6 +2547,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "Idempotency-Key"?: string | null;
                 authorization?: string | null;
             };
             path: {
@@ -2819,6 +2830,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "If-Match"?: string | null;
                 authorization?: string | null;
             };
             path: {
