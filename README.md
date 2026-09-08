@@ -96,7 +96,7 @@ PostgreSQL passwords, mock SSO, debug mode, wildcard credentialed CORS,
 missing issuer/audience values, legacy tokens, and disabled antivirus scanning.
 
 The primary prefixes are `PLATFORM_`, `ACCESS_`, `PROJECTS_`,
-`SERVICE_DESK_`, `SSO_`, `OTEL_`, and `S3_`. See
+`SERVICE_DESK_`, and `SSO_`. Storage settings use each module’s prefix. See
 [secrets and configuration](docs/operations/secrets.md),
 [deployment](docs/operations/deployment.md), and
 [SSO operation](docs/operations/sso.md).

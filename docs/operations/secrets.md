@@ -14,8 +14,10 @@ command-line arguments visible to other processes.
 | `PROJECTS_` | Projects | database, JWKS, storage, antivirus, pools |
 | `SERVICE_DESK_` | Service Desk | database, JWKS, storage, workers |
 | `SSO_` | identity integration | provider, issuer, client, callbacks |
-| `OTEL_` | observability | exporter, service name, sampling |
-| `S3_` | infrastructure | endpoint, bucket, credentials, region |
+
+Storage settings use `PROJECTS_S3_*` and `SERVICE_DESK_S3_*`; there is no
+global `S3_*` configuration. Observability currently exposes JSON logs and
+Prometheus metrics; no OTEL exporter is configured.
 
 Each database URL uses a dedicated role and non-empty password. Production
 startup fails on SQLite, default JWT material, mock SSO, debug mode, wildcard
