@@ -11,6 +11,7 @@ from app.modules.sla.models import (
     ServiceDeskTicketSlaPause,
 )
 from test_tickets import create_requester, create_service_with_template
+from test_sla_worker import _sla_policy
 import app.modules.workbench.service as workbench_service
 
 
@@ -234,6 +235,8 @@ def test_allowed_actions_match_lifecycle_and_assignee_options(
 
 def add_warning_event(db, ticket: ServiceDeskTicket, metric: str) -> None:
     policy_id = ticket.sla_policy_id or uuid.uuid4()
+    if ticket.sla_policy_id is None:
+        _sla_policy(db, policy_id)
     ticket.sla_policy_id = policy_id
     rule = ServiceDeskEscalationRule(
         sla_policy_id=policy_id,

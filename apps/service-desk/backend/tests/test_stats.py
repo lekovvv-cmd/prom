@@ -1,13 +1,14 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import event
+from sqlalchemy import event, select
 
 from app.core.enums import ServiceDeskPriority, ServiceDeskTicketStatus
 from app.core.enums import ServiceDeskAccessType
 from app.modules.catalog.models import ServiceDeskCategory, ServiceDeskService
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 from app.modules.tickets.models import ServiceDeskTicket
+from app.modules.templates.models import ServiceDeskTemplateVersion
 
 
 def _manager(db_session_factory, auth_headers_for_user, *capabilities):
@@ -62,6 +63,8 @@ def _service(db):
     service = ServiceDeskService(category_id=category.id, title="Network")
     db.add(service)
     db.flush()
+    db.add(ServiceDeskTemplateVersion(service_id=service.id, version=1))
+    db.flush()
     return service
 
 
@@ -89,7 +92,11 @@ def _user(db, name="Assignee", *, reports=False):
 def _ticket(db, service, requester, assignee, **values):
     ticket = ServiceDeskTicket(
         service_id=service.id,
-        template_version_id=uuid.uuid4(),
+        template_version_id=db.scalar(
+            select(ServiceDeskTemplateVersion.id).where(
+                ServiceDeskTemplateVersion.service_id == service.id
+            )
+        ),
         requester_user_id=requester.id,
         assignee_user_id=assignee.id,
         title=values.pop("title", "Stats ticket"),
