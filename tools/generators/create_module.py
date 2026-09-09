@@ -188,13 +188,6 @@ def get_session() -> Generator[Session]:
                 session.rollback()
 """
         ),
-        module / "backend" / "src" / package / "errors.py": _render(
-            """
-from platform_sdk.error_types import EntityNotFound, InvalidRequest
-
-__all__ = ["EntityNotFound", "InvalidRequest"]
-"""
-        ),
         module / "backend" / "src" / package / "security.py": _render(
             f'''
 from functools import lru_cache
@@ -231,13 +224,6 @@ def require_module_access(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     return principal
 '''
-        ),
-        module / "backend" / "src" / package / "unit_of_work.py": _render(
-            """
-from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
-
-__all__ = ["SqlAlchemyUnitOfWork"]
-"""
         ),
         module / "backend" / "src" / package / "platform_events.py": _render(
             """
