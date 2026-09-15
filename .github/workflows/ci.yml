@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: read
@@ -24,6 +28,7 @@ jobs:
   detect-changes:
     name: Detect affected modules
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       access: ${{ steps.filter.outputs.access }}
       projects: ${{ steps.filter.outputs.projects }}
@@ -77,10 +82,13 @@ jobs:
               - 'tools/gateway/**'
               - 'eslint.config.mjs'
               - 'knip.json'
+              - '.gitattributes'
               - 'package.json'
               - 'package-lock.json'
             sdk:
               - '.github/workflows/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
               - 'packages/python/platform-sdk/**'
             contracts:
               - '.github/workflows/**'
@@ -93,6 +101,7 @@ jobs:
               - 'package-lock.json'
             infra:
               - '.github/workflows/**'
+              - '.dockerignore'
               - 'compose.yaml'
               - '.env.example'
               - 'apps/**/Dockerfile'
@@ -139,6 +148,7 @@ jobs:
     name: Architecture boundaries
     needs: detect-changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Install pinned uv and Python
@@ -153,6 +163,7 @@ jobs:
           uv run --frozen python -m pytest -q
           tools/architecture/test_check.py
           tools/ci/test_discover_generated_modules.py
+          tools/ci/test_coverage.py
       - run: python tools/architecture/check.py
       - uses: actions/setup-node@v4
         with:
@@ -164,6 +175,7 @@ jobs:
     name: Module generator acceptance
     needs: detect-changes
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -191,7 +203,8 @@ jobs:
         run: |
           test_key="$RUNNER_TEMP/prom-live-access-test.pem"
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$test_key"
-          export ACCESS_JWT_PRIVATE_KEY="$(<"$test_key")"
+          ACCESS_JWT_PRIVATE_KEY="$(<"$test_key")"
+          export ACCESS_JWT_PRIVATE_KEY
           export ACCESS_JWT_KEY_ID="live-generator-access"
           docker compose --profile core --profile audit-sample-module up --build -d --wait \
             access-db access-migrate access-service \
@@ -230,6 +243,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.python == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -263,6 +277,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.python == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -288,6 +303,9 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      COVERAGE_SOURCE: packages/python/platform-sdk/src
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -296,16 +314,32 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
       - run: uv sync --locked --package prom-platform-sdk --extra dev
-      - run: uv run --frozen --package prom-platform-sdk --extra dev python -m pytest -q packages/python/platform-sdk/tests
+      - run: uv run --frozen --package prom-platform-sdk --extra dev coverage run -m pytest -q packages/python/platform-sdk/tests
+      - name: Report line and branch coverage
+        if: ${{ !cancelled() }}
+        run: |
+          uv run --frozen coverage xml
+          uv run --frozen coverage html
+          uv run --frozen coverage report
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-sdk
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 14
 
   business-module-tests:
     name: Business module tests (${{ matrix.module }})
     needs: detect-changes
     if: needs.detect-changes.outputs.modules == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.detect-changes.outputs.business_matrix) }}
+    env:
+      COVERAGE_SOURCE: apps/${{ matrix.module }}/backend
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -314,13 +348,29 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
       - run: uv sync --locked --all-packages --all-extras --group dev
-      - run: uv run --frozen --package "${{ matrix.package }}" --extra dev python -m pytest -q "${{ matrix.tests }}"
+      - run: uv run --frozen --package "${{ matrix.package }}" --extra dev coverage run -m pytest -q "${{ matrix.tests }}"
+      - name: Report line and branch coverage
+        if: ${{ !cancelled() }}
+        run: |
+          uv run --frozen coverage xml
+          uv run --frozen coverage html
+          uv run --frozen coverage report
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-${{ matrix.module }}
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 14
 
   access-service-tests:
     name: Access Service tests
     needs: detect-changes
     if: needs.detect-changes.outputs.access == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COVERAGE_SOURCE: apps/access-service
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -329,13 +379,27 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
       - run: uv sync --locked --package prom-access-service --extra dev
-      - run: uv run --frozen --package prom-access-service --extra dev python -m pytest -q apps/access-service/tests
+      - run: uv run --frozen --package prom-access-service --extra dev coverage run -m pytest -q apps/access-service/tests
+      - name: Report line and branch coverage
+        if: ${{ !cancelled() }}
+        run: |
+          uv run --frozen coverage xml
+          uv run --frozen coverage html
+          uv run --frozen coverage report
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-access
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 14
 
   access-postgres-integration:
     name: Access PostgreSQL, group RBAC, and key rotation
     needs: detect-changes
     if: needs.detect-changes.outputs.access == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17.6-alpine
@@ -379,6 +443,7 @@ jobs:
       needs.detect-changes.outputs.projects == 'true' ||
       needs.detect-changes.outputs.service_desk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -396,12 +461,7 @@ jobs:
       - name: Run and verify representative seed jobs
         run: |
           for service in access-seed projects-seed service-desk-seed; do
-            if docker compose --profile full --profile demo run --rm --no-deps "$service"; then
-              exit_code=0
-            else
-              exit_code=$?
-            fi
-            test "$exit_code" -eq 0
+            docker compose --profile full --profile demo run --rm --no-deps "$service"
           done
       - name: Rehearse dry-run, partial recovery, and repeatable apply against PostgreSQL
         run: |
@@ -435,6 +495,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.projects == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -454,6 +515,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.service_desk == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
@@ -469,6 +531,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.projects == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17.6-alpine
@@ -501,6 +564,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.service_desk == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17.6-alpine
@@ -532,6 +596,7 @@ jobs:
       - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_postgres_concurrency.py
       - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_notification_outbox.py
       - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_sla_worker.py
+      - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_stats.py apps/service-desk/backend/tests/test_workbench.py
       - run: uv run --frozen --package shpiu-service-desk-backend --extra dev python -m pytest -q apps/service-desk/backend/tests/test_admin_access.py::test_last_active_service_desk_admin_is_protected
 
   frontend-tests:
@@ -539,6 +604,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -551,7 +617,14 @@ jobs:
       - run: npm run check:architecture
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test
+      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-frontend
+          path: apps/platform-shell/coverage/
+          if-no-files-found: error
+          retention-days: 14
       - run: npm run check:styles
       - run: npm run check:dead-code
       - name: Audit production npm dependencies
@@ -572,6 +645,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -596,6 +670,7 @@ jobs:
       needs.detect-changes.outputs.service_desk == 'true' ||
       needs.detect-changes.outputs.modules == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       PROM_PYTHON: .venv/bin/python
     steps:
@@ -626,6 +701,7 @@ jobs:
       needs.detect-changes.outputs.frontend == 'true' ||
       needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -657,6 +733,7 @@ jobs:
       needs.detect-changes.outputs.modules == 'true' &&
       needs.detect-changes.outputs.has_generated_modules == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.detect-changes.outputs.generated_matrix) }}
@@ -682,6 +759,7 @@ jobs:
       needs.detect-changes.outputs.access == 'true' ||
       needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -722,6 +800,7 @@ jobs:
       needs.detect-changes.outputs.modules == 'true' &&
       needs.detect-changes.outputs.has_generated_modules == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.detect-changes.outputs.generated_matrix) }}
@@ -751,6 +830,7 @@ jobs:
       needs.detect-changes.outputs.service_desk == 'true' ||
       needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -801,6 +881,7 @@ jobs:
       needs.detect-changes.outputs.frontend == 'true' ||
       needs.detect-changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b

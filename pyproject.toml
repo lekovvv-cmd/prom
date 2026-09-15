@@ -17,6 +17,7 @@ target-version = "py314"
 
 [dependency-groups]
 dev = [
+  "coverage==7.14.1",
   "deptry==0.25.1",
   "mypy==2.3.0",
   "pip-audit==2.10.1",
@@ -35,3 +36,21 @@ exclude = [
   "/alembic/",
   "/tests/",
 ]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["${COVERAGE_SOURCE?}"]
+omit = ["*/tests/*", "*/alembic/*"]
+
+[tool.coverage.report]
+include_namespace_packages = true
+show_missing = true
+precision = 2
+fail_under = 65
+
+[tool.coverage.xml]
+output = "coverage/coverage.xml"
+
+[tool.coverage.html]
+directory = "coverage/html"

@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "test": "npm run test --workspace=@prom/platform-shell",
+    "test:coverage": "npm run test:coverage --workspace=@prom/platform-shell",
     "build": "npm run build --workspace=@prom/platform-shell",
     "build:check": "npm run build && npm run check:bundle",
     "format:check": "prettier --check apps/platform-shell/src apps/platform-shell/e2e apps/platform-shell/playwright.config.ts apps/platform-shell/vite.config.ts apps/*/frontend/**/*.{ts,tsx,css,json} packages/frontend tools/frontend tools/contracts tools/gateway eslint.config.mjs knip.json package.json",
