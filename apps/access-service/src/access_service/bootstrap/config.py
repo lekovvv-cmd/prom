@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Literal
 
 from platform_sdk.config import (
-    has_cors_wildcard,
     is_insecure_secret,
     is_production_environment,
     parse_nonempty_csv,
@@ -18,7 +17,6 @@ class AccessSettings(BaseSettings):
     environment: str = "development"
     debug: bool = False
     database_url: str = "postgresql+psycopg://prom_access:prom_access@access-db:5432/prom_access"
-    frontend_origin: str = "http://localhost:5173"
     token_issuer: str = "prom-access"
     token_audiences: str = "projects,service-desk"
     token_ttl_seconds: int = 900
@@ -32,12 +30,6 @@ class AccessSettings(BaseSettings):
     session_idle_ttl_seconds: int = 1800
     session_absolute_ttl_seconds: int = 28800
     session_rotation_seconds: int = 900
-    db_pool_size: int = 5
-    db_max_overflow: int = 5
-    db_pool_timeout_seconds: int = 30
-    db_pool_recycle_seconds: int = 1800
-    db_statement_timeout_ms: int = 30_000
-    db_application_name: str = "prom-access-api"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -71,8 +63,6 @@ class AccessSettings(BaseSettings):
                 )
             if not self.jwt_key_id.strip() or self.jwt_key_id == "local-ephemeral":
                 raise ValueError("ACCESS_JWT_KEY_ID must identify the production signing key")
-            if has_cors_wildcard(self.frontend_origin):
-                raise ValueError("ACCESS_FRONTEND_ORIGIN cannot be a wildcard in production")
             if not self.token_issuer.strip():
                 raise ValueError("ACCESS_TOKEN_ISSUER is required in production")
             if not parse_nonempty_csv(self.token_audiences):

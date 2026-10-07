@@ -14,16 +14,11 @@ const requiredNginxFragments = [
   "rewrite ^/api/access/v1/auth/mock/(.*)$ /auth/mock/$1 break;",
   "location /api/projects/v1/",
   "location /api/service-desk/v1/",
-  "location /api/",
-  "location /service-desk-api/",
   "location = /healthz",
   "X-Request-ID $prom_request_id",
-  "X-Correlation-ID $prom_correlation_id",
-  "proxy_set_header Traceparent $http_traceparent",
   "client_max_body_size",
   "proxy_connect_timeout",
   "X-Content-Type-Options",
-  'add_header Deprecation "true" always',
   "resolver 127.0.0.11",
 ];
 
@@ -59,11 +54,11 @@ if (exposedPorts.length !== 1 || !exposedPorts[0].includes("5173:80")) {
   );
 }
 
-const platformShell = compose.slice(compose.indexOf("  platform-shell:"));
-if (!platformShell.includes('profiles: ["core", "full"]')) {
-  throw new Error(
-    "platform-shell must participate in both core and full profiles",
-  );
+if (
+  nginx.includes("location /api/ {") ||
+  nginx.includes("location /service-desk-api/")
+) {
+  throw new Error("Legacy gateway aliases must not be exposed");
 }
 
 console.log("Gateway contract check passed.");

@@ -48,7 +48,6 @@ def production_settings(**overrides: object) -> AccessSettings:
     values: dict[str, object] = {
         "environment": "production",
         "database_url": "postgresql+psycopg://access:secret@db/access",
-        "frontend_origin": "https://prom.example",
         "token_issuer": "https://prom.example/access",
         "token_audiences": "projects,service-desk",
         "jwt_private_key": private_key.private_bytes(
@@ -69,7 +68,6 @@ def production_settings(**overrides: object) -> AccessSettings:
         ({"debug": True}, "ACCESS_DEBUG"),
         ({"jwt_private_key": ""}, "ACCESS_JWT_PRIVATE_KEY"),
         ({"jwt_key_id": "local-ephemeral"}, "ACCESS_JWT_KEY_ID"),
-        ({"frontend_origin": "https://prom.example,*"}, "ACCESS_FRONTEND_ORIGIN"),
         ({"token_issuer": ""}, "ACCESS_TOKEN_ISSUER"),
         ({"token_audiences": ""}, "ACCESS_TOKEN_AUDIENCES"),
     ],

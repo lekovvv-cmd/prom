@@ -81,7 +81,6 @@ def test_production_session_cookie_is_secure() -> None:
     settings = AccessSettings(
         environment="production",
         database_url="postgresql+psycopg://access:secret@db/access",
-        frontend_origin="https://prom.example",
         token_issuer="https://prom.example/access",
         jwt_private_key=generate_private_key_pem(),
         jwt_key_id="production-key",

@@ -2,7 +2,6 @@ import uuid
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from platform_sdk.database import pool_metrics
 from platform_sdk.errors import install_problem_details_handlers
@@ -25,18 +24,6 @@ def create_app() -> FastAPI:
     configure_json_logging(service="projects-api", module="projects", environment=settings.env)
     metrics = get_service_metrics(service="projects-api", module="projects")
     app = FastAPI(title=settings.app_name)
-
-    origins = [origin.strip() for origin in settings.frontend_origin.split(",") if origin.strip()]
-    if "http://127.0.0.1:5173" not in origins:
-        origins.append("http://127.0.0.1:5173")
-
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     install_request_context(app, metrics=metrics)
     install_metrics_endpoint(app, metrics)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from access_service.api.router import router
@@ -31,13 +30,6 @@ def create_app() -> FastAPI:
         DatabaseSigningKeyStore(settings, SessionLocal),
     )
     app.state.session_manager = BrowserSessionManager(settings)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[origin.strip() for origin in settings.frontend_origin.split(",") if origin.strip()],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
     install_request_context(app, metrics=metrics)
     install_metrics_endpoint(app, metrics)
     install_problem_details_handlers(app)

@@ -1,5 +1,4 @@
 from platform_sdk.config import (
-    has_cors_wildcard,
     is_production_environment,
     validate_production_database_url,
 )
@@ -14,21 +13,11 @@ class Settings(BaseSettings):
     access_jwks_url: str | None = None
     access_token_issuer: str = "prom-access"
     access_token_audience: str = "projects"
-    access_jwks_cache_ttl_seconds: int = 300
-    access_jwks_stale_if_error_seconds: int = 3600
-    access_clock_skew_seconds: int = 30
-    frontend_origin: str = "http://localhost:5173"
     uploads_dir: str = "storage/uploads"
     max_attachment_size_bytes: int = 10 * 1024 * 1024
     max_attachments_per_owner: int = 10
     attachment_orphan_grace_seconds: int = 3600
     worker_metrics_port: int = 9100
-    db_pool_size: int = 5
-    db_max_overflow: int = 5
-    db_pool_timeout_seconds: int = 30
-    db_pool_recycle_seconds: int = 1800
-    db_statement_timeout_ms: int = 30_000
-    db_application_name: str = "prom-projects-api"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -52,8 +41,6 @@ class Settings(BaseSettings):
                 raise ValueError("PROJECTS_ACCESS_TOKEN_ISSUER is required in production")
             if not self.access_token_audience.strip():
                 raise ValueError("PROJECTS_ACCESS_TOKEN_AUDIENCE is required in production")
-            if has_cors_wildcard(self.frontend_origin):
-                raise ValueError("PROJECTS_FRONTEND_ORIGIN cannot be a wildcard in production")
         return self
 
 

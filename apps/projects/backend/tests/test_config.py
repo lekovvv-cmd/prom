@@ -13,7 +13,6 @@ def production_settings(**overrides: object) -> Settings:
         "access_jwks_url": "https://prom.example/api/access/v1/.well-known/jwks.json",
         "access_token_issuer": "https://prom.example/access",
         "access_token_audience": "projects",
-        "frontend_origin": "https://prom.example",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -28,7 +27,6 @@ def production_settings(**overrides: object) -> Settings:
         ({"access_jwks_url": None}, "PROJECTS_ACCESS_JWKS_URL"),
         ({"access_token_issuer": ""}, "PROJECTS_ACCESS_TOKEN_ISSUER"),
         ({"access_token_audience": ""}, "PROJECTS_ACCESS_TOKEN_AUDIENCE"),
-        ({"frontend_origin": "https://prom.example,*"}, "PROJECTS_FRONTEND_ORIGIN"),
     ],
 )
 def test_production_settings_reject_unsafe_configuration(

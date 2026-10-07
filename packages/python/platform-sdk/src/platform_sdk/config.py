@@ -26,10 +26,6 @@ def validate_production_database_url(database_url: str, *, variable_name: str) -
         raise ValueError(f"{variable_name} must include a non-empty password in production")
 
 
-def has_cors_wildcard(origins: str) -> bool:
-    return any(origin.strip() == "*" for origin in origins.split(","))
-
-
 def is_insecure_secret(secret: str | None, *, known_defaults: tuple[str, ...] = ()) -> bool:
     if not isinstance(secret, str) or not secret.strip():
         return True

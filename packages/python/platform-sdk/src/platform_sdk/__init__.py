@@ -2,7 +2,6 @@
 
 from .auth import CachedJwksVerifier, CurrentPrincipal, require_permission
 from .config import (
-    has_cors_wildcard,
     is_insecure_secret,
     is_production_environment,
     parse_nonempty_csv,
@@ -79,7 +78,6 @@ __all__ = [
     "create_platform_engine",
     "get_request_id",
     "get_service_metrics",
-    "has_cors_wildcard",
     "claim_outbox_batch",
     "cleanup_outbox_records",
     "install_problem_details_handlers",
