@@ -5,9 +5,12 @@ application; Access Service owns platform identity mappings and RBAC; Projects
 and Service Desk remain independent product services with their own databases.
 
 ```text
-SSO or local mock -> Access Service -> short-lived signed platform token
-                                  -> Projects / Service Desk
+Demo user chooser -> Access browser session -> RBAC
+                  -> short-lived internal JWT / JWKS
+                  -> Projects / Service Desk
 Platform shell -> gateway -> versioned module APIs
+Projects / Service Desk -> separate PostgreSQL databases + local attachments
+JSON logs + request IDs + Prometheus metrics
 ```
 
 No product service owns global identity, and no module reads another module's
