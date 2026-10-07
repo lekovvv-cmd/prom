@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import http.cookiejar
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
@@ -22,13 +23,14 @@ PERMISSION = "audit_sample_module.access"
 MODULE_API = f"{BASE}/api/{MODULE}/v1/me"
 
 
-def request(method: str, url: str, *, payload: object | None = None, token: str | None = None) -> tuple[int, object]:
+def request(method: str, url: str, *, payload: object | None = None, token: str | None = None, opener=None) -> tuple[int, object]:
     body = json.dumps(payload).encode() if payload is not None else None
     headers = {"Content-Type": "application/json"} if body else {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     try:
-        with urllib.request.urlopen(
+        client = opener or urllib.request.build_opener()
+        with client.open(
             urllib.request.Request(url, data=body, headers=headers, method=method), timeout=15
         ) as response:
             return response.status, json.load(response)
@@ -37,7 +39,10 @@ def request(method: str, url: str, *, payload: object | None = None, token: str 
 
 
 def token(email: str) -> dict[str, object]:
-    status, result = request("POST", f"{ACCESS}/auth/mock/token", payload={"email": email, "code": "000000"})
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    status, result = request("POST", f"{ACCESS}/auth/mock/verify", payload={"email": email, "code": "000000"}, opener=opener)
+    assert status == 200, result
+    status, result = request("GET", f"{ACCESS}/session/token", opener=opener)
     assert status == 200, result
     assert isinstance(result, dict)
     return result

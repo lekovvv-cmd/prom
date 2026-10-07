@@ -34,7 +34,6 @@ from access_service.application.access import (
     record_audit,
     require_user,
     revoke_sessions,
-    sync_external_principal,
     user_ids_for_permission,
 )
 from access_service.domain.models import (
@@ -48,7 +47,7 @@ from access_service.domain.models import (
     UserRoleAssignment,
 )
 from access_service.infrastructure.database import get_session
-from access_service.infrastructure.identity import IdentityProvider, InternalTokenSigner
+from access_service.infrastructure.identity import InternalTokenSigner
 from access_service.infrastructure.sessions import BrowserSessionManager
 
 
@@ -160,8 +159,6 @@ def require_mock_provider(request: Request) -> None:
     signer: InternalTokenSigner = request.app.state.token_signer
     if signer.settings.environment.lower() in {"production", "prod"}:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    if signer.settings.sso_provider != "mock":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
 @router.get(
@@ -171,13 +168,7 @@ def require_mock_provider(request: Request) -> None:
     response_model=None,
 )
 def mock_login(request: Request, return_url: str = "/") -> RedirectResponse:
-    """Hand the local-only SSO entrypoint to the shell's mock-user chooser.
-
-    Keeping this route means the generic ``/auth/login`` flow remains usable
-    in development.  Authentication itself still happens only through the
-    code/verify endpoint, which creates the browser session after the user
-    chooses a seeded account in the shell.
-    """
+    """Redirect to the demo user chooser in the shell."""
 
     require_mock_provider(request)
     return RedirectResponse(
@@ -247,15 +238,6 @@ def mock_verify(
     )
 
 
-@router.post("/auth/mock/token", response_model=TokenOut)
-def mock_token(payload: MockLoginInput, request: Request, session: Session = Depends(get_session)) -> TokenOut:
-    user = require_mock_user(payload, request, session)
-    mark_login(session, user)
-    record_audit(session, actor_user_id=user.id, action="mock_login", object_type="platform_user", object_id=user.id, request_id=getattr(request.state, "request_id", None))
-    session.commit()
-    return issue_token(request, session, user)
-
-
 @router.post("/auth/mock/logout", status_code=status.HTTP_204_NO_CONTENT)
 def mock_logout(
     request: Request,
@@ -283,50 +265,12 @@ def mock_logout(
     status_code=status.HTTP_302_FOUND,
     response_model=None,
 )
-def login(
-    request: Request,
-    return_url: str = "/",
-    session: Session = Depends(get_session),
-) -> RedirectResponse:
-    provider: IdentityProvider = request.app.state.identity_provider
-    principal = provider.authenticate_request(request)
-    if principal is None:
-        return RedirectResponse(provider.build_login_redirect(return_url), status_code=302)
-    user = sync_external_principal(session, principal)
-    target = safe_return_url(principal.return_url or return_url)
-    response = RedirectResponse(target, status_code=302)
-    start_browser_session(
-        request=request,
-        response=response,
-        session=session,
-        user=user,
-        action="sso_session_created",
+def login(request: Request, return_url: str = "/") -> RedirectResponse:
+    require_mock_provider(request)
+    return RedirectResponse(
+        f"/login?{urlencode({'next': safe_return_url(return_url)})}",
+        status_code=302,
     )
-    return response
-
-
-@router.get(
-    "/auth/callback",
-    response_class=RedirectResponse,
-    status_code=status.HTTP_302_FOUND,
-    response_model=None,
-)
-def oidc_callback(
-    request: Request,
-    session: Session = Depends(get_session),
-) -> RedirectResponse:
-    provider: IdentityProvider = request.app.state.identity_provider
-    principal = provider.handle_callback(request)
-    user = sync_external_principal(session, principal)
-    response = RedirectResponse(safe_return_url(principal.return_url or "/"), status_code=302)
-    start_browser_session(
-        request=request,
-        response=response,
-        session=session,
-        user=user,
-        action="oidc_session_created",
-    )
-    return response
 
 
 @router.post(
@@ -346,17 +290,13 @@ def logout(
     record_audit(
         session,
         actor_user_id=user.id,
-        action="sso_logout",
+        action="demo_logout",
         object_type="platform_user",
         object_id=user.id,
         request_id=getattr(request.state, "request_id", None),
     )
     session.commit()
-    provider: IdentityProvider = request.app.state.identity_provider
-    response = RedirectResponse(
-        provider.build_logout_redirect(safe_return_url(return_url)),
-        status_code=302,
-    )
+    response = RedirectResponse(safe_return_url(return_url), status_code=302)
     manager.clear_cookies(response)
     return response
 

@@ -1189,17 +1189,6 @@
         "summary": "Session Token"
       }
     },
-    "/auth/callback": {
-      "get": {
-        "operationId": "oidc_callback_auth_callback_get",
-        "responses": {
-          "302": {
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Oidc Callback"
-      }
-    },
     "/auth/login": {
       "get": {
         "operationId": "login_auth_login_get",
@@ -1306,7 +1295,7 @@
     },
     "/auth/mock/login": {
       "get": {
-        "description": "Hand the local-only SSO entrypoint to the shell's mock-user chooser.\n\nKeeping this route means the generic ``/auth/login`` flow remains usable\nin development.  Authentication itself still happens only through the\ncode/verify endpoint, which creates the browser session after the user\nchooses a seeded account in the shell.",
+        "description": "Redirect to the demo user chooser in the shell.",
         "operationId": "mock_login_auth_mock_login_get",
         "parameters": [
           {
@@ -1347,44 +1336,6 @@
           }
         },
         "summary": "Mock Logout"
-      }
-    },
-    "/auth/mock/token": {
-      "post": {
-        "operationId": "mock_token_auth_mock_token_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MockLoginInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Mock Token"
       }
     },
     "/auth/mock/verify": {

@@ -10,7 +10,7 @@ from platform_sdk.config import (
     parse_nonempty_csv,
     validate_production_database_url,
 )
-from pydantic import Field, field_validator, model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,25 +32,6 @@ class AccessSettings(BaseSettings):
     session_idle_ttl_seconds: int = 1800
     session_absolute_ttl_seconds: int = 28800
     session_rotation_seconds: int = 900
-    trusted_headers_enabled: bool = False
-    trusted_proxy_networks: str = ""
-    sso_provider: Literal["mock", "trusted-header", "oidc"] = Field(default="mock", validation_alias="SSO_PROVIDER")
-    oidc_enabled: bool = False
-    oidc_issuer_url: str | None = Field(default=None, validation_alias="SSO_ISSUER_URL")
-    oidc_client_id: str | None = Field(default=None, validation_alias="SSO_CLIENT_ID")
-    oidc_client_secret: str | None = Field(default=None, validation_alias="SSO_CLIENT_SECRET")
-    oidc_redirect_uri: str | None = Field(default=None, validation_alias="SSO_REDIRECT_URI")
-    oidc_scopes: str = Field(default="openid profile email", validation_alias="SSO_SCOPES")
-    oidc_allowed_audiences: str = Field(default="", validation_alias="SSO_ALLOWED_AUDIENCES")
-    oidc_jwks_cache_ttl_seconds: int = Field(default=300, validation_alias="SSO_JWKS_CACHE_TTL")
-    oidc_login_transaction_ttl_seconds: int = Field(
-        default=600,
-        validation_alias="SSO_LOGIN_TRANSACTION_TTL",
-    )
-    oidc_post_logout_redirect_uri: str | None = Field(
-        default=None,
-        validation_alias="SSO_POST_LOGOUT_REDIRECT_URI",
-    )
     db_pool_size: int = 5
     db_max_overflow: int = 5
     db_pool_timeout_seconds: int = 30
@@ -96,22 +77,6 @@ class AccessSettings(BaseSettings):
                 raise ValueError("ACCESS_TOKEN_ISSUER is required in production")
             if not parse_nonempty_csv(self.token_audiences):
                 raise ValueError("ACCESS_TOKEN_AUDIENCES is required in production")
-            if self.sso_provider == "mock":
-                raise ValueError("SSO_PROVIDER=mock is not allowed in production")
-            if (self.oidc_enabled or self.sso_provider == "oidc") and not all(
-                [self.oidc_issuer_url, self.oidc_client_id, self.oidc_client_secret, self.oidc_redirect_uri]
-            ):
-                raise ValueError("OIDC is enabled but its required configuration is incomplete")
-        if (
-            (self.oidc_enabled or self.sso_provider == "oidc")
-            and self.oidc_client_secret
-            and len(self.oidc_client_secret.encode()) < 32
-        ):
-            raise ValueError("SSO_CLIENT_SECRET must contain at least 32 bytes")
-        if self.oidc_jwks_cache_ttl_seconds < 30:
-            raise ValueError("SSO_JWKS_CACHE_TTL must be at least 30 seconds")
-        if not 60 <= self.oidc_login_transaction_ttl_seconds <= 900:
-            raise ValueError("SSO_LOGIN_TRANSACTION_TTL must be between 60 and 900 seconds")
         if self.jwt_rotation_overlap_seconds < self.token_ttl_seconds:
             raise ValueError("ACCESS_JWT_ROTATION_OVERLAP_SECONDS must cover token TTL")
         if self.session_idle_ttl_seconds > self.session_absolute_ttl_seconds:

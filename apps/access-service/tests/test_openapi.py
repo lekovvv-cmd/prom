@@ -14,7 +14,6 @@ def test_openapi_declares_browser_auth_redirects() -> None:
 
     for path, method in (
         ("/auth/login", "get"),
-        ("/auth/callback", "get"),
         ("/auth/logout", "post"),
         ("/auth/mock/login", "get"),
     ):

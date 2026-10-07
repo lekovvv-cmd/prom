@@ -85,12 +85,6 @@ def test_production_session_cookie_is_secure() -> None:
         token_issuer="https://prom.example/access",
         jwt_private_key=generate_private_key_pem(),
         jwt_key_id="production-key",
-        sso_provider="oidc",
-        oidc_enabled=True,
-        oidc_issuer_url="https://sso.example",
-        oidc_client_id="prom",
-        oidc_client_secret="client-secret-at-least-32-bytes-long",
-        oidc_redirect_uri="https://prom.example/auth/callback",
     )
     manager = BrowserSessionManager(settings)
     response = Response()

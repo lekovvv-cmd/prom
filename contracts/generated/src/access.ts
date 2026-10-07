@@ -301,23 +301,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Oidc Callback */
-        get: operations["oidc_callback_auth_callback_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -378,12 +361,7 @@ export interface paths {
         };
         /**
          * Mock Login
-         * @description Hand the local-only SSO entrypoint to the shell's mock-user chooser.
-         *
-         *     Keeping this route means the generic ``/auth/login`` flow remains usable
-         *     in development.  Authentication itself still happens only through the
-         *     code/verify endpoint, which creates the browser session after the user
-         *     chooses a seeded account in the shell.
+         * @description Redirect to the demo user chooser in the shell.
          */
         get: operations["mock_login_auth_mock_login_get"];
         put?: never;
@@ -405,23 +383,6 @@ export interface paths {
         put?: never;
         /** Mock Logout */
         post: operations["mock_logout_auth_mock_logout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/mock/token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Mock Token */
-        post: operations["mock_token_auth_mock_token_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1244,24 +1205,6 @@ export interface operations {
             };
         };
     };
-    oidc_callback_auth_callback_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            302: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     login_auth_login_get: {
         parameters: {
             query?: {
@@ -1397,39 +1340,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    mock_token_auth_mock_token_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MockLoginInput"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
             };
         };
     };

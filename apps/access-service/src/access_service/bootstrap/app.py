@@ -10,7 +10,6 @@ from access_service.infrastructure.database import SessionLocal, engine, pool_co
 from access_service.infrastructure.identity import (
     DatabaseSigningKeyStore,
     InternalTokenSigner,
-    build_identity_provider,
 )
 from access_service.infrastructure.sessions import BrowserSessionManager
 from platform_sdk.database import pool_metrics
@@ -31,7 +30,6 @@ def create_app() -> FastAPI:
         settings,
         DatabaseSigningKeyStore(settings, SessionLocal),
     )
-    app.state.identity_provider = build_identity_provider(settings, SessionLocal)
     app.state.session_manager = BrowserSessionManager(settings)
     app.add_middleware(
         CORSMiddleware,

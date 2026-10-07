@@ -37,7 +37,7 @@ def main() -> int:
     status, location, _ = request("/api/access/v1/auth/login?return_url=/projects")
     require(status == 302, f"generic login status: expected 302, got {status}")
     require(
-        location == "/auth/mock/login?return_url=/projects",
+        location == f"/login?next={quote('/projects', safe='')}",
         f"generic login location: expected mock login redirect, got {location!r}",
     )
 
@@ -48,11 +48,13 @@ def main() -> int:
         f"versioned mock login location: expected shell login redirect, got {location!r}",
     )
 
-    status, location, body = request("/api/access/v1/auth/callback")
-    require(status == 400, f"invalid callback must reach Access and return 400, got {status}")
-    require(not location, f"invalid callback unexpectedly redirected to {location!r}")
-    require("detail" in body.lower(), "invalid callback response is not an Access auth error")
-    print("Live gateway Access SSO routing check passed.")
+    status, location, _ = request("/auth/login?return_url=/projects")
+    require(status == 302, f"direct demo login status: expected 302, got {status}")
+    require(
+        location == f"/login?next={quote('/projects', safe='')}",
+        f"direct demo login location: expected shell login redirect, got {location!r}",
+    )
+    print("Live gateway Access demo routing check passed.")
     return 0
 
 
@@ -60,5 +62,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (AssertionError, OSError, http.client.HTTPException) as error:
-        print(f"Live gateway Access SSO routing check failed: {error}", file=sys.stderr)
+        print(f"Live gateway Access demo routing check failed: {error}", file=sys.stderr)
         raise SystemExit(1) from error
