@@ -14,7 +14,6 @@ def production_settings(**overrides: object) -> Settings:
         "access_token_issuer": "https://prom.example/access",
         "access_token_audience": "projects",
         "frontend_origin": "https://prom.example",
-        "antivirus_backend": "clamav",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -30,7 +29,6 @@ def production_settings(**overrides: object) -> Settings:
         ({"access_token_issuer": ""}, "PROJECTS_ACCESS_TOKEN_ISSUER"),
         ({"access_token_audience": ""}, "PROJECTS_ACCESS_TOKEN_AUDIENCE"),
         ({"frontend_origin": "https://prom.example,*"}, "PROJECTS_FRONTEND_ORIGIN"),
-        ({"antivirus_backend": "noop"}, "PROJECTS_ANTIVIRUS_BACKEND=noop"),
     ],
 )
 def test_production_settings_reject_unsafe_configuration(

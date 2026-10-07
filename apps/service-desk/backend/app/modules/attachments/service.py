@@ -13,7 +13,7 @@ from platform_sdk.error_types import (
     PermissionDenied,
     ValidationFailed,
 )
-from platform_sdk.storage import IncomingFile, safe_file_name, stream_incoming_file
+from platform_sdk.storage import IncomingFile, LocalFilesystemStorage, safe_file_name, stream_incoming_file
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -28,7 +28,6 @@ from app.core.enums import (
 from app.modules.access.models import ServiceDeskUser
 from app.modules.attachments.models import ServiceDeskAttachment
 from app.modules.attachments.repository import AttachmentRepository
-from app.modules.attachments.storage import antivirus_scanner, object_storage
 from app.modules.comments.repository import TicketCommentRepository
 from app.modules.templates.repository import TemplateRepository
 from app.modules.tickets.models import ServiceDeskTicket, ServiceDeskTicketHistory
@@ -72,8 +71,7 @@ class AttachmentService:
         self.comment_repository = TicketCommentRepository(db)
         self.template_repository = TemplateRepository(db)
         self.policy = TicketPolicyService()
-        self.storage = object_storage()
-        self.scanner = antivirus_scanner()
+        self.storage = LocalFilesystemStorage(settings.storage_dir)
 
     async def upload_ticket_attachment(
         self,
@@ -323,15 +321,12 @@ class AttachmentService:
             if extension.lstrip(".") not in normalized_extensions:
                 raise ValidationFailed("Недопустимое расширение файла для поля формы")
         final_storage_key = f"{owner_type.value}/{owner_id}/{uuid.uuid4().hex}{extension}"
-        quarantine_key = f".quarantine/service-desk/{uuid.uuid4().hex}{extension}"
         staging_path = (
             Path(settings.storage_dir).resolve()
             / ".staging"
             / f"{uuid.uuid4().hex}{extension}"
         )
-        quarantine_stored = False
         final_stored = False
-        preserve_quarantine = False
         try:
             streamed = await stream_incoming_file(
                 file,
@@ -340,11 +335,6 @@ class AttachmentService:
                 chunk_size=UPLOAD_CHUNK_SIZE,
             )
             self._validate_file_content(staging_path, extension)
-            with staging_path.open("rb") as source:
-                quarantine_checksum = self.storage.put(quarantine_key, source)
-            quarantine_stored = True
-            if quarantine_checksum != streamed.checksum:
-                raise RuntimeError("Quarantine storage checksum mismatch")
             attachment = self.repository.add(
                 ServiceDeskAttachment(
                     module="service-desk",
@@ -353,7 +343,7 @@ class AttachmentService:
                     ticket_id=ticket.id,
                     field_key=field_key,
                     file_name=file_name,
-                    storage_key=quarantine_key,
+                    storage_key=final_storage_key,
                     content_type=CONTENT_TYPE_BY_EXTENSION[extension],
                     original_name=Path(file.file_name or file_name).name[:255],
                     safe_name=file_name,
@@ -365,53 +355,11 @@ class AttachmentService:
                     uploaded_by_user_id=actor.id,
                 )
             )
-            try:
-                scan_result = self.scanner.scan(staging_path)
-            except Exception as exc:
-                self.ticket_repository.add_history(
-                    ServiceDeskTicketHistory(
-                        ticket_id=ticket.id,
-                        event_type="attachment_quarantined",
-                        actor_user_id=actor.id,
-                        message="Attachment remains quarantined",
-                        payload={
-                            "attachment_id": str(attachment.id),
-                            "owner_type": owner_type.value,
-                            "checksum": attachment.checksum,
-                        },
-                    )
-                )
-                self.db.commit()
-                preserve_quarantine = True
-                raise ValidationFailed(
-                    "Antivirus scan is unavailable; the file remains quarantined"
-                ) from exc
-            if scan_result != "clean":
-                attachment.status = ServiceDeskAttachmentStatus.REJECTED
-                self.ticket_repository.add_history(
-                    ServiceDeskTicketHistory(
-                        ticket_id=ticket.id,
-                        event_type="attachment_rejected",
-                        actor_user_id=actor.id,
-                        message="Attachment rejected by antivirus",
-                        payload={
-                            "attachment_id": str(attachment.id),
-                            "owner_type": owner_type.value,
-                            "checksum": attachment.checksum,
-                        },
-                    )
-                )
-                self.db.commit()
-                preserve_quarantine = True
-                raise ValidationFailed("File rejected by antivirus scan")
             with staging_path.open("rb") as source:
                 final_checksum = self.storage.put(final_storage_key, source)
             final_stored = True
             if final_checksum != streamed.checksum:
                 raise RuntimeError("Final storage checksum mismatch")
-            self.storage.delete(quarantine_key)
-            quarantine_stored = False
-            attachment.storage_key = final_storage_key
             attachment.status = ServiceDeskAttachmentStatus.AVAILABLE
             self.ticket_repository.add_history(
                 ServiceDeskTicketHistory(
@@ -435,29 +383,21 @@ class AttachmentService:
             self._rollback_best_effort()
             if final_stored:
                 self._delete_object_best_effort(final_storage_key)
-            if quarantine_stored:
-                self._delete_object_best_effort(quarantine_key)
             raise ValidationFailed(str(exc)) from exc
         except ValidationFailed:
-            if not preserve_quarantine:
-                self._rollback_best_effort()
-                if final_stored:
-                    self._delete_object_best_effort(final_storage_key)
-                if quarantine_stored:
-                    self._delete_object_best_effort(quarantine_key)
+            self._rollback_best_effort()
+            if final_stored:
+                self._delete_object_best_effort(final_storage_key)
             raise
         except BaseException:
             self._rollback_best_effort()
             if final_stored:
                 self._delete_object_best_effort(final_storage_key)
-            if quarantine_stored:
-                self._delete_object_best_effort(quarantine_key)
             raise
         finally:
             self._remove_file_best_effort(staging_path)
             self._remove_empty_storage_dirs(
                 staging_path.parent,
-                Path(settings.storage_dir).resolve() / ".quarantine" / "service-desk",
             )
         return attachment
 

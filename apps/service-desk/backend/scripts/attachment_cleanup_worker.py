@@ -14,13 +14,12 @@ from platform_sdk.storage import LocalFilesystemStorage
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.modules.attachments.repository import AttachmentRepository
-from app.modules.attachments.storage import object_storage
 
 logger = logging.getLogger("prom.service_desk.attachment_cleanup")
 
 
 def cleanup_once() -> dict[str, int]:
-    storage = object_storage()
+    storage = LocalFilesystemStorage(settings.storage_dir)
     now = datetime.now(UTC)
     result = {"deleted_blobs": 0, "rejected_blobs": 0, "orphans": 0}
     with SessionLocal() as db:
@@ -42,20 +41,19 @@ def cleanup_once() -> dict[str, int]:
                 result["rejected_blobs"] += 1
         db.commit()
 
-    if isinstance(storage, LocalFilesystemStorage):
-        for key in storage.iter_keys():
-            if key in known_keys:
-                continue
-            path = storage.path_for(key)
-            age_seconds = max(now.timestamp() - path.stat().st_mtime, 0)
-            if age_seconds < settings.attachment_orphan_grace_seconds:
-                continue
-            storage.delete(key)
-            result["orphans"] += 1
-            logger.info(
-                "service_desk_orphan_attachment_removed",
-                extra={"event": "service_desk_orphan_attachment_removed"},
-            )
+    for key in storage.iter_keys():
+        if key in known_keys:
+            continue
+        path = storage.path_for(key)
+        age_seconds = max(now.timestamp() - path.stat().st_mtime, 0)
+        if age_seconds < settings.attachment_orphan_grace_seconds:
+            continue
+        storage.delete(key)
+        result["orphans"] += 1
+        logger.info(
+            "service_desk_orphan_attachment_removed",
+            extra={"event": "service_desk_orphan_attachment_removed"},
+        )
     return result
 
 

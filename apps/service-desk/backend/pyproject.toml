@@ -11,7 +11,6 @@ dependencies = [
   "alembic>=1.17.0",
   "fastapi>=0.136.3,<0.137.0",
   "psycopg[binary]>=3.2.0",
-  "PyJWT>=2.10.0",
   "pydantic>=2.11.0",
   "pydantic-settings>=2.8.0",
   "prom-platform-sdk>=0.1.0",
@@ -37,7 +36,7 @@ exclude = ["tests*"]
 
 [tool.deptry]
 known_first_party = ["app", "scripts"]
-package_module_name_map = { PyJWT = "jwt", prom-platform-sdk = "platform_sdk" }
+package_module_name_map = { prom-platform-sdk = "platform_sdk" }
 optional_dependencies_dev_groups = ["dev"]
 per_rule_ignores = { DEP002 = ["alembic", "psycopg", "python-multipart", "uvicorn"] }
 

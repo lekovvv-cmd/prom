@@ -1,13 +1,11 @@
 from platform_sdk.config import (
     has_cors_wildcard,
-    is_insecure_secret,
     is_production_environment,
     validate_production_database_url,
 )
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DEFAULT_JWT_SECRET = "change-me-in-production-at-least-32-bytes"
 
 
 class Settings(BaseSettings):
@@ -16,27 +14,14 @@ class Settings(BaseSettings):
     env: str = "development"
     debug: bool = False
     database_url: str = "postgresql+psycopg://service_desk:service_desk@localhost:5433/service_desk"
-    jwt_secret: str = DEFAULT_JWT_SECRET
-    jwt_algorithm: str = "HS256"
     access_jwks_url: str | None = None
     access_token_issuer: str = "prom-access"
     access_token_audience: str = "service-desk"
     access_jwks_cache_ttl_seconds: int = 300
     access_jwks_stale_if_error_seconds: int = 3600
     access_clock_skew_seconds: int = 30
-    allow_legacy_tokens: bool = False
     frontend_origin: str = "http://localhost:5173"
     storage_dir: str = "storage/service-desk"
-    storage_backend: str = "filesystem"
-    s3_endpoint: str | None = None
-    s3_bucket: str | None = None
-    s3_access_key: str | None = None
-    s3_secret_key: str | None = None
-    s3_region: str | None = None
-    antivirus_backend: str = "noop"
-    clamav_host: str = "clamav"
-    clamav_port: int = 3310
-    clamav_timeout_seconds: float = 10.0
     max_attachment_size_bytes: int = 10 * 1024 * 1024
     max_attachments_per_owner: int = 10
     attachment_orphan_grace_seconds: int = 3600
@@ -68,17 +53,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_runtime_configuration(self) -> "Settings":
-        if self.storage_backend not in {"filesystem", "local", "s3"}:
-            raise ValueError(
-                "SERVICE_DESK_STORAGE_BACKEND must be filesystem, local, or s3"
-            )
-        if self.storage_backend == "s3" and not self.s3_bucket:
-            raise ValueError(
-                "SERVICE_DESK_S3_BUCKET is required when S3 storage is enabled"
-            )
-        if self.antivirus_backend not in {"noop", "clamav"}:
-            raise ValueError("SERVICE_DESK_ANTIVIRUS_BACKEND must be noop or clamav")
-
         if is_production_environment(self.env):
             validate_production_database_url(
                 self.database_url,
@@ -86,17 +60,6 @@ class Settings(BaseSettings):
             )
             if self.debug:
                 raise ValueError("SERVICE_DESK_DEBUG must be false in production")
-            if is_insecure_secret(
-                self.jwt_secret,
-                known_defaults=(DEFAULT_JWT_SECRET,),
-            ):
-                raise ValueError(
-                    "SERVICE_DESK_JWT_SECRET cannot use a default value in production"
-                )
-            if self.allow_legacy_tokens:
-                raise ValueError(
-                    "SERVICE_DESK_ALLOW_LEGACY_TOKENS must be false in production"
-                )
             if not self.access_jwks_url:
                 raise ValueError("SERVICE_DESK_ACCESS_JWKS_URL is required in production")
             if not self.access_token_issuer.strip():
@@ -110,10 +73,6 @@ class Settings(BaseSettings):
             if has_cors_wildcard(self.frontend_origin):
                 raise ValueError(
                     "SERVICE_DESK_FRONTEND_ORIGIN cannot be a wildcard in production"
-                )
-            if self.antivirus_backend == "noop":
-                raise ValueError(
-                    "SERVICE_DESK_ANTIVIRUS_BACKEND=noop is not allowed in production"
                 )
         return self
 

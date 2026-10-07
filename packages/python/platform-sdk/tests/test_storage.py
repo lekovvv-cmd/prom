@@ -16,12 +16,7 @@ def test_filesystem_storage_hashes_while_streaming(tmp_path) -> None:
     assert checksum == "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5"
     assert storage.get("projects/project-1/file.bin").read() == b"payload"
     assert list(storage.iter_keys("projects")) == ["projects/project-1/file.bin"]
-    assert storage.signed_download_url(
-        "projects/project-1/file.bin",
-        ttl_seconds=60,
-        file_name="file.bin",
-        content_type="application/octet-stream",
-    ) is None
+
 
 
 def test_stream_incoming_file_enforces_limit_and_cleans_temporary_file(tmp_path) -> None:

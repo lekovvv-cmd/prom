@@ -72,9 +72,7 @@ def get_current_service_desk_user(
         user._platform_permissions = principal.permissions
         user._platform_principal = principal
         return user
-    if "legacy" not in principal.audiences and not principal.has_permission(
-        "service_desk.access"
-    ):
+    if not principal.has_permission("service_desk.access"):
         raise PermissionDenied("Нет доступа к Service Desk")
     if not user:
         logger.info("service_desk_profile_not_found")

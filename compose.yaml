@@ -6,15 +6,6 @@ x-projects-environment: &projects-environment
   PROJECTS_DATABASE_URL: ${PROJECTS_COMPOSE_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
   PROJECTS_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
   PROJECTS_UPLOADS_DIR: ${PROJECTS_UPLOADS_DIR:-/workspace/backend/storage/projects}
-  PROJECTS_STORAGE_BACKEND: ${PROJECTS_STORAGE_BACKEND:-local}
-  PROJECTS_S3_BUCKET: ${PROJECTS_S3_BUCKET:-}
-  PROJECTS_S3_ENDPOINT_URL: ${PROJECTS_S3_ENDPOINT_URL:-}
-  PROJECTS_S3_REGION_NAME: ${PROJECTS_S3_REGION_NAME:-}
-  PROJECTS_S3_ACCESS_KEY_ID: ${PROJECTS_S3_ACCESS_KEY_ID:-}
-  PROJECTS_S3_SECRET_ACCESS_KEY: ${PROJECTS_S3_SECRET_ACCESS_KEY:-}
-  PROJECTS_ANTIVIRUS_BACKEND: ${PROJECTS_ANTIVIRUS_BACKEND:-noop}
-  PROJECTS_CLAMAV_HOST: ${PROJECTS_CLAMAV_HOST:-clamav}
-  PROJECTS_CLAMAV_PORT: ${PROJECTS_CLAMAV_PORT:-3310}
   PROJECTS_MAX_ATTACHMENT_SIZE_BYTES: ${PROJECTS_MAX_ATTACHMENT_SIZE_BYTES:-10485760}
   PROJECTS_MAX_ATTACHMENTS_PER_OWNER: ${PROJECTS_MAX_ATTACHMENTS_PER_OWNER:-10}
   PROJECTS_ATTACHMENT_ORPHAN_GRACE_SECONDS: ${PROJECTS_ATTACHMENT_ORPHAN_GRACE_SECONDS:-3600}
@@ -36,19 +27,8 @@ x-service-desk-environment: &service-desk-environment
   SERVICE_DESK_ENV: ${PLATFORM_ENVIRONMENT:-development}
   SERVICE_DESK_DEBUG: ${PLATFORM_DEBUG:-false}
   SERVICE_DESK_DATABASE_URL: ${SERVICE_DESK_COMPOSE_DATABASE_URL:-postgresql+psycopg://service_desk:service_desk@service-desk-db:5432/service_desk}
-  SERVICE_DESK_JWT_SECRET: ${SERVICE_DESK_JWT_SECRET:-change-me-in-production-at-least-32-bytes}
   SERVICE_DESK_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
   SERVICE_DESK_STORAGE_DIR: ${SERVICE_DESK_STORAGE_DIR:-/workspace/backend/storage/service-desk}
-  SERVICE_DESK_STORAGE_BACKEND: ${SERVICE_DESK_STORAGE_BACKEND:-filesystem}
-  SERVICE_DESK_S3_ENDPOINT: ${SERVICE_DESK_S3_ENDPOINT:-}
-  SERVICE_DESK_S3_BUCKET: ${SERVICE_DESK_S3_BUCKET:-}
-  SERVICE_DESK_S3_ACCESS_KEY: ${SERVICE_DESK_S3_ACCESS_KEY:-}
-  SERVICE_DESK_S3_SECRET_KEY: ${SERVICE_DESK_S3_SECRET_KEY:-}
-  SERVICE_DESK_S3_REGION: ${SERVICE_DESK_S3_REGION:-}
-  SERVICE_DESK_ANTIVIRUS_BACKEND: ${SERVICE_DESK_ANTIVIRUS_BACKEND:-noop}
-  SERVICE_DESK_CLAMAV_HOST: ${SERVICE_DESK_CLAMAV_HOST:-clamav}
-  SERVICE_DESK_CLAMAV_PORT: ${SERVICE_DESK_CLAMAV_PORT:-3310}
-  SERVICE_DESK_CLAMAV_TIMEOUT_SECONDS: ${SERVICE_DESK_CLAMAV_TIMEOUT_SECONDS:-10}
   SERVICE_DESK_MAX_ATTACHMENT_SIZE_BYTES: ${SERVICE_DESK_MAX_ATTACHMENT_SIZE_BYTES:-10485760}
   SERVICE_DESK_MAX_ATTACHMENTS_PER_OWNER: ${SERVICE_DESK_MAX_ATTACHMENTS_PER_OWNER:-10}
   SERVICE_DESK_ATTACHMENT_ORPHAN_GRACE_SECONDS: ${SERVICE_DESK_ATTACHMENT_ORPHAN_GRACE_SECONDS:-3600}
@@ -60,7 +40,6 @@ x-service-desk-environment: &service-desk-environment
   SERVICE_DESK_ACCESS_JWKS_CACHE_TTL_SECONDS: ${SERVICE_DESK_ACCESS_JWKS_CACHE_TTL_SECONDS:-300}
   SERVICE_DESK_ACCESS_JWKS_STALE_IF_ERROR_SECONDS: ${SERVICE_DESK_ACCESS_JWKS_STALE_IF_ERROR_SECONDS:-3600}
   SERVICE_DESK_ACCESS_CLOCK_SKEW_SECONDS: ${SERVICE_DESK_ACCESS_CLOCK_SKEW_SECONDS:-30}
-  SERVICE_DESK_ALLOW_LEGACY_TOKENS: "false"
   SERVICE_DESK_DB_POOL_SIZE: ${SERVICE_DESK_DB_POOL_SIZE:-5}
   SERVICE_DESK_DB_MAX_OVERFLOW: ${SERVICE_DESK_DB_MAX_OVERFLOW:-5}
   SERVICE_DESK_DB_POOL_TIMEOUT_SECONDS: ${SERVICE_DESK_DB_POOL_TIMEOUT_SECONDS:-30}
@@ -146,17 +125,6 @@ services:
       ACCESS_JWT_KEY_ID: ${ACCESS_JWT_KEY_ID:-local-ephemeral}
       ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:-prom-access}
       ACCESS_TOKEN_AUDIENCES: ${ACCESS_TOKEN_AUDIENCES:-projects,service-desk}
-      ACCESS_OIDC_ENABLED: ${ACCESS_OIDC_ENABLED:-false}
-      SSO_PROVIDER: ${SSO_PROVIDER:-mock}
-      SSO_ISSUER_URL: ${SSO_ISSUER_URL:-}
-      SSO_CLIENT_ID: ${SSO_CLIENT_ID:-}
-      SSO_CLIENT_SECRET: ${SSO_CLIENT_SECRET:-}
-      SSO_REDIRECT_URI: ${SSO_REDIRECT_URI:-}
-      SSO_SCOPES: ${SSO_SCOPES:-openid profile email}
-      SSO_ALLOWED_AUDIENCES: ${SSO_ALLOWED_AUDIENCES:-}
-      SSO_JWKS_CACHE_TTL: ${SSO_JWKS_CACHE_TTL:-300}
-      SSO_LOGIN_TRANSACTION_TTL: ${SSO_LOGIN_TRANSACTION_TTL:-600}
-      SSO_POST_LOGOUT_REDIRECT_URI: ${SSO_POST_LOGOUT_REDIRECT_URI:-}
       ACCESS_DB_POOL_SIZE: ${ACCESS_DB_POOL_SIZE:-5}
       ACCESS_DB_MAX_OVERFLOW: ${ACCESS_DB_MAX_OVERFLOW:-5}
       ACCESS_DB_POOL_TIMEOUT_SECONDS: ${ACCESS_DB_POOL_TIMEOUT_SECONDS:-30}
@@ -166,6 +134,17 @@ services:
     depends_on:
       access-migrate: { condition: service_completed_successfully }
     restart: unless-stopped
+
+  access-identity-report-init:
+    image: prom-access-service:local
+    build: *access-build
+    profiles: ["migration"]
+    user: root
+    volumes:
+      - ./outputs/identity-migration:/workspace/backend/outputs/identity-migration
+    entrypoint: ["sh", "-c"]
+    command: ["chown -R app:app /workspace/backend/outputs/identity-migration"]
+    restart: "no"
 
   access-identity-migrate:
     image: prom-access-service:local
@@ -182,6 +161,7 @@ services:
     volumes:
       - ./outputs/identity-migration:/workspace/backend/outputs/identity-migration
     depends_on:
+      access-identity-report-init: { condition: service_completed_successfully }
       access-migrate: { condition: service_completed_successfully }
       projects-migrate: { condition: service_completed_successfully }
       service-desk-migrate: { condition: service_completed_successfully }

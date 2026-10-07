@@ -1,28 +1,42 @@
 import asyncio
 import io
 import os
+import time
 import uuid
 import zipfile
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from platform_sdk.error_types import ValidationFailed
-from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.enums import (
     ServiceDeskAttachmentOwnerType,
-    ServiceDeskAttachmentStatus,
     ServiceDeskTicketStatus,
 )
-from app.modules.attachments.models import ServiceDeskAttachment
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.service import UPLOAD_CHUNK_SIZE, AttachmentService
 from app.modules.tickets.models import ServiceDeskTicket
 
 from test_comments import create_waiting_requester_ticket
 from test_tickets import create_requester, create_service_with_template
+
+
+def test_cleanup_worker_removes_old_local_orphans(db_session_factory, monkeypatch, tmp_path):
+    from scripts import attachment_cleanup_worker
+
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "attachment_orphan_grace_seconds", 60)
+    monkeypatch.setattr(attachment_cleanup_worker, "SessionLocal", db_session_factory)
+    orphan = tmp_path / "orphan.bin"
+    orphan.write_bytes(b"orphan")
+    old = time.time() - 3600
+    os.utime(orphan, (old, old))
+
+    result = attachment_cleanup_worker.cleanup_once()
+
+    assert result["orphans"] == 1
+    assert not orphan.exists()
 
 
 def _ooxml_file(main_part: str) -> bytes:
@@ -365,73 +379,3 @@ def test_attachment_upload_removes_physical_file_after_database_failure(
         )
 
     assert not list(Path(tmp_path).rglob("*.*"))
-
-
-def test_scanner_failure_is_fail_closed_and_cleanup_purges_expired_quarantine(
-    client,
-    db_session_factory,
-    auth_headers_for_user,
-    monkeypatch,
-    tmp_path,
-):
-    class BrokenScanner:
-        def scan(self, _path):
-            raise OSError("scanner unavailable")
-
-    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
-    monkeypatch.setattr(
-        "app.modules.attachments.service.antivirus_scanner",
-        lambda: BrokenScanner(),
-    )
-    ticket_id, requester_id, _ = create_waiting_requester_ticket(
-        client,
-        db_session_factory,
-        auth_headers_for_user,
-    )
-
-    response = client.post(
-        f"/tickets/{ticket_id}/attachments",
-        files={"file": ("request.txt", b"ticket attachment", "text/plain")},
-        headers=auth_headers_for_user(requester_id),
-    )
-    assert response.status_code == 422
-
-    with db_session_factory() as db:
-        attachment = db.scalar(
-            select(ServiceDeskAttachment).where(
-                ServiceDeskAttachment.ticket_id == uuid.UUID(ticket_id)
-            )
-        )
-        assert attachment is not None
-        assert attachment.status == ServiceDeskAttachmentStatus.QUARANTINED
-        assert attachment.storage_key.startswith(".quarantine/service-desk/")
-        assert (Path(tmp_path) / attachment.storage_key).is_file()
-        attachment.status = ServiceDeskAttachmentStatus.REJECTED
-        attachment.created_at = datetime.now(UTC) - timedelta(days=8)
-        attachment_id = attachment.id
-        db.commit()
-
-    download = client.get(
-        f"/tickets/{ticket_id}/attachments/{attachment_id}/download",
-        headers=auth_headers_for_user(requester_id),
-    )
-    assert download.status_code == 404
-
-    orphan = Path(tmp_path) / "orphan.bin"
-    orphan.write_bytes(b"orphan")
-    old_timestamp = (datetime.now(UTC) - timedelta(hours=2)).timestamp()
-    os.utime(orphan, (old_timestamp, old_timestamp))
-    monkeypatch.setattr(settings, "attachment_orphan_grace_seconds", 60)
-
-    from scripts import attachment_cleanup_worker
-
-    monkeypatch.setattr(
-        attachment_cleanup_worker,
-        "SessionLocal",
-        db_session_factory,
-    )
-    result = attachment_cleanup_worker.cleanup_once()
-    assert result["rejected_blobs"] == 1
-    assert result["orphans"] == 1
-    assert not orphan.exists()
-    assert not list((Path(tmp_path) / ".quarantine").rglob("*.txt"))

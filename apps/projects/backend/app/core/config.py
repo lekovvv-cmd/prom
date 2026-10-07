@@ -19,15 +19,6 @@ class Settings(BaseSettings):
     access_clock_skew_seconds: int = 30
     frontend_origin: str = "http://localhost:5173"
     uploads_dir: str = "storage/uploads"
-    storage_backend: str = "local"
-    s3_bucket: str | None = None
-    s3_endpoint_url: str | None = None
-    s3_region_name: str | None = None
-    s3_access_key_id: str | None = None
-    s3_secret_access_key: str | None = None
-    antivirus_backend: str = "noop"
-    clamav_host: str = "clamav"
-    clamav_port: int = 3310
     max_attachment_size_bytes: int = 10 * 1024 * 1024
     max_attachments_per_owner: int = 10
     attachment_orphan_grace_seconds: int = 3600
@@ -48,13 +39,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_runtime_configuration(self) -> "Settings":
-        if self.storage_backend not in {"local", "s3"}:
-            raise ValueError("PROJECTS_STORAGE_BACKEND must be local or s3")
-        if self.storage_backend == "s3" and not self.s3_bucket:
-            raise ValueError("PROJECTS_S3_BUCKET is required when S3 storage is enabled")
-        if self.antivirus_backend not in {"noop", "clamav"}:
-            raise ValueError("PROJECTS_ANTIVIRUS_BACKEND must be noop or clamav")
-
         if is_production_environment(self.env):
             validate_production_database_url(
                 self.database_url,
@@ -70,8 +54,6 @@ class Settings(BaseSettings):
                 raise ValueError("PROJECTS_ACCESS_TOKEN_AUDIENCE is required in production")
             if has_cors_wildcard(self.frontend_origin):
                 raise ValueError("PROJECTS_FRONTEND_ORIGIN cannot be a wildcard in production")
-            if self.antivirus_backend == "noop":
-                raise ValueError("PROJECTS_ANTIVIRUS_BACKEND=noop is not allowed in production")
         return self
 
 

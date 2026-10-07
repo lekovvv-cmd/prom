@@ -11,6 +11,9 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 import jwt
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from platform_sdk.auth import decode_internal_token
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -34,7 +37,42 @@ from app.modules.sla import models as sla_models  # noqa: F401
 from app.modules.templates import models as template_models  # noqa: F401
 from app.modules.tickets import models as ticket_models  # noqa: F401
 
-settings.allow_legacy_tokens = True
+TEST_PRIVATE_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+TEST_PUBLIC_KEY = TEST_PRIVATE_KEY.public_key().public_bytes(
+    serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+).decode()
+
+
+def sign_platform_token(subject: str, *, permissions: list[str] | None = None, key=None) -> str:
+    now = datetime.now(UTC)
+    return jwt.encode(
+        {
+            "sub": subject,
+            "iss": settings.access_token_issuer,
+            "aud": settings.access_token_audience,
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+            "jti": str(uuid.uuid4()),
+            "permissions": permissions or ["service_desk.access"],
+        },
+        key or TEST_PRIVATE_KEY,
+        algorithm="RS256",
+        headers={"kid": "test-access"},
+    )
+
+
+class LocalVerifier:
+    def verify(self, token: str):
+        return decode_internal_token(
+            token, public_key=TEST_PUBLIC_KEY,
+            audience=settings.access_token_audience,
+            issuer=settings.access_token_issuer,
+        )
+
+
+@pytest.fixture(autouse=True)
+def use_local_platform_verifier(monkeypatch):
+    monkeypatch.setattr("app.core.security._platform_verifier", lambda: LocalVerifier())
 
 
 class ServiceDeskTestClient(TestClient):
@@ -86,14 +124,7 @@ def client(db_session_factory):
             )
             db.commit()
 
-        admin_token = jwt.encode(
-            {
-                "sub": identity_user_id,
-                "exp": datetime.now(UTC) + timedelta(minutes=5),
-            },
-            settings.jwt_secret,
-            algorithm=settings.jwt_algorithm,
-        )
+        admin_token = sign_platform_token(identity_user_id, permissions=["platform.admin"])
         return {"Authorization": f"Bearer {admin_token}"}
 
     def override_get_db():
@@ -117,14 +148,12 @@ def auth_headers_for_user(db_session_factory):
         with db_session_factory() as db:
             user = db.get(ServiceDeskUser, uuid.UUID(user_id))
             assert user is not None
-            token = jwt.encode(
-                {
-                    "sub": user.identity_user_id,
-                    "exp": datetime.now(UTC) + timedelta(minutes=5),
-                },
-                settings.jwt_secret,
-                algorithm=settings.jwt_algorithm,
-            )
+            permissions = ["service_desk.access"]
+            if user.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
+                permissions = ["platform.admin"]
+            else:
+                permissions.extend(item.capability for item in user.capabilities)
+            token = sign_platform_token(user.identity_user_id, permissions=permissions)
         return {"Authorization": f"Bearer {token}"}
 
     return build

@@ -19,8 +19,6 @@ logger = logging.getLogger("prom.projects.attachment_cleanup")
 
 
 def cleanup_once() -> int:
-    if settings.storage_backend != "local":
-        return 0
     root = Path(settings.uploads_dir).resolve()
     root.mkdir(parents=True, exist_ok=True)
     with SessionLocal() as db:

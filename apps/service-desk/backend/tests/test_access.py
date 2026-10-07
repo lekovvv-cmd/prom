@@ -1,9 +1,8 @@
 import uuid
-from datetime import UTC, datetime, timedelta
 
-import jwt
 
-from app.core.config import settings
+from conftest import TEST_PRIVATE_KEY, sign_platform_token
+from cryptography.hazmat.primitives.asymmetric import rsa
 from app.core.enums import SERVICE_DESK_CAPABILITIES, ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
 
@@ -13,15 +12,12 @@ def access_token(
     *,
     platform_role: str | None = None,
     secret: str | None = None,
+    permissions: list[str] | None = None,
 ) -> str:
-    payload = {"sub": subject, "exp": datetime.now(UTC) + timedelta(minutes=5)}
-    if platform_role is not None:
-        payload["platform_role"] = platform_role
-    return jwt.encode(
-        payload,
-        secret or settings.jwt_secret,
-        algorithm=settings.jwt_algorithm,
-    )
+    granted = permissions or (["platform.admin"] if platform_role == "platform_admin" else ["service_desk.access"])
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048) if secret is not None else TEST_PRIVATE_KEY
+    return sign_platform_token(subject, permissions=granted, key=key)
+
 
 
 def test_platform_admin_without_local_profile_receives_full_access(
@@ -141,7 +137,7 @@ def test_me_returns_local_projection_and_capabilities(client, db_session_factory
 
     response = client.get(
         "/me",
-        headers={"Authorization": f"Bearer {access_token(identity_user_id)}"},
+        headers={"Authorization": f"Bearer {access_token(identity_user_id, permissions=['service_desk.access', 'service_desk.approve'])}"},
     )
 
     assert response.status_code == 200
@@ -161,7 +157,7 @@ def test_me_returns_local_projection_and_capabilities(client, db_session_factory
 
     capabilities = client.get(
         "/me/capabilities",
-        headers={"Authorization": f"Bearer {access_token(identity_user_id)}"},
+        headers={"Authorization": f"Bearer {access_token(identity_user_id, permissions=['service_desk.access', 'service_desk.approve'])}"},
     )
     assert capabilities.status_code == 200
     assert capabilities.json() == {"capabilities": ["service_desk.approve"]}
@@ -178,11 +174,11 @@ def test_service_desk_admin_receives_all_capabilities(client, db_session_factory
 
     response = client.get(
         "/me/capabilities",
-        headers={"Authorization": f"Bearer {access_token(identity_user_id)}"},
+        headers={"Authorization": f"Bearer {access_token(identity_user_id, permissions=['service_desk.access', *SERVICE_DESK_CAPABILITIES])}"},
     )
 
     assert response.status_code == 200
-    assert response.json()["capabilities"] == list(SERVICE_DESK_CAPABILITIES)
+    assert response.json()["capabilities"] == sorted(SERVICE_DESK_CAPABILITIES)
 
 
 def test_me_rejects_missing_invalid_unknown_and_inactive_access(client, db_session_factory):

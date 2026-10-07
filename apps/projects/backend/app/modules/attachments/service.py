@@ -20,7 +20,6 @@ from app.core.permissions import (
 from app.modules.attachments.models import Attachment
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
-from app.modules.attachments.storage import antivirus_scanner, object_storage
 from app.modules.attachments.validation import detect_and_validate, validate_metadata
 from app.modules.platform.events import ProjectEventRecorder
 from app.modules.projects.repository import ProjectRepository
@@ -39,8 +38,7 @@ class AttachmentService:
         self.tasks = ProjectTaskRepository(db)
         self.reports = ReportRepository(db)
         self.events = ProjectEventRecorder(db)
-        self.storage = object_storage()
-        self.scanner = antivirus_scanner()
+        self.storage = LocalFilesystemStorage(settings.uploads_dir)
 
     async def upload_project_file(
         self,
@@ -298,18 +296,12 @@ class AttachmentService:
                     "uploaded_by": actor.id,
                 }
             )
-            scan_result = self.scanner.scan(quarantine)
-            if scan_result != "clean":
-                attachment.status = AttachmentStatus.REJECTED
-                self.db.flush()
-                raise ValidationFailed("Файл отклонён антивирусной проверкой")
             with quarantine.open("rb") as source:
                 checksum = self.storage.put(storage_key, source)
             stored = True
             if checksum != streamed.checksum:
                 raise RuntimeError("Storage checksum mismatch")
-            if isinstance(self.storage, LocalFilesystemStorage):
-                attachment.storage_path = str(self.storage.path_for(storage_key))
+            attachment.storage_path = str(self.storage.path_for(storage_key))
             attachment.status = AttachmentStatus.AVAILABLE
             self.db.flush()
             self.events.audit(

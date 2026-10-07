@@ -35,10 +35,7 @@ class ServiceDeskAccessService:
         if getattr(user, "_is_platform_admin", False):
             return list(SERVICE_DESK_CAPABILITIES)
         platform_permissions = getattr(user, "_platform_permissions", None)
-        principal = getattr(user, "_platform_principal", None)
-        if platform_permissions is not None and (
-            principal is None or "legacy" not in principal.audiences
-        ):
+        if platform_permissions is not None:
             return sorted(
                 set(SERVICE_DESK_CAPABILITIES).intersection(platform_permissions)
             )
