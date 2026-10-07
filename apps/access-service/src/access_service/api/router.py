@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from urllib.parse import urlencode
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 from platform_sdk.modules import module_access_permission, module_token_audience
@@ -52,12 +49,6 @@ from access_service.infrastructure.sessions import BrowserSessionManager
 
 
 router = APIRouter()
-
-
-def safe_return_url(return_url: str) -> str:
-    if return_url.startswith("/") and not return_url.startswith("//"):
-        return return_url
-    return "/"
 
 
 def serialize_user(user: PlatformUser) -> UserOut:
@@ -161,22 +152,6 @@ def require_mock_provider(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
-@router.get(
-    "/auth/mock/login",
-    response_class=RedirectResponse,
-    status_code=status.HTTP_302_FOUND,
-    response_model=None,
-)
-def mock_login(request: Request, return_url: str = "/") -> RedirectResponse:
-    """Redirect to the demo user chooser in the shell."""
-
-    require_mock_provider(request)
-    return RedirectResponse(
-        url=f"/login?{urlencode({'next': safe_return_url(return_url)})}",
-        status_code=status.HTTP_302_FOUND,
-    )
-
-
 @router.post("/auth/mock/code", response_model=MockCodeOut)
 def mock_code(payload: MockCodeInput, request: Request) -> MockCodeOut:
     require_mock_provider(request)
@@ -236,69 +211,6 @@ def mock_verify(
         user=user,
         action="mock_session_created",
     )
-
-
-@router.post("/auth/mock/logout", status_code=status.HTTP_204_NO_CONTENT)
-def mock_logout(
-    request: Request,
-    response: Response,
-    user: PlatformUser = Depends(current_user),
-    session: Session = Depends(get_session),
-) -> None:
-    manager: BrowserSessionManager = request.app.state.session_manager
-    manager.revoke_current(request, session)
-    record_audit(
-        session,
-        actor_user_id=user.id,
-        action="mock_logout",
-        object_type="platform_user",
-        object_id=user.id,
-        request_id=getattr(request.state, "request_id", None),
-    )
-    session.commit()
-    manager.clear_cookies(response)
-
-
-@router.get(
-    "/auth/login",
-    response_class=RedirectResponse,
-    status_code=status.HTTP_302_FOUND,
-    response_model=None,
-)
-def login(request: Request, return_url: str = "/") -> RedirectResponse:
-    require_mock_provider(request)
-    return RedirectResponse(
-        f"/login?{urlencode({'next': safe_return_url(return_url)})}",
-        status_code=302,
-    )
-
-
-@router.post(
-    "/auth/logout",
-    response_class=RedirectResponse,
-    status_code=status.HTTP_302_FOUND,
-    response_model=None,
-)
-def logout(
-    request: Request,
-    return_url: str = "/",
-    user: PlatformUser = Depends(current_user),
-    session: Session = Depends(get_session),
-) -> RedirectResponse:
-    manager: BrowserSessionManager = request.app.state.session_manager
-    manager.revoke_current(request, session)
-    record_audit(
-        session,
-        actor_user_id=user.id,
-        action="demo_logout",
-        object_type="platform_user",
-        object_id=user.id,
-        request_id=getattr(request.state, "request_id", None),
-    )
-    session.commit()
-    response = RedirectResponse(safe_return_url(return_url), status_code=302)
-    manager.clear_cookies(response)
-    return response
 
 
 @router.get("/api/v1/session", response_model=SessionOut)

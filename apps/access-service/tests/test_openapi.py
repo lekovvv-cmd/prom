@@ -9,14 +9,10 @@ def test_openapi_contains_session_and_jwks_routes() -> None:
     assert "/.well-known/jwks.json" in schema["paths"]
 
 
-def test_openapi_declares_browser_auth_redirects() -> None:
+def test_openapi_declares_demo_session_routes() -> None:
     schema = app.openapi()
 
-    for path, method in (
-        ("/auth/login", "get"),
-        ("/auth/logout", "post"),
-        ("/auth/mock/login", "get"),
-    ):
-        responses = schema["paths"][path][method]["responses"]
-        assert "302" in responses
-        assert "200" not in responses
+    assert "/auth/mock/code" in schema["paths"]
+    assert "/auth/mock/verify" in schema["paths"]
+    assert "/api/v1/session/token" in schema["paths"]
+    assert "/auth/callback" not in schema["paths"]

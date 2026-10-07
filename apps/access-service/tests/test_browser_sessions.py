@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
-from access_service.api.router import mock_login, safe_return_url, session_probe
+from access_service.api.router import session_probe
 from access_service.bootstrap.config import AccessSettings
 from access_service.domain.models import Base, BrowserSession, PlatformUser
 from access_service.infrastructure.identity import InternalTokenSigner, generate_private_key_pem
@@ -196,40 +196,3 @@ def test_session_probe_returns_200_shape_for_anonymous_and_authenticated_request
 
     db.close()
     engine.dispose()
-
-
-@pytest.mark.parametrize(
-    ("candidate", "expected"),
-    [
-        ("/projects", "/projects"),
-        ("//evil.example", "/"),
-        ("https://evil.example", "/"),
-        ("javascript:alert(1)", "/"),
-    ],
-)
-def test_return_url_is_local(candidate: str, expected: str) -> None:
-    assert safe_return_url(candidate) == expected
-
-
-def test_local_mock_login_redirects_to_the_shell_user_chooser() -> None:
-    settings = AccessSettings(database_url="sqlite+pysqlite:///:memory:")
-    request = Request(
-        {
-            "type": "http",
-            "method": "GET",
-            "path": "/auth/mock/login",
-            "headers": [],
-            "client": ("127.0.0.1", 5000),
-            "server": ("test", 80),
-            "scheme": "http",
-            "query_string": b"",
-            "app": SimpleNamespace(
-                state=SimpleNamespace(token_signer=InternalTokenSigner(settings))
-            ),
-        }
-    )
-
-    response = mock_login(request, "/service-desk?tab=queue")
-
-    assert response.status_code == 302
-    assert response.headers["location"] == "/login?next=%2Fservice-desk%3Ftab%3Dqueue"

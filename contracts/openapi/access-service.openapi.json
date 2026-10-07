@@ -1189,72 +1189,6 @@
         "summary": "Session Token"
       }
     },
-    "/auth/login": {
-      "get": {
-        "operationId": "login_auth_login_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "return_url",
-            "required": false,
-            "schema": {
-              "default": "/",
-              "title": "Return Url",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Login"
-      }
-    },
-    "/auth/logout": {
-      "post": {
-        "operationId": "logout_auth_logout_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "return_url",
-            "required": false,
-            "schema": {
-              "default": "/",
-              "title": "Return Url",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Logout"
-      }
-    },
     "/auth/mock/code": {
       "post": {
         "operationId": "mock_code_auth_mock_code_post",
@@ -1291,51 +1225,6 @@
           }
         },
         "summary": "Mock Code"
-      }
-    },
-    "/auth/mock/login": {
-      "get": {
-        "description": "Redirect to the demo user chooser in the shell.",
-        "operationId": "mock_login_auth_mock_login_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "return_url",
-            "required": false,
-            "schema": {
-              "default": "/",
-              "title": "Return Url",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Mock Login"
-      }
-    },
-    "/auth/mock/logout": {
-      "post": {
-        "operationId": "mock_logout_auth_mock_logout_post",
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Mock Logout"
       }
     },
     "/auth/mock/verify": {
