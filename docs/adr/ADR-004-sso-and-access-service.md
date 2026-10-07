@@ -1,5 +1,8 @@
 # ADR-004: External SSO and Access Service
 
+Status: Superseded on 2026-10-07. The current demo-only login and internal
+JWT/JWKS flow are documented in [Authentication and RBAC](../architecture/auth-and-rbac.md).
+
 External SSO authenticates people. Access Service owns PROM user mapping and
 issues short-lived signed internal tokens. Projects must not issue platform JWTs.
 

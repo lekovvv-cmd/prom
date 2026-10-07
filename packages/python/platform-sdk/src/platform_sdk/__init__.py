@@ -2,7 +2,6 @@
 
 from .auth import CachedJwksVerifier, CurrentPrincipal, require_permission
 from .config import (
-    PlatformSettings,
     has_cors_wildcard,
     is_insecure_secret,
     is_production_environment,
@@ -71,7 +70,6 @@ __all__ = [
     "InvalidStateTransition",
     "PermissionDenied",
     "PlatformError",
-    "PlatformSettings",
     "LocalFilesystemStorage",
     "OutboxEventMixin",
     "SqlAlchemyUnitOfWork",

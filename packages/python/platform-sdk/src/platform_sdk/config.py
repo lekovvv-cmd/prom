@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pydantic import model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
 DEFAULT_SECRET_MARKERS = (
@@ -43,27 +41,3 @@ def is_insecure_secret(secret: str | None, *, known_defaults: tuple[str, ...] = 
 
 def parse_nonempty_csv(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
-
-
-class PlatformSettings(BaseSettings):
-    environment: str = "development"
-    debug: bool = False
-    frontend_origin: str = "http://localhost:5173"
-    internal_token_issuer: str = "prom-access"
-    internal_token_audience: str = "prom-platform"
-    internal_token_ttl_seconds: int = 900
-
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    @model_validator(mode="after")
-    def validate_production_safety(self) -> "PlatformSettings":
-        if is_production_environment(self.environment):
-            if self.debug:
-                raise ValueError("PLATFORM_DEBUG must be false in production")
-            if has_cors_wildcard(self.frontend_origin):
-                raise ValueError("PLATFORM_FRONTEND_ORIGIN cannot be a wildcard in production")
-            if not self.internal_token_issuer.strip():
-                raise ValueError("PLATFORM_INTERNAL_TOKEN_ISSUER is required in production")
-            if not self.internal_token_audience.strip():
-                raise ValueError("PLATFORM_INTERNAL_TOKEN_AUDIENCE is required in production")
-        return self

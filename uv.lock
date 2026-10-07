@@ -855,8 +855,6 @@ source = { editable = "packages/python/platform-sdk" }
 dependencies = [
     { name = "fastapi" },
     { name = "prometheus-client" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "sqlalchemy" },
     { name = "starlette" },
@@ -873,8 +871,6 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.136.3,<0.137.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0,<1.0.0" },
     { name = "prometheus-client", specifier = "==0.25.0" },
-    { name = "pydantic", specifier = ">=2.11.0,<3.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.8.0,<3.0.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.0,<3.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3,<10.0.0" },
     { name = "sqlalchemy", specifier = ">=2.0.40,<3.0.0" },
