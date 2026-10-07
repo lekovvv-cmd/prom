@@ -77,6 +77,8 @@ def main() -> int:
         f"Identity migration {report['mode']}: identities={summary['identities']} "
         f"conflicts={summary['conflicts']} status={report['status']} applied={report['applied']}"
     )
+    for warning in report["warnings"]:
+        print(f"Warning: {warning}")
     print(f"Reports: {args.report_dir.resolve()}")
     return 0
 

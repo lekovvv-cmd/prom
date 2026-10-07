@@ -377,6 +377,8 @@ def build_reconciliation_plan(
         plan.records.append(record)
 
     plan.records.sort(key=lambda item: item.email)
+    if not plan.records and not plan.conflicts:
+        plan.warnings.append("Migration completed, but no source identities were found in Projects or Service Desk.")
     return plan
 
 
@@ -545,6 +547,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Safe to rerun: `{report['rerun_safe']}`",
         f"- Identities: {summary['identities']}",
         f"- Conflicts: {summary['conflicts']}",
+        "",
+        *(f"- Warning: {warning}" for warning in report["warnings"]),
         "",
         "## Phases",
         "",

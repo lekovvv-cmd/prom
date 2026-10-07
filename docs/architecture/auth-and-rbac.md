@@ -1,13 +1,13 @@
 # Authentication and RBAC
 
-External SSO authenticates people. Access Service owns the stable platform-user
+Demo login selects a seeded platform user. Access Service owns the stable platform-user
 mapping, browser sessions, module catalog, groups, roles, permissions, signing
 keys, and short-lived internal tokens. Product services never issue platform
 tokens and never read the Access database.
 
 ## Browser session
 
-OIDC authorization code + PKCE, or the local-only mock code/verify flow, creates
+The demo code/verify flow creates
 a server-side browser session. The session secret is stored only in a
 `HttpOnly`, `SameSite=Lax` cookie and is `Secure` in production. A readable CSRF
 cookie must match `X-CSRF-Token` on state-changing requests. Sessions have idle
@@ -17,8 +17,8 @@ logout/permission changes, and redirect only to validated local return paths.
 The frontend probes the optional session with a 200 response, then receives a
 short-lived bearer for product API calls. That bearer exists only in JavaScript
 memory; neither it nor the privileged session secret is stored in `localStorage`.
-Anonymous, expired, revoked, disabled, invalid-state/nonce, and open-redirect
-paths fail closed. Production startup rejects mock SSO and insecure/default
+Anonymous, expired, revoked, disabled, and open-redirect
+paths fail closed. Production startup rejects insecure/default
 configuration.
 
 ## Internal tokens and signing keys

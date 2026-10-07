@@ -2,7 +2,7 @@
 
 PROM is a modular university platform with a shared shell and three independently deployable backend services:
 
-- `apps/access-service` — authentication, SSO adapters, JWT/JWKS and central RBAC;
+- `apps/access-service` — demo login, browser sessions, JWT/JWKS and central RBAC;
 - `apps/projects/backend` — Projects domain and its PostgreSQL database;
 - `apps/service-desk/backend` — Service Desk domain and its separate PostgreSQL database;
 - `apps/platform-shell` — React platform shell; product routes are lazy-loaded from module manifests;
@@ -40,7 +40,7 @@ The previous `/api/` and `/service-desk-api/` gateway paths remain compatibility
 
 | Profile | Contents |
 | --- | --- |
-| `core` | gateway/platform shell, Access Service, Access PostgreSQL, local SSO mock |
+| `core` | gateway/platform shell, Access Service, Access PostgreSQL |
 | `projects` | Projects PostgreSQL, migrations, API and workers |
 | `service-desk` | Service Desk PostgreSQL, migrations, API and workers |
 | `full` | complete production-like local platform without demo fixtures |
@@ -79,27 +79,39 @@ npm.cmd run check:contracts
 
 OpenAPI snapshots are committed in `contracts/openapi/`; regenerate them after an API change with `npm run generate:contracts`. The CI contract job rejects stale snapshots.
 
-## Local mock identities
+## Demo identities
 
 After the optional `demo` profile is applied, the development Access Service
 accepts code `000000` for the seeded accounts: `employee@utmn.ru`,
 `project.manager@utmn.ru`, `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, and
 `admin@utmn.ru`. The backend verifies this code and creates the same browser
-session used by OIDC. Mock endpoints are blocked by the production configuration
-guard; production must use an OIDC adapter and real key material.
+session used by the platform. Demo login is available only outside production.
+The single command `docker compose --profile full --profile demo up --build -d --wait`
+runs Access seed, Projects seed, Service Desk identity bootstrap, and Service Desk seed.
+Legacy identity reconciliation is a separate migration tool for existing databases.
+
+For existing Projects or Service Desk databases, inspect the reconciliation report
+before applying it:
+
+```powershell
+docker compose --profile migration run --rm access-identity-migrate --dry-run
+docker compose --profile migration run --rm access-identity-migrate --apply
+```
+
+Reports are written to `outputs/identity-migration/`. An empty source database
+produces `identities: 0` and an explicit warning; it does not create demo users.
 
 ## Production configuration
 
 Copy `.env.example` only as a local inventory; inject production values from a
 secret manager. Production startup rejects default signing material, empty
-PostgreSQL passwords, mock SSO, debug mode, wildcard credentialed CORS,
-missing issuer/audience values, legacy tokens, and disabled antivirus scanning.
+PostgreSQL passwords, debug mode, wildcard credentialed CORS, and missing
+issuer/audience values.
 
 The primary prefixes are `PLATFORM_`, `ACCESS_`, `PROJECTS_`,
-`SERVICE_DESK_`, and `SSO_`. Storage settings use each module’s prefix. See
-[secrets and configuration](docs/operations/secrets.md),
-[deployment](docs/operations/deployment.md), and
-[SSO operation](docs/operations/sso.md).
+and `SERVICE_DESK_`. Attachments use local filesystem volumes. See
+[secrets and configuration](docs/operations/secrets.md) and
+[deployment](docs/operations/deployment.md).
 
 ## Documentation
 

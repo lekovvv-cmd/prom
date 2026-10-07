@@ -76,6 +76,28 @@ def legacy_databases(tmp_path: Path) -> tuple[str, str, str, Table, Table]:
     return projects_url, service_desk_url, access_url, projects_users, service_desk_users
 
 
+def test_empty_sources_report_no_users_created(tmp_path: Path) -> None:
+    projects_url, service_desk_url, access_url, _, _ = legacy_databases(tmp_path)
+    report_dir = tmp_path / "report"
+
+    report = migrate_identities(
+        projects_database_url=projects_url,
+        service_desk_database_url=service_desk_url,
+        access_database_url=access_url,
+        apply=True,
+        report_dir=report_dir,
+    )
+
+    assert report["summary"]["identities"] == 0
+    assert report["warnings"] == [
+        "Migration completed, but no source identities were found in Projects or Service Desk."
+    ]
+    assert (report_dir / "identity-reconciliation.json").is_file()
+    assert "no source identities" in (report_dir / "identity-reconciliation.md").read_text()
+    with Session(create_engine(access_url)) as session:
+        assert session.scalar(select(func.count()).select_from(PlatformUser)) == 0
+
+
 def insert_legacy_user(
     *,
     projects_url: str,

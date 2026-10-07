@@ -15,6 +15,16 @@ docker compose --profile core --profile projects up --build
 docker compose --profile core --profile service-desk up --build
 ```
 
+For a complete demo with seeded identities and business data:
+
+```powershell
+docker compose --profile full --profile demo up --build -d --wait
+```
+
+Open `http://localhost:5173/`, choose a demo user, and enter code `000000`.
+This runs Access seed, Projects seed, Service Desk identity bootstrap, and
+Service Desk seed. Legacy identity reconciliation is only for pre-existing data.
+
 ## Coverage
 
 Run coverage from the repository root after installing the locked dependencies:

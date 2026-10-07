@@ -1,58 +1,35 @@
 # Secrets and production configuration
 
-`.env.example` is a local inventory, not a production secret file. Production
-values are injected at runtime from the deployment platform or secret manager
-and are never committed, copied into images, printed by CI, or passed in
-command-line arguments visible to other processes.
+`.env.example` lists local settings. Inject production values from a secret manager.
+Do not commit secrets or print them in CI.
 
-## Ownership
-
-| Prefix | Owner | Examples |
+| Prefix | Owner | Values |
 | --- | --- | --- |
-| `PLATFORM_` | platform runtime | environment, frontend origin, debug |
-| `ACCESS_` | Access Service | database, RSA key, key ID, issuer/audiences |
-| `PROJECTS_` | Projects | database, JWKS, storage, antivirus, pools |
-| `SERVICE_DESK_` | Service Desk | database, JWKS, storage, workers |
-| `SSO_` | identity integration | provider, issuer, client, callbacks |
+| `PLATFORM_` | gateway | environment, frontend origin, debug |
+| `ACCESS_` | Access | PostgreSQL URL, RSA signing key, key ID, issuer, audiences |
+| `PROJECTS_` | Projects | PostgreSQL URL, Access JWKS, upload directory, limits |
+| `SERVICE_DESK_` | Service Desk | PostgreSQL URL, Access JWKS, storage directory, workers |
 
-Storage settings use `PROJECTS_S3_*` and `SERVICE_DESK_S3_*`; there is no
-global `S3_*` configuration. Observability currently exposes JSON logs and
-Prometheus metrics; no OTEL exporter is configured.
+Attachments use local filesystem volumes. Logs are JSON with request IDs;
+Prometheus metrics are available at `/metrics`.
 
-Each database URL uses a dedicated role and non-empty password. Production
-startup fails on SQLite, default JWT material, mock SSO, debug mode, wildcard
-credentialed CORS, missing issuer/audience, legacy tokens, and noop antivirus.
+Production validation requires PostgreSQL credentials, secure Access signing
+material, explicit issuer and audiences, and credentialed CORS without wildcards.
+Demo login is disabled in production.
 
-## Rotation
+## Signing key rotation
 
-- RSA keys: publish the new `kid`, deploy verifiers, switch signing, wait past
-  maximum token lifetime plus cache skew, then remove the old key.
-- OIDC client secret: overlap credentials when supported; otherwise schedule a
-  controlled login interruption and verify callback flow.
-- Database password: rotate the role secret, roll instances, verify pools, then
-  revoke the old credential.
-- S3 credentials: rotate per module and verify upload, download, signed URL,
-  cleanup, and orphan metrics.
-
-After rotation, inspect logs and `/metrics` for authentication errors, database
-pool failures, worker failures, and outbox age. Never log or paste a secret
-while troubleshooting.
-
-For Access, mount a generated PKCS#8 RSA private key into the container and run:
+Publish the new `kid`, switch signing, wait beyond token lifetime and JWKS cache
+skew, then retire the old key:
 
 ```bash
 docker compose --profile full exec access-service \
   python scripts/rotate_signing_key.py \
-  --kid 2026-07-primary \
+  --kid 2026-10-primary \
   --private-key-file /run/secrets/access-signing-key.pem
-```
 
-The prior key becomes verify-only and remains in JWKS during overlap. After the
-configured overlap is safely past:
-
-```bash
 docker compose --profile full exec access-service \
   python scripts/rotate_signing_key.py --retire-expired
 ```
 
-Never pass private PEM material directly on the command line or put it in Git.
+Keep private PEM material out of command lines and Git.

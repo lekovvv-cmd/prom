@@ -2,7 +2,7 @@
 
 This script intentionally has no Projects database URL and performs no
 cross-module SQL reads.  Production users are synchronized through Access
-Service sessions; the static records below are only the local SSO-mock fixture.
+Service sessions; the static records below are only the local demo fixture.
 """
 
 from __future__ import annotations
