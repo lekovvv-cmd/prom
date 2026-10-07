@@ -3,375 +3,115 @@ name: prom
 x-projects-environment: &projects-environment
   PROJECTS_ENV: ${PLATFORM_ENVIRONMENT:-development}
   PROJECTS_DEBUG: ${PLATFORM_DEBUG:-false}
-  PROJECTS_DATABASE_URL: ${PROJECTS_COMPOSE_DATABASE_URL:-postgresql+psycopg://project_showcase:project_showcase@projects-db:5432/project_showcase}
-  PROJECTS_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
-  PROJECTS_UPLOADS_DIR: ${PROJECTS_UPLOADS_DIR:-/workspace/backend/storage/projects}
-  PROJECTS_MAX_ATTACHMENT_SIZE_BYTES: ${PROJECTS_MAX_ATTACHMENT_SIZE_BYTES:-10485760}
-  PROJECTS_MAX_ATTACHMENTS_PER_OWNER: ${PROJECTS_MAX_ATTACHMENTS_PER_OWNER:-10}
-  PROJECTS_ATTACHMENT_ORPHAN_GRACE_SECONDS: ${PROJECTS_ATTACHMENT_ORPHAN_GRACE_SECONDS:-3600}
-  PROJECTS_WORKER_METRICS_PORT: ${PROJECTS_WORKER_METRICS_PORT:-9100}
-  PROJECTS_ACCESS_JWKS_URL: ${PROJECTS_ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
-  PROJECTS_ACCESS_TOKEN_ISSUER: ${PROJECTS_ACCESS_TOKEN_ISSUER:-prom-access}
-  PROJECTS_ACCESS_TOKEN_AUDIENCE: ${PROJECTS_ACCESS_TOKEN_AUDIENCE:-projects}
-  PROJECTS_ACCESS_JWKS_CACHE_TTL_SECONDS: ${PROJECTS_ACCESS_JWKS_CACHE_TTL_SECONDS:-300}
-  PROJECTS_ACCESS_JWKS_STALE_IF_ERROR_SECONDS: ${PROJECTS_ACCESS_JWKS_STALE_IF_ERROR_SECONDS:-3600}
-  PROJECTS_ACCESS_CLOCK_SKEW_SECONDS: ${PROJECTS_ACCESS_CLOCK_SKEW_SECONDS:-30}
-  PROJECTS_DB_POOL_SIZE: ${PROJECTS_DB_POOL_SIZE:-5}
-  PROJECTS_DB_MAX_OVERFLOW: ${PROJECTS_DB_MAX_OVERFLOW:-5}
-  PROJECTS_DB_POOL_TIMEOUT_SECONDS: ${PROJECTS_DB_POOL_TIMEOUT_SECONDS:-30}
-  PROJECTS_DB_POOL_RECYCLE_SECONDS: ${PROJECTS_DB_POOL_RECYCLE_SECONDS:-1800}
-  PROJECTS_DB_STATEMENT_TIMEOUT_MS: ${PROJECTS_DB_STATEMENT_TIMEOUT_MS:-30000}
-  PROJECTS_DB_APPLICATION_NAME: ${PROJECTS_DB_APPLICATION_NAME:-prom-projects-api}
+  PROJECTS_DATABASE_URL: postgresql+psycopg://project_showcase:${PROJECTS_DB_PASSWORD:-project_showcase}@postgres:5432/project_showcase
+  PROJECTS_UPLOADS_DIR: /workspace/backend/storage/projects
+  PROJECTS_ACCESS_JWKS_URL: http://access-service:8002/.well-known/jwks.json
+  PROJECTS_ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:-prom-access}
+  PROJECTS_ACCESS_TOKEN_AUDIENCE: projects
+  PROJECTS_WORKER_METRICS_PORT: "9100"
 
 x-service-desk-environment: &service-desk-environment
   SERVICE_DESK_ENV: ${PLATFORM_ENVIRONMENT:-development}
   SERVICE_DESK_DEBUG: ${PLATFORM_DEBUG:-false}
-  SERVICE_DESK_DATABASE_URL: ${SERVICE_DESK_COMPOSE_DATABASE_URL:-postgresql+psycopg://service_desk:service_desk@service-desk-db:5432/service_desk}
-  SERVICE_DESK_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
-  SERVICE_DESK_STORAGE_DIR: ${SERVICE_DESK_STORAGE_DIR:-/workspace/backend/storage/service-desk}
-  SERVICE_DESK_MAX_ATTACHMENT_SIZE_BYTES: ${SERVICE_DESK_MAX_ATTACHMENT_SIZE_BYTES:-10485760}
-  SERVICE_DESK_MAX_ATTACHMENTS_PER_OWNER: ${SERVICE_DESK_MAX_ATTACHMENTS_PER_OWNER:-10}
-  SERVICE_DESK_ATTACHMENT_ORPHAN_GRACE_SECONDS: ${SERVICE_DESK_ATTACHMENT_ORPHAN_GRACE_SECONDS:-3600}
-  SERVICE_DESK_ATTACHMENT_REJECTED_RETENTION_DAYS: ${SERVICE_DESK_ATTACHMENT_REJECTED_RETENTION_DAYS:-7}
-  SERVICE_DESK_WORKER_METRICS_PORT: ${SERVICE_DESK_WORKER_METRICS_PORT:-9100}
-  SERVICE_DESK_ACCESS_JWKS_URL: ${SERVICE_DESK_ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}
-  SERVICE_DESK_ACCESS_TOKEN_ISSUER: ${SERVICE_DESK_ACCESS_TOKEN_ISSUER:-prom-access}
-  SERVICE_DESK_ACCESS_TOKEN_AUDIENCE: ${SERVICE_DESK_ACCESS_TOKEN_AUDIENCE:-service-desk}
-  SERVICE_DESK_ACCESS_JWKS_CACHE_TTL_SECONDS: ${SERVICE_DESK_ACCESS_JWKS_CACHE_TTL_SECONDS:-300}
-  SERVICE_DESK_ACCESS_JWKS_STALE_IF_ERROR_SECONDS: ${SERVICE_DESK_ACCESS_JWKS_STALE_IF_ERROR_SECONDS:-3600}
-  SERVICE_DESK_ACCESS_CLOCK_SKEW_SECONDS: ${SERVICE_DESK_ACCESS_CLOCK_SKEW_SECONDS:-30}
-  SERVICE_DESK_DB_POOL_SIZE: ${SERVICE_DESK_DB_POOL_SIZE:-5}
-  SERVICE_DESK_DB_MAX_OVERFLOW: ${SERVICE_DESK_DB_MAX_OVERFLOW:-5}
-  SERVICE_DESK_DB_POOL_TIMEOUT_SECONDS: ${SERVICE_DESK_DB_POOL_TIMEOUT_SECONDS:-30}
-  SERVICE_DESK_DB_POOL_RECYCLE_SECONDS: ${SERVICE_DESK_DB_POOL_RECYCLE_SECONDS:-1800}
-  SERVICE_DESK_DB_STATEMENT_TIMEOUT_MS: ${SERVICE_DESK_DB_STATEMENT_TIMEOUT_MS:-30000}
-  SERVICE_DESK_DB_APPLICATION_NAME: ${SERVICE_DESK_DB_APPLICATION_NAME:-prom-service-desk-api}
-
-x-projects-worker-healthcheck: &projects-worker-healthcheck
-  test:
-    [
-      "CMD-SHELL",
-      "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PROJECTS_WORKER_METRICS_PORT', '9100') + '/metrics', timeout=2)\"",
-    ]
-  interval: 10s
-  timeout: 3s
-  retries: 10
-
-x-service-desk-worker-healthcheck: &service-desk-worker-healthcheck
-  test:
-    [
-      "CMD-SHELL",
-      "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('SERVICE_DESK_WORKER_METRICS_PORT', '9100') + '/metrics', timeout=2)\"",
-    ]
-  interval: 10s
-  timeout: 3s
-  retries: 10
+  SERVICE_DESK_DATABASE_URL: postgresql+psycopg://service_desk:${SERVICE_DESK_DB_PASSWORD:-service_desk}@postgres:5432/service_desk
+  SERVICE_DESK_STORAGE_DIR: /workspace/backend/storage/service-desk
+  SERVICE_DESK_ACCESS_JWKS_URL: http://access-service:8002/.well-known/jwks.json
+  SERVICE_DESK_ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:-prom-access}
+  SERVICE_DESK_ACCESS_TOKEN_AUDIENCE: service-desk
+  SERVICE_DESK_WORKER_METRICS_PORT: "9100"
 
 services:
-  access-db:
+  postgres:
     image: postgres:17.6-alpine
-    profiles: ["core", "full", "migration"]
     environment:
-      POSTGRES_DB: prom_access
-      POSTGRES_USER: prom_access
-      POSTGRES_PASSWORD: ${ACCESS_DB_PASSWORD:-prom_access}
-    volumes: ["access_db_data:/var/lib/postgresql/data"]
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-prom_local_admin}
+      ACCESS_DB_PASSWORD: ${ACCESS_DB_PASSWORD:-prom_access}
+      PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD:-project_showcase}
+      SERVICE_DESK_DB_PASSWORD: ${SERVICE_DESK_DB_PASSWORD:-service_desk}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./tools/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-databases.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U prom_access -d prom_access"]
-      interval: 5s
-      timeout: 3s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 60s
       retries: 20
+      start_period: 180s
+    restart: unless-stopped
 
-  access-migrate:
+  access-service:
     image: prom-access-service:local
     build: &access-build
       context: .
       dockerfile: apps/access-service/Dockerfile
-    profiles: ["core", "full", "migration"]
-    environment:
-      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
-      ACCESS_DB_POOL_SIZE: 1
-      ACCESS_DB_MAX_OVERFLOW: 0
-      ACCESS_DB_APPLICATION_NAME: prom-access-migrate
-    depends_on:
-      access-db: { condition: service_healthy }
-    command: ["python", "scripts/init_db.py"]
-    restart: "no"
-
-  access-seed:
-    image: prom-access-service:local
-    build: *access-build
-    profiles: ["demo"]
-    environment:
-      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
-      ACCESS_DB_POOL_SIZE: 1
-      ACCESS_DB_MAX_OVERFLOW: 0
-      ACCESS_DB_APPLICATION_NAME: prom-access-seed
-    depends_on:
-      access-migrate: { condition: service_completed_successfully }
-    command: ["python", "scripts/seed.py"]
-    restart: "no"
-
-  access-service:
-    image: prom-access-service:local
-    build: *access-build
-    profiles: ["core", "full"]
-    environment:
-      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
-      ACCESS_FRONTEND_ORIGIN: ${PLATFORM_FRONTEND_ORIGIN:-http://localhost:5173}
+    environment: &access-environment
+      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@postgres:5432/prom_access
       ACCESS_ENVIRONMENT: ${PLATFORM_ENVIRONMENT:-development}
       ACCESS_DEBUG: ${PLATFORM_DEBUG:-false}
       ACCESS_JWT_PRIVATE_KEY: ${ACCESS_JWT_PRIVATE_KEY:-}
       ACCESS_JWT_KEY_ID: ${ACCESS_JWT_KEY_ID:-local-ephemeral}
       ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:-prom-access}
       ACCESS_TOKEN_AUDIENCES: ${ACCESS_TOKEN_AUDIENCES:-projects,service-desk}
-      ACCESS_DB_POOL_SIZE: ${ACCESS_DB_POOL_SIZE:-5}
-      ACCESS_DB_MAX_OVERFLOW: ${ACCESS_DB_MAX_OVERFLOW:-5}
-      ACCESS_DB_POOL_TIMEOUT_SECONDS: ${ACCESS_DB_POOL_TIMEOUT_SECONDS:-30}
-      ACCESS_DB_POOL_RECYCLE_SECONDS: ${ACCESS_DB_POOL_RECYCLE_SECONDS:-1800}
-      ACCESS_DB_STATEMENT_TIMEOUT_MS: ${ACCESS_DB_STATEMENT_TIMEOUT_MS:-30000}
-      ACCESS_DB_APPLICATION_NAME: ${ACCESS_DB_APPLICATION_NAME:-prom-access-api}
     depends_on:
-      access-migrate: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
     restart: unless-stopped
 
-  access-identity-report-init:
-    image: prom-access-service:local
-    build: *access-build
-    profiles: ["migration"]
-    user: root
-    volumes:
-      - ./outputs/identity-migration:/workspace/backend/outputs/identity-migration
-    entrypoint: ["sh", "-c"]
-    command: ["chown -R app:app /workspace/backend/outputs/identity-migration"]
-    restart: "no"
-
-  access-identity-migrate:
-    image: prom-access-service:local
-    build: *access-build
-    profiles: ["migration"]
-    environment:
-      ACCESS_DATABASE_URL: postgresql+psycopg://prom_access:${ACCESS_DB_PASSWORD:-prom_access}@access-db:5432/prom_access
-      PROJECTS_DATABASE_URL: postgresql+psycopg://project_showcase:${PROJECTS_DB_PASSWORD:-project_showcase}@projects-db:5432/project_showcase
-      SERVICE_DESK_DATABASE_URL: postgresql+psycopg://service_desk:${SERVICE_DESK_DB_PASSWORD:-service_desk}@service-desk-db:5432/service_desk
-      IDENTITY_MIGRATION_REPORT_DIR: /workspace/backend/outputs/identity-migration
-      ACCESS_DB_POOL_SIZE: 1
-      ACCESS_DB_MAX_OVERFLOW: 0
-      ACCESS_DB_APPLICATION_NAME: prom-identity-migrate
-    volumes:
-      - ./outputs/identity-migration:/workspace/backend/outputs/identity-migration
-    depends_on:
-      access-identity-report-init: { condition: service_completed_successfully }
-      access-migrate: { condition: service_completed_successfully }
-      projects-migrate: { condition: service_completed_successfully }
-      service-desk-migrate: { condition: service_completed_successfully }
-    entrypoint: ["python", "scripts/migrate_identities.py"]
-    command: ["--dry-run"]
-    restart: "no"
-
-  projects-db:
-    image: postgres:17.6-alpine
-    profiles: ["projects", "full", "migration"]
-    environment:
-      POSTGRES_DB: project_showcase
-      POSTGRES_USER: project_showcase
-      POSTGRES_PASSWORD: ${PROJECTS_DB_PASSWORD:-project_showcase}
-    volumes: ["projects_db_data:/var/lib/postgresql/data"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U project_showcase -d project_showcase"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  projects-migrate:
+  projects-backend:
     image: prom-projects-backend:local
     build: &projects-build
       context: .
       dockerfile: apps/projects/backend/Dockerfile
-    profiles: ["projects", "full", "migration"]
-    environment:
-      <<: *projects-environment
-      PROJECTS_DB_POOL_SIZE: 1
-      PROJECTS_DB_MAX_OVERFLOW: 0
-      PROJECTS_DB_APPLICATION_NAME: prom-projects-migrate
-    depends_on:
-      projects-db: { condition: service_healthy }
-    command: ["python", "-m", "alembic", "upgrade", "head"]
-    restart: "no"
-
-  projects-seed:
-    image: prom-projects-backend:local
-    build: *projects-build
-    profiles: ["demo"]
-    environment:
-      <<: *projects-environment
-      PROJECTS_DB_POOL_SIZE: 1
-      PROJECTS_DB_MAX_OVERFLOW: 0
-      PROJECTS_DB_APPLICATION_NAME: prom-projects-seed
-    depends_on:
-      projects-migrate: { condition: service_completed_successfully }
-    command: ["python", "scripts/seed.py"]
-    restart: "no"
-
-  projects-backend:
-    image: prom-projects-backend:local
-    build: *projects-build
-    profiles: ["projects", "full"]
     environment: *projects-environment
     volumes: ["projects_storage:/workspace/backend/storage/projects"]
     depends_on:
-      projects-migrate: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      access-service: { condition: service_healthy }
     restart: unless-stopped
 
-  projects-outbox-worker:
+  projects-worker:
     image: prom-projects-backend:local
     build: *projects-build
-    profiles: ["projects", "full"]
-    environment:
-      <<: *projects-environment
-      PROJECTS_DB_POOL_SIZE: 2
-      PROJECTS_DB_MAX_OVERFLOW: 0
-      PROJECTS_DB_APPLICATION_NAME: prom-projects-outbox-worker
-    depends_on:
-      projects-migrate: { condition: service_completed_successfully }
-    command: ["python", "scripts/outbox_worker.py"]
-    expose: ["${PROJECTS_WORKER_METRICS_PORT:-9100}"]
-    healthcheck: *projects-worker-healthcheck
-    restart: unless-stopped
-
-  projects-attachment-cleanup-worker:
-    image: prom-projects-backend:local
-    build: *projects-build
-    profiles: ["projects", "full"]
-    environment:
-      <<: *projects-environment
-      PROJECTS_DB_POOL_SIZE: 1
-      PROJECTS_DB_MAX_OVERFLOW: 0
-      PROJECTS_DB_APPLICATION_NAME: prom-projects-attachment-cleanup
+    environment: *projects-environment
     volumes: ["projects_storage:/workspace/backend/storage/projects"]
     depends_on:
-      projects-migrate: { condition: service_completed_successfully }
-    command: ["python", "scripts/attachment_cleanup_worker.py"]
-    expose: ["${PROJECTS_WORKER_METRICS_PORT:-9100}"]
-    healthcheck: *projects-worker-healthcheck
+      projects-backend: { condition: service_healthy }
+    command: ["python", "-m", "scripts.worker"]
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.worker", "--health"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
-  service-desk-db:
-    image: postgres:17.6-alpine
-    profiles: ["service-desk", "full", "migration"]
-    environment:
-      POSTGRES_DB: service_desk
-      POSTGRES_USER: service_desk
-      POSTGRES_PASSWORD: ${SERVICE_DESK_DB_PASSWORD:-service_desk}
-    volumes: ["service_desk_db_data:/var/lib/postgresql/data"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U service_desk -d service_desk"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  service-desk-migrate:
+  service-desk-backend:
     image: prom-service-desk-backend:local
     build: &service-desk-build
       context: .
       dockerfile: apps/service-desk/backend/Dockerfile
-    profiles: ["service-desk", "full", "migration"]
-    environment:
-      <<: *service-desk-environment
-      SERVICE_DESK_DB_POOL_SIZE: 1
-      SERVICE_DESK_DB_MAX_OVERFLOW: 0
-      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-migrate
-    depends_on:
-      service-desk-db: { condition: service_healthy }
-    command: ["python", "-m", "alembic", "upgrade", "head"]
-    restart: "no"
-
-  platform-bootstrap:
-    image: prom-service-desk-backend:local
-    build: *service-desk-build
-    profiles: ["demo"]
-    environment:
-      <<: *service-desk-environment
-      SERVICE_DESK_DB_POOL_SIZE: 1
-      SERVICE_DESK_DB_MAX_OVERFLOW: 0
-      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-bootstrap
-    depends_on:
-      service-desk-migrate: { condition: service_completed_successfully }
-    command: ["python", "scripts/bootstrap_identity.py"]
-    restart: "no"
-
-  service-desk-seed:
-    image: prom-service-desk-backend:local
-    build: *service-desk-build
-    profiles: ["demo"]
-    environment:
-      <<: *service-desk-environment
-      SERVICE_DESK_DB_POOL_SIZE: 1
-      SERVICE_DESK_DB_MAX_OVERFLOW: 0
-      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-seed
-    depends_on:
-      platform-bootstrap: { condition: service_completed_successfully }
-    command: ["python", "scripts/seed.py"]
-    restart: "no"
-
-  service-desk-backend:
-    image: prom-service-desk-backend:local
-    build: *service-desk-build
-    profiles: ["service-desk", "full"]
     environment: *service-desk-environment
     volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
     depends_on:
-      service-desk-migrate: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      access-service: { condition: service_healthy }
     restart: unless-stopped
 
-  service-desk-sla-worker:
+  service-desk-worker:
     image: prom-service-desk-backend:local
     build: *service-desk-build
-    profiles: ["service-desk", "full"]
-    environment:
-      <<: *service-desk-environment
-      SERVICE_DESK_DB_POOL_SIZE: 2
-      SERVICE_DESK_DB_MAX_OVERFLOW: 1
-      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-sla-worker
-    command: ["python", "scripts/sla_worker.py"]
+    environment: *service-desk-environment
     volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
     depends_on:
       service-desk-backend: { condition: service_healthy }
-    healthcheck: *service-desk-worker-healthcheck
-    expose: ["${SERVICE_DESK_WORKER_METRICS_PORT:-9100}"]
-    restart: unless-stopped
-
-  service-desk-notification-worker:
-    image: prom-service-desk-backend:local
-    build: *service-desk-build
-    profiles: ["service-desk", "full"]
-    environment:
-      <<: *service-desk-environment
-      SERVICE_DESK_DB_POOL_SIZE: 2
-      SERVICE_DESK_DB_MAX_OVERFLOW: 1
-      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-notification-worker
-    command: ["python", "scripts/notification_worker.py"]
-    depends_on:
-      service-desk-backend: { condition: service_healthy }
-    healthcheck: *service-desk-worker-healthcheck
-    expose: ["${SERVICE_DESK_WORKER_METRICS_PORT:-9100}"]
-    restart: unless-stopped
-
-  service-desk-attachment-cleanup-worker:
-    image: prom-service-desk-backend:local
-    build: *service-desk-build
-    profiles: ["service-desk", "full"]
-    environment:
-      <<: *service-desk-environment
-      SERVICE_DESK_DB_POOL_SIZE: 1
-      SERVICE_DESK_DB_MAX_OVERFLOW: 0
-      SERVICE_DESK_DB_APPLICATION_NAME: prom-service-desk-attachment-cleanup
-    command: ["python", "scripts/attachment_cleanup_worker.py"]
-    volumes: ["service_desk_storage:/workspace/backend/storage/service-desk"]
-    depends_on:
-      service-desk-backend: { condition: service_healthy }
-    healthcheck: *service-desk-worker-healthcheck
-    expose: ["${SERVICE_DESK_WORKER_METRICS_PORT:-9100}"]
+    command: ["python", "-m", "scripts.worker"]
+    healthcheck:
+      test: ["CMD", "python", "-m", "scripts.worker", "--health"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   platform-shell:
@@ -379,44 +119,85 @@ services:
       context: .
       dockerfile: apps/platform-shell/Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_PROJECTS_API_BASE_URL:-/api/projects/v1}
-        VITE_SERVICE_DESK_API_BASE_URL: ${VITE_SERVICE_DESK_API_BASE_URL:-/api/service-desk/v1}
-        VITE_ACCESS_API_BASE_URL: ${VITE_ACCESS_API_BASE_URL:-/api/access/v1}
-    profiles: ["core", "full"]
+        VITE_API_BASE_URL: /api/projects/v1
+        VITE_SERVICE_DESK_API_BASE_URL: /api/service-desk/v1
+        VITE_ACCESS_API_BASE_URL: /api/access/v1
     ports: ["5173:80"]
     depends_on:
       access-service: { condition: service_healthy }
-      access-seed:
-        condition: service_completed_successfully
-        required: false
-      projects-backend:
-        condition: service_healthy
-        required: false
-      projects-seed:
-        condition: service_completed_successfully
-        required: false
-      projects-outbox-worker:
-        condition: service_started
-        required: false
-      projects-attachment-cleanup-worker:
-        condition: service_started
-        required: false
-      service-desk-backend:
-        condition: service_healthy
-        required: false
-      service-desk-seed:
-        condition: service_completed_successfully
-        required: false
-      service-desk-sla-worker:
-        condition: service_started
-        required: false
-      service-desk-notification-worker:
-        condition: service_started
-        required: false
-      service-desk-attachment-cleanup-worker:
-        condition: service_started
-        required: false
+      projects-backend: { condition: service_healthy }
+      service-desk-backend: { condition: service_healthy }
     restart: unless-stopped
+
+  access-migrate:
+    image: prom-access-service:local
+    build: *access-build
+    profiles: ["tooling"]
+    environment: *access-environment
+    command: ["python", "scripts/init_db.py"]
+    restart: "no"
+
+  projects-migrate:
+    image: prom-projects-backend:local
+    build: *projects-build
+    profiles: ["tooling"]
+    environment: *projects-environment
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    restart: "no"
+
+  service-desk-migrate:
+    image: prom-service-desk-backend:local
+    build: *service-desk-build
+    profiles: ["tooling"]
+    environment: *service-desk-environment
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    restart: "no"
+
+  access-seed:
+    image: prom-access-service:local
+    build: *access-build
+    profiles: ["tooling"]
+    environment: *access-environment
+    command: ["python", "scripts/seed.py"]
+    restart: "no"
+
+  projects-seed:
+    image: prom-projects-backend:local
+    build: *projects-build
+    profiles: ["tooling"]
+    environment: *projects-environment
+    command: ["python", "scripts/seed.py"]
+    restart: "no"
+
+  platform-bootstrap:
+    image: prom-service-desk-backend:local
+    build: *service-desk-build
+    profiles: ["tooling"]
+    environment: *service-desk-environment
+    command: ["python", "scripts/bootstrap_identity.py"]
+    restart: "no"
+
+  service-desk-seed:
+    image: prom-service-desk-backend:local
+    build: *service-desk-build
+    profiles: ["tooling"]
+    environment: *service-desk-environment
+    command: ["python", "-m", "scripts.seed_if_empty"]
+    restart: "no"
+
+  access-identity-migrate:
+    image: prom-access-service:local
+    build: *access-build
+    profiles: ["tooling"]
+    environment:
+      <<: *access-environment
+      PROJECTS_DATABASE_URL: postgresql+psycopg://project_showcase:${PROJECTS_DB_PASSWORD:-project_showcase}@postgres:5432/project_showcase
+      SERVICE_DESK_DATABASE_URL: postgresql+psycopg://service_desk:${SERVICE_DESK_DB_PASSWORD:-service_desk}@postgres:5432/service_desk
+      IDENTITY_MIGRATION_REPORT_DIR: /workspace/backend/outputs/identity-migration
+    volumes:
+      - ./outputs/identity-migration:/workspace/backend/outputs/identity-migration
+    entrypoint: ["python", "scripts/migrate_identities.py"]
+    restart: "no"
 
   projects-tests:
     profiles: ["test"]
@@ -441,8 +222,6 @@ services:
     command: ["npm", "test"]
 
 volumes:
-  access_db_data:
-  projects_db_data:
+  postgres_data:
   projects_storage:
-  service_desk_db_data:
   service_desk_storage:

@@ -39,12 +39,6 @@ def upsert_user(
 ) -> User:
     user = repo.get_by_email(email)
     if user is not None:
-        user.full_name = full_name
-        user.role = role
-        user.department = department
-        user.position = position
-        user.competencies = competencies
-        user.about = about
         return user
     return repo.create(
         user_id=user_id,
@@ -310,7 +304,6 @@ def main() -> None:
                 ]
             )
 
-        refresh_demo_project_competencies(db)
         db.commit()
         print("Seed data is ready")
     finally:

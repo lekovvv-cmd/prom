@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from app.core.database import SessionLocal
 from app.modules.access.bootstrap import repair_service_desk_users
+from app.modules.access.models import ServiceDeskUser
+from sqlalchemy import select
 
 
 DEMO_PLATFORM_USERS = (
@@ -52,7 +54,9 @@ DEMO_PLATFORM_USERS = (
 
 def main() -> None:
     with SessionLocal() as db:
-        result = repair_service_desk_users(db, DEMO_PLATFORM_USERS)
+        existing_emails = set(db.scalars(select(ServiceDeskUser.email)))
+        missing = (user for user in DEMO_PLATFORM_USERS if user["email"] not in existing_emails)
+        result = repair_service_desk_users(db, missing)
         db.commit()
     print(f"Service Desk local identity bootstrap: created={result.created} updated={result.updated} skipped={result.skipped}")
 

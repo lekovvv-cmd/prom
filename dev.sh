@@ -27,7 +27,28 @@ fi
 
 case "$COMMAND" in
   up)
-    if ! docker compose --profile full up --build -d --wait; then
+    if ! docker compose up -d --wait postgres; then
+      docker compose ps >&2
+      docker compose logs --tail 200 >&2
+      exit 1
+    fi
+    "$PROM_PYTHON" tools/postgres/ensure_generated_databases.py
+    if [[ "${PROM_SKIP_LEGACY_IMPORT:-}" != "1" ]]; then
+      "$PROM_PYTHON" tools/postgres/import_legacy_databases.py
+    fi
+    for service in access-service projects-backend service-desk-backend platform-shell; do
+      docker compose build "$service"
+    done
+    for job in access-migrate projects-migrate service-desk-migrate access-seed projects-seed platform-bootstrap service-desk-seed; do
+      docker compose --profile tooling run --rm --no-deps "$job"
+    done
+    for registration in apps/*/platform/registration.json; do
+      [[ -f "$registration" ]] || continue
+      module="$(basename "$(dirname "$(dirname "$registration")")")"
+      docker compose build "$module-backend"
+      docker compose --profile tooling run --rm --no-deps "$module-migrate"
+    done
+    if ! docker compose up -d --wait --remove-orphans; then
       docker compose ps >&2
       docker compose logs --tail 200 >&2
       exit 1
@@ -45,9 +66,9 @@ case "$COMMAND" in
   logs) docker compose logs --follow --tail 200 "$@" ;;
   status) docker compose ps ;;
   reset)
-    printf 'WARNING: this removes all local PROM databases and Service Desk attachments.\n' >&2
-    docker compose down --volumes
-    docker compose --profile full up --build -d --wait
+    printf 'WARNING: this removes the shared local PROM database and attachment volumes.\n' >&2
+    docker compose down --volumes --remove-orphans
+    PROM_SKIP_LEGACY_IMPORT=1 "$0" up
     ;;
   test)
     docker compose --profile test run --rm projects-tests
@@ -71,6 +92,7 @@ case "$COMMAND" in
       printf 'Usage: ./dev.sh migrate-identities {--dry-run|--apply}\n' >&2
       exit 2
     }
-    docker compose --profile migration run --rm --build access-identity-migrate "$1"
+    mkdir -p outputs/identity-migration
+    docker compose --profile tooling run --rm --no-deps --user "$(id -u):$(id -g)" access-identity-migrate "$1"
     ;;
 esac

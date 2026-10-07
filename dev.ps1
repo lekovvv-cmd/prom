@@ -43,7 +43,31 @@ try {
 
     switch ($Command) {
         "up" {
-            & docker compose --profile full up --build -d --wait
+            & docker compose up -d --wait postgres
+            if ($LASTEXITCODE -ne 0) { throw "PostgreSQL startup failed." }
+            Invoke-PromPython tools/postgres/ensure_generated_databases.py
+            if ($LASTEXITCODE -ne 0) { throw "Generated module database setup failed." }
+            if ($env:PROM_SKIP_LEGACY_IMPORT -ne "1") {
+                Invoke-PromPython tools/postgres/import_legacy_databases.py
+                if ($LASTEXITCODE -ne 0) { throw "Legacy local database import failed." }
+            }
+            foreach ($service in @("access-service", "projects-backend", "service-desk-backend", "platform-shell")) {
+                & docker compose build $service
+                if ($LASTEXITCODE -ne 0) { throw "Docker image build failed: $service" }
+            }
+            foreach ($job in @("access-migrate", "projects-migrate", "service-desk-migrate", "access-seed", "projects-seed", "platform-bootstrap", "service-desk-seed")) {
+                & docker compose --profile tooling run --rm --no-deps $job
+                if ($LASTEXITCODE -ne 0) { throw "One-shot job '$job' failed." }
+            }
+            Get-ChildItem -Path (Join-Path $RootDir "apps") -Directory | ForEach-Object {
+                if (Test-Path -LiteralPath (Join-Path $_.FullName "platform/registration.json")) {
+                    & docker compose build "$($_.Name)-backend"
+                    if ($LASTEXITCODE -ne 0) { throw "Generated module build failed: $($_.Name)" }
+                    & docker compose --profile tooling run --rm --no-deps "$($_.Name)-migrate"
+                    if ($LASTEXITCODE -ne 0) { throw "Generated module migration failed: $($_.Name)" }
+                }
+            }
+            & docker compose up -d --wait --remove-orphans
             if ($LASTEXITCODE -ne 0) {
                 & docker compose ps
                 & docker compose logs --tail 200
@@ -63,10 +87,17 @@ try {
         "logs" { & docker compose logs --follow --tail 200 @Services }
         "status" { & docker compose ps }
         "reset" {
-            Write-Warning "This removes all local PROM databases and Service Desk attachments."
-            & docker compose down --volumes
+            Write-Warning "This removes the shared local PROM database and attachment volumes."
+            & docker compose down --volumes --remove-orphans
             if ($LASTEXITCODE -ne 0) { throw "Docker Compose reset failed." }
-            & docker compose --profile full up --build -d --wait
+            $previousSkip = $env:PROM_SKIP_LEGACY_IMPORT
+            try {
+                $env:PROM_SKIP_LEGACY_IMPORT = "1"
+                & $PSCommandPath up
+            }
+            finally {
+                $env:PROM_SKIP_LEGACY_IMPORT = $previousSkip
+            }
         }
         "test" {
             & docker compose --profile test run --rm projects-tests
@@ -92,7 +123,8 @@ try {
             if ($Services.Count -ne 1 -or $Services[0] -notin @("--dry-run", "--apply")) {
                 throw "Usage: .\dev.cmd migrate-identities {--dry-run|--apply}"
             }
-            & docker compose --profile migration run --rm --build access-identity-migrate $Services[0]
+            New-Item -ItemType Directory -Force -Path (Join-Path $RootDir "outputs/identity-migration") | Out-Null
+            & docker compose --profile tooling run --rm --no-deps access-identity-migrate $Services[0]
         }
     }
 
