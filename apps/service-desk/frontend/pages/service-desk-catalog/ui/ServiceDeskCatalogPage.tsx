@@ -243,14 +243,6 @@ export function ServiceDeskCatalogPage() {
                       <p>{selectedGroup.description}</p>
                     ) : null}
                   </div>
-                  {selectedCategoryId ? (
-                    <Button
-                      variant="ghost"
-                      onClick={() => setSelectedCategoryId("")}
-                    >
-                      Назад к категориям
-                    </Button>
-                  ) : null}
                 </div>
                 {shownGroups.map((group) => (
                   <section

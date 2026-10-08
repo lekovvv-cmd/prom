@@ -159,6 +159,15 @@ export function ProjectFilters({
           role="group"
           aria-label="Фильтр по компетенциям"
         >
+          {selectedCompetencies.length > 0 && (
+            <button
+              type="button"
+              className="chip"
+              onClick={() => updateCompetencies([])}
+            >
+              Сбросить все компетенции
+            </button>
+          )}
           {selectedCompetencies.map((competency) => (
             <button
               key={competency}
