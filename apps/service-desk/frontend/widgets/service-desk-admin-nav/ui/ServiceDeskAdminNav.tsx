@@ -4,7 +4,6 @@ import { useServiceDeskAccess } from "../../../providers/ServiceDeskAccessProvid
 
 export const serviceDeskAdminNavItems = [
   ["Обзор", "/admin/service-desk", "service_desk.view_reports"],
-  ["Заявки", "/admin/service-desk/tickets", "service_desk.view_all_tickets"],
   ["Каталог", "/admin/service-desk/catalog", "service_desk.manage_catalog"],
   ["Шаблоны", "/admin/service-desk/templates", "service_desk.manage_templates"],
   [

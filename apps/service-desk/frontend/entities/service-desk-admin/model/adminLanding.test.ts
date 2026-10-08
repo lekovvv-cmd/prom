@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canAccessServiceDeskWorkbench,
   canShowServiceDeskAdministration,
   getServiceDeskAdminLanding,
 } from "./adminLanding";
@@ -11,6 +12,7 @@ describe("Service Desk admin landing", () => {
     ["service_desk.manage_templates", "/admin/service-desk/templates"],
     ["service_desk.manage_access", "/admin/service-desk/access"],
     ["service_desk.view_reports", "/admin/service-desk"],
+    ["service_desk.view_all_tickets", "/service-desk/workbench"],
   ])("routes %s to %s", (capability, expected) => {
     expect(
       getServiceDeskAdminLanding({
@@ -39,6 +41,31 @@ describe("Service Desk admin landing", () => {
         ],
       }),
     ).toBe(false);
+  });
+
+  it.each([
+    ["service_desk.be_assignee", true],
+    ["service_desk.approve", true],
+    ["service_desk.assign", true],
+    ["service_desk.change_priority", true],
+    ["service_desk.view_all_tickets", true],
+    ["service_desk.manage_catalog", false],
+  ])("matches backend workbench access for %s", (capability, allowed) => {
+    expect(
+      canAccessServiceDeskWorkbench({
+        access_type: "service_desk_manager",
+        capabilities: [capability],
+      }),
+    ).toBe(allowed);
+  });
+
+  it("allows a Service Desk admin into the workbench", () => {
+    expect(
+      canAccessServiceDeskWorkbench({
+        access_type: "service_desk_admin",
+        capabilities: [],
+      }),
+    ).toBe(true);
   });
 
   it.each([

@@ -8,7 +8,6 @@ describe("ServiceDeskAdminNav", () => {
 
     expect(routes).toEqual([
       "/admin/service-desk",
-      "/admin/service-desk/tickets",
       "/admin/service-desk/catalog",
       "/admin/service-desk/templates",
       "/admin/service-desk/dictionaries",

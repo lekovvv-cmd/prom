@@ -5,7 +5,7 @@ export type ServiceDeskAdminLandingUser = {
 
 const landingOptions = [
   ["service_desk.view_reports", "/admin/service-desk"],
-  ["service_desk.view_all_tickets", "/admin/service-desk/tickets"],
+  ["service_desk.view_all_tickets", "/service-desk/workbench"],
   ["service_desk.manage_catalog", "/admin/service-desk/catalog"],
   ["service_desk.manage_templates", "/admin/service-desk/templates"],
   ["service_desk.manage_approval_workflows", "/admin/service-desk/approvals"],
@@ -17,6 +17,26 @@ const landingOptions = [
 const administrationCapabilities = landingOptions
   .map(([capability]) => capability)
   .filter((capability) => capability.startsWith("service_desk.manage_"));
+
+const operationalCapabilities = [
+  "service_desk.be_assignee",
+  "service_desk.approve",
+  "service_desk.assign",
+  "service_desk.change_priority",
+  "service_desk.view_all_tickets",
+];
+
+export function canAccessServiceDeskWorkbench(
+  user: ServiceDeskAdminLandingUser | null | undefined,
+) {
+  return Boolean(
+    user &&
+    (user.access_type === "service_desk_admin" ||
+      operationalCapabilities.some((capability) =>
+        user.capabilities.includes(capability),
+      )),
+  );
+}
 
 export function getServiceDeskAdminLanding(
   user: ServiceDeskAdminLandingUser | null | undefined,

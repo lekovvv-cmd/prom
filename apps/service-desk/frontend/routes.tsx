@@ -7,7 +7,10 @@ import {
   ServiceDeskAccessProvider,
   useServiceDeskAccess,
 } from "./providers/ServiceDeskAccessProvider";
-import { getServiceDeskAdminLanding } from "./entities/service-desk-admin/model/adminLanding";
+import {
+  canAccessServiceDeskWorkbench,
+  getServiceDeskAdminLanding,
+} from "./entities/service-desk-admin/model/adminLanding";
 import type { ServiceDeskAdminConfigSection } from "./pages/service-desk-admin-configuration/ui/ServiceDeskAdminConfigurationPage";
 import { Card } from "@prom/ui/Card";
 import { PageLayout } from "@prom/ui/PageLayout";
@@ -116,6 +119,15 @@ function CapabilityRoute({
   return allowed ? children : <Navigate to="/projects" replace />;
 }
 
+function WorkbenchRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useServiceDeskAccess();
+  return canAccessServiceDeskWorkbench(user) ? (
+    children
+  ) : (
+    <Navigate to="/projects" replace />
+  );
+}
+
 function AdminIndexRoute() {
   const { user } = useServiceDeskAccess();
   const landing = getServiceDeskAdminLanding(user);
@@ -213,10 +225,10 @@ function RoutedServiceDesk() {
             path="/service-desk/workbench"
             element={
               <ServiceDeskRoute>
-                <CapabilityRoute capability="service_desk.assign">
+                <WorkbenchRoute>
                   <Header />
                   <ServiceDeskWorkbenchPage />
-                </CapabilityRoute>
+                </WorkbenchRoute>
               </ServiceDeskRoute>
             }
           />
@@ -286,11 +298,9 @@ function RoutedServiceDesk() {
             path="/admin/service-desk/tickets"
             element={
               <ServiceDeskRoute>
-                <CapabilityRoute capability="service_desk.assign">
-                  <ServiceDeskAdminLayout>
-                    <ServiceDeskWorkbenchPage />
-                  </ServiceDeskAdminLayout>
-                </CapabilityRoute>
+                <WorkbenchRoute>
+                  <Navigate to="/service-desk/workbench" replace />
+                </WorkbenchRoute>
               </ServiceDeskRoute>
             }
           />

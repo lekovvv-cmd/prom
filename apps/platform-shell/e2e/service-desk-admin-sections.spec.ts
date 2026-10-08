@@ -140,7 +140,7 @@ test("remaining admin sections satisfy direct-link page contract on desktop and 
     ["/admin/service-desk", /\/admin\/service-desk$/, "Service Desk - обзор"],
     [
       "/admin/service-desk/tickets",
-      /\/admin\/service-desk\/tickets$/,
+      /\/service-desk\/workbench$/,
       "Рабочее место Service Desk",
     ],
     [
