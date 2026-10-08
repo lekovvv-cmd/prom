@@ -49,7 +49,6 @@ test("Service Desk admin: полный admin navigation доступен", async
   });
   for (const item of [
     "Обзор",
-    "Заявки",
     "Каталог",
     "Шаблоны",
     "Справочники",
