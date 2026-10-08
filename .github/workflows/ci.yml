@@ -817,6 +817,29 @@ jobs:
         run: ./dev.sh up
       - name: Record clean-stack health
         run: docker compose ps --all
+      - name: Verify repeatable up, reset, and seeded seven-container demo
+        run: |
+          check_demo() {
+            expected=$(printf '%s\n' postgres access-service projects-backend projects-worker service-desk-backend service-desk-worker platform-shell | sort)
+            actual=$(docker compose ps --all --services | sort)
+            if [ "$actual" != "$expected" ]; then
+              printf 'Unexpected runtime services:\n%s\n' "$actual" >&2
+              return 1
+            fi
+            for spec in prom_access:prom_access:platform_users project_showcase:project_showcase:users service_desk:service_desk:service_desk_users; do
+              IFS=: read -r owner database table <<< "$spec"
+              count=$(docker compose exec -T postgres psql -At -U "$owner" -d "$database" -c "SELECT count(*) FROM $table")
+              printf '%s: %s users\n' "$database" "$count"
+              test "$count" -gt 0
+            done
+          }
+          check_demo
+          ./dev.sh up
+          check_demo
+          ./dev.sh reset
+          check_demo
+          ./dev.sh up
+          check_demo
       - name: Verify live Access demo routing through the public gateway
         run: python tools/gateway/live_access_demo_e2e.py
       - name: Run Playwright through the versioned gateway
