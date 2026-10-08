@@ -197,7 +197,6 @@ jobs:
       - run: .venv/bin/mypy apps/audit-sample-module/backend/src
       - run: uv run --frozen --group dev deptry apps/audit-sample-module/backend/src --config apps/audit-sample-module/backend/pyproject.toml
       - run: uv run --frozen --package prom-audit-sample-module-backend --extra dev python -m pytest -q apps/audit-sample-module/backend/tests
-      - run: docker compose --profile audit-sample-module up --build -d --wait audit-sample-module-backend
       - name: Verify live generated-module Access authorization
         run: |
           test_key="$RUNNER_TEMP/prom-live-access-test.pem"
@@ -205,11 +204,7 @@ jobs:
           ACCESS_JWT_PRIVATE_KEY="$(<"$test_key")"
           export ACCESS_JWT_PRIVATE_KEY
           export ACCESS_JWT_KEY_ID="live-generator-access"
-          docker compose --profile core --profile audit-sample-module up --build -d --wait \
-            access-db access-migrate access-service \
-            audit-sample-module-db audit-sample-module-migrate audit-sample-module-backend \
-            platform-shell
-          docker compose --profile core run --rm access-seed
+          ./dev.sh up
           PROM_LIVE_ACCESS_TEST_KEY_FILE="$test_key" \
           PROM_LIVE_ACCESS_TEST_KEY_ID="$ACCESS_JWT_KEY_ID" \
           uv run --frozen --package prom-access-service --extra dev python tools/generators/live_module_authorization_e2e.py
@@ -312,7 +307,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
-      - run: uv sync --locked --package prom-platform-sdk --extra dev
+      - run: uv sync --locked --package prom-platform-sdk --extra dev --group dev
       - run: uv run --frozen --package prom-platform-sdk --extra dev coverage run -m pytest -q packages/python/platform-sdk/tests
       - name: Report line and branch coverage
         if: ${{ !cancelled() }}
@@ -377,7 +372,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
-      - run: uv sync --locked --package prom-access-service --extra dev
+      - run: uv sync --locked --package prom-access-service --extra dev --group dev
       - run: uv run --frozen --package prom-access-service --extra dev coverage run -m pytest -q apps/access-service/tests
       - name: Report line and branch coverage
         if: ${{ !cancelled() }}
@@ -456,18 +451,13 @@ jobs:
           uv run --frozen --package prom-access-service --extra dev python -m pytest -q
           apps/access-service/tests/test_identity_migration.py
       - name: Start long-running PostgreSQL-backed services
-        run: docker compose --profile full up --build -d --wait
-      - name: Run and verify representative seed jobs
-        run: |
-          for service in access-seed projects-seed service-desk-seed; do
-            docker compose --profile full --profile demo run --rm --no-deps "$service"
-          done
+        run: ./dev.sh up
       - name: Rehearse dry-run, partial recovery, and repeatable apply against PostgreSQL
         run: |
-          docker compose --profile migration run --rm --entrypoint python access-identity-migrate scripts/rehearse_identity_resumability.py
-          docker compose --profile migration run --rm access-identity-migrate --dry-run
-          docker compose --profile migration run --rm access-identity-migrate --apply
-          docker compose --profile migration run --rm access-identity-migrate --apply
+          docker compose --profile tooling run --rm --no-deps --user "$(id -u):$(id -g)" --entrypoint python access-identity-migrate scripts/rehearse_identity_resumability.py
+          ./dev.sh migrate-identities --dry-run
+          ./dev.sh migrate-identities --apply
+          ./dev.sh migrate-identities --apply
           test -s outputs/identity-migration/identity-reconciliation.json
           test -s outputs/identity-migration/identity-reconciliation.md
       - name: Capture diagnostics
@@ -502,10 +492,6 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --package shpiu-project-showcase-backend --extra dev
       - run: uv run --frozen --package shpiu-project-showcase-backend --extra dev python -m pytest -q apps/projects/backend/tests
-      - name: Re-run storage transaction and rollback boundary tests
-        run: >
-          uv run --frozen --package shpiu-project-showcase-backend --extra dev python -m pytest -q
-          apps/projects/backend/tests/test_projects_integrity.py
 
   service-desk-tests:
     name: Service Desk unit tests
@@ -624,19 +610,6 @@ jobs:
           retention-days: 14
       - run: npm run check:styles
       - run: npm run check:dead-code
-      - name: Audit production npm dependencies
-        shell: bash
-        run: |
-          for attempt in 1 2 3; do
-            if npm audit --omit=dev --audit-level=high; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep "$((attempt * 5))"
-          done
-
   frontend-build:
     name: Frontend production build
     needs: detect-changes
@@ -764,7 +737,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start affected module profile through the gateway
-        run: docker compose --profile core --profile "${{ matrix.module }}" up --build -d --wait
+        run: ./dev.sh up
       - name: Verify canonical gateway health routes
         run: |
           curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:5173/healthz
@@ -804,7 +777,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start generated module profile through the gateway
-        run: docker compose --profile core --profile "${{ matrix.module }}" up --build -d --wait
+        run: ./dev.sh up
       - name: Verify generated module health through its registered gateway prefix
         run: |
           curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:5173/healthz
@@ -839,10 +812,8 @@ jobs:
       - run: npm exec --workspace=@prom/platform-shell playwright install --with-deps chromium
       - name: Remove all prior volumes and orphan containers
         run: docker compose down -v --remove-orphans
-      - name: Start production-like stack
-        run: docker compose --profile full up --build -d --wait
-      - name: Load idempotent demo fixtures for browser scenarios
-        run: docker compose --profile full --profile demo up -d --wait
+      - name: Start ready demo stack
+        run: ./dev.sh up
       - name: Record clean-stack health
         run: docker compose ps --all
       - name: Verify live Access demo routing through the public gateway

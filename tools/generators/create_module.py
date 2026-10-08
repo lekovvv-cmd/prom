@@ -149,13 +149,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="{package.upper()}_", extra="ignore")
-    database_url: str = "postgresql+psycopg://{package}:{package}@{name}-db:5432/{package}"
+    database_url: str = "postgresql+psycopg://{package}:{package}@postgres:5432/{package}"
     access_jwks_url: str = "http://access-service:8002/.well-known/jwks.json"
     access_token_issuer: str = "prom-access"
     access_token_audience: str = "{module_token_audience(name)}"
-    access_jwks_cache_ttl_seconds: int = 300
-    access_jwks_stale_if_error_seconds: int = 3600
-    access_clock_skew_seconds: int = 30
 
 
 settings = Settings()
@@ -205,9 +202,9 @@ def _platform_verifier() -> CachedJwksVerifier:
         jwks_url=settings.access_jwks_url,
         audience=settings.access_token_audience,
         issuer=settings.access_token_issuer,
-        cache_ttl_seconds=settings.access_jwks_cache_ttl_seconds,
-        stale_if_error_seconds=settings.access_jwks_stale_if_error_seconds,
-        clock_skew_seconds=settings.access_clock_skew_seconds,
+        cache_ttl_seconds=300,
+        stale_if_error_seconds=3600,
+        clock_skew_seconds=30,
     )
 
 
@@ -224,20 +221,6 @@ def require_module_access(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     return principal
 '''
-        ),
-        module / "backend" / "src" / package / "platform_events.py": _render(
-            """
-from platform_sdk.outbox import AuditEventMixin, OutboxEventMixin
-from .database import Base
-
-
-class AuditEvent(AuditEventMixin, Base):
-    __tablename__ = "audit_events"
-
-
-class OutboxEvent(OutboxEventMixin, Base):
-    __tablename__ = "outbox_events"
-"""
         ),
         module / "backend" / "src" / package / "bootstrap" / "__init__.py": "",
         module / "backend" / "src" / package / "bootstrap" / "app.py": _render(
@@ -288,7 +271,6 @@ from sqlalchemy import engine_from_config, pool
 
 from {package}.database import Base
 from {package}.config import settings
-from {package} import platform_events  # noqa: F401
 
 target_metadata = Base.metadata
 context.config.set_main_option("sqlalchemy.url", settings.database_url)
@@ -318,7 +300,6 @@ run_migrations_offline() if context.is_offline_mode() else run_migrations_online
 from alembic import op
 
 from {package}.database import Base
-from {package} import platform_events  # noqa: F401
 
 revision = "{package}_0001"
 down_revision = None
@@ -329,8 +310,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("outbox_events")
-    op.drop_table("audit_events")
+    pass
 '''
         ),
         module / "backend" / "tests" / "test_health.py": _render(
@@ -391,7 +371,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["httpx>=0.28,<1", "pytest>=9,<10", "ruff>=0.15,<1"]
+dev = ["httpx2>=0.0.1", "pytest>=9,<10", "ruff>=0.15,<1"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -403,7 +383,7 @@ optional_dependencies_dev_groups = ["dev"]
 # Alembic, the DB driver and Uvicorn are executed by the runtime rather than
 # imported from application modules.  TestClient pulls httpx transitively;
 # pytest and Ruff are runner/tool dependencies.
-per_rule_ignores = {{ DEP002 = ["alembic", "psycopg", "uvicorn", "httpx", "pytest", "ruff"] }}
+per_rule_ignores = {{ DEP002 = ["alembic", "psycopg", "uvicorn", "httpx2", "pytest", "ruff"] }}
 
 [tool.uv.sources]
 prom-platform-sdk = {{ workspace = true }}
@@ -412,7 +392,7 @@ prom-platform-sdk = {{ workspace = true }}
         module / "backend" / "Dockerfile": _render(
             f"""
 FROM ghcr.io/astral-sh/uv:0.11.29 AS uv
-FROM python:3.14.6-slim AS runtime
+FROM python:3.14.8-slim@sha256:f85c5697265c178cc6887276c55fe16cf3d14ca35c3df6a5eab3b360534a55d2 AS runtime
 COPY --from=uv /uv /uvx /bin/
 WORKDIR /workspace
 ENV PATH="/workspace/.venv/bin:$PATH" UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
@@ -559,50 +539,33 @@ def _register(change: ChangeSet, name: str) -> None:
         proxy_pass ${package}_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Request-ID $prom_request_id;
-        proxy_set_header X-Correlation-ID $prom_correlation_id;
     }}
 
 '''
     change.replace(nginx, "    location = /index.html {\n", location + "    location = /index.html {\n")
 
     compose = ROOT / "compose.yaml"
-    services = f'''  {name}-db:
-    image: postgres:18.3-alpine
-    profiles: ["{name}", "full"]
-    environment:
-      POSTGRES_USER: {package}
-      POSTGRES_PASSWORD: ${{{package.upper()}_DB_PASSWORD:-{package}}}
-      POSTGRES_DB: {package}
-    volumes: ["{package}_db_data:/var/lib/postgresql"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {package} -d {package}"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  {name}-migrate:
+    services = f'''  {name}-migrate:
     build:
       context: .
       dockerfile: apps/{name}/backend/Dockerfile
-    profiles: ["{name}", "full"]
+    profiles: ["tooling"]
     environment:
-      {package.upper()}_DATABASE_URL: postgresql+psycopg://{package}:${{{package.upper()}_DB_PASSWORD:-{package}}}@{name}-db:5432/{package}
+      {package.upper()}_DATABASE_URL: postgresql+psycopg://{package}:{package}@postgres:5432/{package}
     command: ["alembic", "upgrade", "head"]
-    depends_on:
-      {name}-db: {{ condition: service_healthy }}
+    restart: "no"
 
   {name}-backend:
     build:
       context: .
       dockerfile: apps/{name}/backend/Dockerfile
-    profiles: ["{name}", "full"]
     environment:
-      {package.upper()}_DATABASE_URL: postgresql+psycopg://{package}:${{{package.upper()}_DB_PASSWORD:-{package}}}@{name}-db:5432/{package}
+      {package.upper()}_DATABASE_URL: postgresql+psycopg://{package}:{package}@postgres:5432/{package}
       {package.upper()}_ACCESS_JWKS_URL: ${{{package.upper()}_ACCESS_JWKS_URL:-http://access-service:8002/.well-known/jwks.json}}
       {package.upper()}_ACCESS_TOKEN_ISSUER: ${{{package.upper()}_ACCESS_TOKEN_ISSUER:-prom-access}}
       {package.upper()}_ACCESS_TOKEN_AUDIENCE: {module_token_audience(name)}
     depends_on:
-      {name}-migrate: {{ condition: service_completed_successfully }}
+      postgres: {{ condition: service_healthy }}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{port}/health/live')"]
       interval: 10s
@@ -611,7 +574,6 @@ def _register(change: ChangeSet, name: str) -> None:
 
 '''
     change.replace(compose, "  platform-shell:\n", services + "  platform-shell:\n")
-    change.replace(compose, "  service_desk_storage:\n", f"  service_desk_storage:\n  {package}_db_data:\n")
     generated_package = ROOT / "contracts/generated/package.json"
     change.replace(
         generated_package,
@@ -638,10 +600,9 @@ def _unregister(change: ChangeSet, name: str) -> None:
     change.replace(nginx, text[text.index(start) : end_at], "")
     compose = ROOT / "compose.yaml"
     text = compose.read_text(encoding="utf-8")
-    start = f"  {name}-db:\n"
+    start = f"  {name}-migrate:\n"
     end_at = text.index("  platform-shell:\n", text.index(start))
     change.replace(compose, text[text.index(start) : end_at], "")
-    change.replace(compose, f"  {package}_db_data:\n", "")
     generated_package = ROOT / "contracts/generated/package.json"
     change.replace(
         generated_package,

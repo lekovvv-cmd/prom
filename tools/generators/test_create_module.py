@@ -56,6 +56,8 @@ def _run(root: Path, *args: str, failure: bool = False) -> subprocess.CompletedP
         [sys.executable, str(GENERATOR), *args],
         check=False,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         env=environment,
     )
@@ -81,9 +83,11 @@ def test_create_check_remove_restores_workspace(tmp_path: Path) -> None:
         tmp_path / "apps/audit-sample-module/backend/alembic/versions/0001_initial.py"
     ).is_file()
     assert (tmp_path / "apps/audit-sample-module/frontend/src/theme.css").is_file()
-    assert 'audit_sample_module_db_data:/var/lib/postgresql"' in (
+    assert 'audit_sample_module:audit_sample_module@postgres:5432/audit_sample_module' in (
         tmp_path / "compose.yaml"
     ).read_text(encoding="utf-8")
+    assert "audit-sample-module-db:" not in (tmp_path / "compose.yaml").read_text(encoding="utf-8")
+    assert not (tmp_path / "apps/audit-sample-module/backend/src/audit_sample_module/platform_events.py").exists()
     assert '"react-router-dom": "7.18.3"' in (
         tmp_path / "apps/audit-sample-module/frontend/package.json"
     ).read_text(encoding="utf-8")
