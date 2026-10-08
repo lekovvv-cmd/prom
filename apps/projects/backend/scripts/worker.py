@@ -9,8 +9,8 @@ from platform_sdk.observability import get_service_metrics, start_worker_metrics
 from platform_sdk.worker_loop import PeriodicJob, check_health, run_jobs
 
 from app.core.config import settings
-from scripts.attachment_cleanup_worker import cleanup_once
-from scripts.outbox_worker import process_batch
+from .attachment_cleanup_worker import cleanup_once
+from .outbox_worker import process_batch
 
 NAMES = ("outbox", "cleanup")
 

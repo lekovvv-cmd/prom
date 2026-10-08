@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Event, Lock, Thread
-from typing import Callable
+from typing import Callable, TypedDict
 
 logger = logging.getLogger(__name__)
 HEALTH_FILE = Path("/tmp/prom-worker-health.json")
@@ -22,6 +22,16 @@ class PeriodicJob:
     name: str
     run: Callable[[], object]
     interval_seconds: float
+
+
+class TaskHealth(TypedDict):
+    last_success: float | None
+    stale_after_seconds: float
+
+
+class WorkerHealth(TypedDict):
+    started_at: float
+    tasks: dict[str, TaskHealth]
 
 
 def check_health(names: tuple[str, ...], *, path: Path = HEALTH_FILE) -> bool:
@@ -44,7 +54,7 @@ def check_health(names: tuple[str, ...], *, path: Path = HEALTH_FILE) -> bool:
 def run_jobs(jobs: tuple[PeriodicJob, ...], *, path: Path = HEALTH_FILE) -> None:
     stop = Event()
     lock = Lock()
-    state = {
+    state: WorkerHealth = {
         "started_at": time.time(),
         "tasks": {
             job.name: {

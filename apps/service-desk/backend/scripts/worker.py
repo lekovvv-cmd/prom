@@ -13,7 +13,7 @@ from app.modules.approvals import models as approval_models  # noqa: F401
 from app.modules.comments import models as comment_models  # noqa: F401
 from app.modules.notifications.worker import NotificationOutboxWorker
 from app.modules.sla.runner import SlaWorkerRunner
-from scripts.attachment_cleanup_worker import cleanup_once
+from .attachment_cleanup_worker import cleanup_once
 
 NAMES = ("sla", "notifications", "cleanup")
 

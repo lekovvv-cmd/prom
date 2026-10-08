@@ -223,7 +223,7 @@ jobs:
         if: always()
         run: |
           docker compose ps -a
-          docker compose logs --no-color access-service access-migrate audit-sample-module-backend audit-sample-module-migrate audit-sample-module-db
+          docker compose logs --no-color postgres access-service audit-sample-module-backend
       - name: Stop generator acceptance stack
         if: always()
         run: docker compose down -v --remove-orphans
@@ -307,8 +307,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
-      - run: uv sync --locked --package prom-platform-sdk --extra dev --group dev
-      - run: uv run --frozen --package prom-platform-sdk --extra dev coverage run -m pytest -q packages/python/platform-sdk/tests
+      - run: uv sync --locked --all-packages --all-extras --group dev
+      - run: uv run --frozen --group dev coverage run -m pytest -q packages/python/platform-sdk/tests
       - name: Report line and branch coverage
         if: ${{ !cancelled() }}
         run: |
@@ -372,8 +372,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
-      - run: uv sync --locked --package prom-access-service --extra dev --group dev
-      - run: uv run --frozen --package prom-access-service --extra dev coverage run -m pytest -q apps/access-service/tests
+      - run: uv sync --locked --all-packages --all-extras --group dev
+      - run: uv run --frozen --group dev coverage run -m pytest -q apps/access-service/tests
       - name: Report line and branch coverage
         if: ${{ !cancelled() }}
         run: |
@@ -454,6 +454,7 @@ jobs:
         run: ./dev.sh up
       - name: Rehearse dry-run, partial recovery, and repeatable apply against PostgreSQL
         run: |
+          mkdir -p outputs/identity-migration
           docker compose --profile tooling run --rm --no-deps --user "$(id -u):$(id -g)" --entrypoint python access-identity-migrate scripts/rehearse_identity_resumability.py
           ./dev.sh migrate-identities --dry-run
           ./dev.sh migrate-identities --apply
