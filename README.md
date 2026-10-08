@@ -71,18 +71,8 @@ accepts code `000000` for the seeded accounts: `employee@utmn.ru`,
 `project.manager@utmn.ru`, `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, and
 `admin@utmn.ru`. The backend verifies this code and creates the same browser
 session used by the platform. Demo login is available only outside production.
-Legacy identity reconciliation is a separate migration tool for existing databases.
-
-For existing Projects or Service Desk databases, inspect the reconciliation report
-before applying it:
-
-```powershell
-.\dev.cmd migrate-identities --dry-run
-.\dev.cmd migrate-identities --apply
-```
-
-Reports are written to `outputs/identity-migration/`. An empty source database
-produces `identities: 0` and an explicit warning; it does not create demo users.
+The Access, Projects, and Service Desk seed jobs populate their own demo users
+using consistent UUIDs and email addresses.
 
 ## Production configuration
 

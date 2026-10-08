@@ -18,7 +18,6 @@ is exposed at `http://localhost:5173`.
 `reset` removes local demo database and attachment volumes, then calls `up` to
 restore a ready demo. Repeating `up` preserves existing demo changes. Open
 `http://localhost:5173/`, choose a demo user, and enter code `000000`.
-Legacy identity reconciliation is only for pre-existing data.
 
 ## Coverage
 

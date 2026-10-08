@@ -45,11 +45,12 @@ permission locally through JWKS. Registration does not grant ordinary users
 anything: role/group mutations retain their existing `session_version`
 revocation behavior.
 
-Access persists a key ring with exactly one active signing key plus previous
-verify-only keys. Rotation publishes active + overlap keys; retirement occurs
-only after token TTL, clock skew, and configured overlap. Unknown keys, wrong
-issuer/audience, malformed/expired tokens, and stale JWKS beyond the outage
-window are rejected. Private material is never returned by JWKS or logged.
+Access uses one RSA private key and publishes its public key through JWKS.
+Development generates an ephemeral key at startup when none is configured;
+deployments supply `ACCESS_JWT_PRIVATE_KEY` or `ACCESS_JWT_PRIVATE_KEY_FILE`.
+Unknown keys, wrong issuer/audience, malformed/expired tokens, and stale JWKS
+beyond the outage window are rejected. Private material is never returned by
+JWKS or logged.
 
 ## Authorization
 

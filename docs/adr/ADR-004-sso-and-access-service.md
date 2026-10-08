@@ -12,8 +12,7 @@ PKCE and the development-only mock verifier terminate in the same session model.
 The frontend may exchange a valid browser session for a short bearer kept only in
 memory; privileged credentials are never persisted in browser storage.
 
-Signing uses a database-persisted key ring with one active key and previous
-verify-only keys. Rotation overlaps public keys for token TTL + skew + the
-configured safety period, and production supplies private material from a secret
-or file mount. This avoids login dependence on Access for every product request
-while preserving restart stability and bounded fail-closed JWKS caching.
+Current signing uses one RSA key supplied from a secret or file mount in
+production. Access publishes its public key through JWKS for local product
+verification. The historical key ring described by this superseded ADR has
+been removed.
