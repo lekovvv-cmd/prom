@@ -2,6 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { getProject } from "../../../entities/project/api/projectApi";
+import { getMyResponses } from "../../../entities/project-response/api/projectResponseApi";
+import { useAuth } from "@prom/auth";
 import { projectsQueryKeys } from "../../../api/queryKeys";
 import { Header } from "@prom/layout";
 import { ProjectDetails } from "../../../widgets/project-details/ui/ProjectDetails";
@@ -10,6 +12,7 @@ import { PageLayout } from "@prom/ui/PageLayout";
 import { Spinner } from "@prom/ui/Spinner";
 
 export function ProjectDetailsPage() {
+  const { user } = useAuth();
   const { projectId } = useParams();
   const projectQuery = useQuery({
     queryKey: projectsQueryKeys.detail(projectId ?? "missing"),
@@ -17,6 +20,16 @@ export function ProjectDetailsPage() {
     enabled: Boolean(projectId),
   });
   const project = projectQuery.data ?? null;
+  const myResponsesQuery = useQuery({
+    queryKey: ["my-responses", user?.id],
+    queryFn: () => getMyResponses({ limit: 100 }),
+    enabled: Boolean(user),
+  });
+  const hasActiveResponse =
+    myResponsesQuery.data?.items.some(
+      (response) =>
+        response.project_id === projectId && response.status !== "cancelled",
+    ) ?? false;
   const error =
     projectQuery.error instanceof Error ? projectQuery.error.message : null;
 
@@ -36,7 +49,11 @@ export function ProjectDetailsPage() {
         {!projectQuery.isLoading && project && (
           <ProjectDetails
             project={project}
-            onResponseSubmitted={() => void projectQuery.refetch()}
+            hasActiveResponse={hasActiveResponse}
+            onResponseSubmitted={() => {
+              void projectQuery.refetch();
+              void myResponsesQuery.refetch();
+            }}
           />
         )}
         {!projectQuery.isLoading && !project && !error && (

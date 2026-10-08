@@ -15,10 +15,12 @@ export function ProjectDetails({
   project,
   onResponseSubmitted = () => undefined,
   showResponseForm = true,
+  hasActiveResponse = false,
 }: {
   project: ProjectDetailsType;
   onResponseSubmitted?: () => void;
   showResponseForm?: boolean;
+  hasActiveResponse?: boolean;
 }) {
   const { user } = useAuth();
   const competencyBlocks = normalizeCompetencyBlocks(
@@ -97,6 +99,13 @@ export function ProjectDetails({
           <Card>
             <h3>Отклик недоступен</h3>
             <p className="muted">На собственный проект откликнуться нельзя.</p>
+          </Card>
+        ) : hasActiveResponse ? (
+          <Card>
+            <h3>Вы уже откликнулись</h3>
+            <p className="muted">
+              Текущий отклик доступен в разделе «Мои отклики».
+            </p>
           </Card>
         ) : canRespond ? (
           <ProjectResponseForm
