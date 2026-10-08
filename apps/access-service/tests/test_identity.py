@@ -42,6 +42,23 @@ def test_internal_token_contains_session_version_and_correlation_id() -> None:
     assert datetime.fromtimestamp(claims["exp"], UTC) > datetime.now(UTC)
 
 
+def test_single_signing_key_is_published_and_verifies_tokens() -> None:
+    signer = InternalTokenSigner(
+        AccessSettings(database_url="sqlite+pysqlite:///:memory:", jwt_key_id="test-key")
+    )
+    token = signer.issue(
+        user_id="user-1",
+        external_subject=None,
+        email="employee@utmn.ru",
+        display_name="Employee",
+        permissions={"projects.access"},
+        session_version=1,
+    )
+
+    assert [key["kid"] for key in signer.jwks()["keys"]] == ["test-key"]
+    assert signer.verify(token, audience="projects")["sub"] == "user-1"
+
+
 
 def production_settings(**overrides: object) -> AccessSettings:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)

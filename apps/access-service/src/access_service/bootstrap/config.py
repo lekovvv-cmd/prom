@@ -23,7 +23,6 @@ class AccessSettings(BaseSettings):
     jwt_private_key: str | None = None
     jwt_private_key_file: str | None = None
     jwt_key_id: str = "local-ephemeral"
-    jwt_rotation_overlap_seconds: int = 1200
     session_cookie_name: str = "prom_session"
     session_csrf_cookie_name: str = "prom_csrf"
     session_same_site: Literal["lax", "strict"] = "lax"
@@ -67,8 +66,6 @@ class AccessSettings(BaseSettings):
                 raise ValueError("ACCESS_TOKEN_ISSUER is required in production")
             if not parse_nonempty_csv(self.token_audiences):
                 raise ValueError("ACCESS_TOKEN_AUDIENCES is required in production")
-        if self.jwt_rotation_overlap_seconds < self.token_ttl_seconds:
-            raise ValueError("ACCESS_JWT_ROTATION_OVERLAP_SECONDS must cover token TTL")
         if self.session_idle_ttl_seconds > self.session_absolute_ttl_seconds:
             raise ValueError("Session idle TTL cannot exceed absolute TTL")
         if self.session_rotation_seconds <= 0:

@@ -6,10 +6,7 @@ from sqlalchemy import text
 from access_service.api.router import router
 from access_service.bootstrap.config import settings
 from access_service.infrastructure.database import SessionLocal, engine, pool_config
-from access_service.infrastructure.identity import (
-    DatabaseSigningKeyStore,
-    InternalTokenSigner,
-)
+from access_service.infrastructure.identity import InternalTokenSigner
 from access_service.infrastructure.sessions import BrowserSessionManager
 from platform_sdk.database import pool_metrics
 from platform_sdk.errors import install_problem_details_handlers
@@ -25,10 +22,7 @@ def create_app() -> FastAPI:
     configure_json_logging(service="access-service", module="access", environment=settings.environment)
     metrics = get_service_metrics(service="access-service", module="access")
     app = FastAPI(title="PROM Access Service", version="1.0.0")
-    app.state.token_signer = InternalTokenSigner(
-        settings,
-        DatabaseSigningKeyStore(settings, SessionLocal),
-    )
+    app.state.token_signer = InternalTokenSigner(settings)
     app.state.session_manager = BrowserSessionManager(settings)
     install_request_context(app, metrics=metrics)
     install_metrics_endpoint(app, metrics)

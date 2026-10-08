@@ -12,9 +12,7 @@ from access_service.api.router import add_group_member, add_group_role, create_g
 from access_service.api.schemas import GroupInput
 from access_service.application.access import permissions_for
 from access_service.application.catalog import ensure_access_catalog
-from access_service.bootstrap.config import AccessSettings
 from access_service.domain.models import PlatformUser, Role, UserRoleAssignment
-from access_service.infrastructure.identity import DatabaseSigningKeyStore
 
 
 POSTGRES_URL = os.getenv("ACCESS_TEST_DATABASE_URL")
@@ -41,7 +39,7 @@ def request() -> Request:
     return result
 
 
-def test_postgres_group_rbac_and_persisted_key_rotation() -> None:
+def test_postgres_group_rbac() -> None:
     assert POSTGRES_URL is not None
     engine = create_engine(POSTGRES_URL)
     session_factory = sessionmaker(engine, expire_on_commit=False)
@@ -86,20 +84,5 @@ def test_postgres_group_rbac_and_persisted_key_rotation() -> None:
         assert "projects.respond" in effective
         assert "projects.create" in effective
         assert employee.session_version == 3
-
-    settings = AccessSettings(
-        database_url=POSTGRES_URL,
-        jwt_key_id=f"initial-{suffix}",
-    )
-    key_store = DatabaseSigningKeyStore(settings, session_factory)
-    initial_kid = key_store.active().kid
-    rotated_kid = f"rotated-{suffix}"
-    key_store.rotate(kid=rotated_kid)
-
-    assert key_store.active().kid == rotated_kid
-    assert {key.kid for key in key_store.verification_keys()} == {
-        initial_kid,
-        rotated_kid,
-    }
 
     engine.dispose()

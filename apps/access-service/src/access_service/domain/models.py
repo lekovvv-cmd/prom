@@ -12,7 +12,6 @@ from sqlalchemy import (
     JSON,
     String,
     Table,
-    Text,
     UniqueConstraint,
     func,
 )
@@ -130,20 +129,6 @@ class AccessAuditEvent(Base):
     request_id: Mapped[str | None] = mapped_column(String(128))
     source: Mapped[str] = mapped_column(String(64), default="api")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
-
-
-class SigningKey(Base):
-    __tablename__ = "signing_keys"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
-    kid: Mapped[str] = mapped_column(String(128), unique=True, index=True)
-    private_key_pem: Mapped[str | None] = mapped_column(Text)
-    public_key_pem: Mapped[str] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(32), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    verify_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class BrowserSession(Base):
