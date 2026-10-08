@@ -79,6 +79,13 @@ test("a long response form survives bearer expiry and submits with one renewal",
     expect(renewals).toBe(1);
     expect(reloads).toBe(0);
     await expect(page.getByText("Invalid token")).toHaveCount(0);
+
+    await page.goto("/my/responses");
+    const responseRow = page.getByRole("row").filter({ hasText: title });
+    await expect(responseRow.getByText("renewal.txt")).toBeVisible();
+    const download = page.waitForEvent("download");
+    await responseRow.getByRole("link", { name: /renewal\.txt/ }).click();
+    expect((await download).suggestedFilename()).toBe("renewal.txt");
   } finally {
     await request.delete(`/api/projects/v1/admin/projects/${projectId}`, {
       headers,
