@@ -16,6 +16,6 @@ Labels may contain service, module, worker, route template, status, operation,
 outcome, and SLA metric. User IDs, object IDs, filenames, SQL, query strings,
 and request bodies are forbidden labels.
 
-OpenTelemetry configuration remains optional; a missing exporter must not stop
-the application. Readiness validates dependencies, liveness remains
-process-only, and `/metrics` is not a readiness probe.
+API readiness validates dependencies, while API liveness checks the process.
+Worker health checks the last successful execution of each periodic task and
+fails when a task becomes stale. `/metrics` is not a readiness probe.
