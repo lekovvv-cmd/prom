@@ -50,6 +50,13 @@ export function AuthProvider({
   const [authorization, setAuthorization] =
     useState<PlatformAuthorization>(EMPTY_AUTHORIZATION);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    const onExpired = () => setSessionExpired(true);
+    window.addEventListener("prom:session-expired", onExpired);
+    return () => window.removeEventListener("prom:session-expired", onExpired);
+  }, []);
 
   const clearSession = useCallback(() => {
     setUser(null);
@@ -81,6 +88,7 @@ export function AuthProvider({
   }, [refreshUser]);
 
   const login = useCallback((nextSession: AuthSession) => {
+    setSessionExpired(false);
     setUser(nextSession.user);
     setAuthorization({
       modules: nextSession.modules,
@@ -117,7 +125,41 @@ export function AuthProvider({
     ],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {sessionExpired && (
+        <div
+          role="alert"
+          className="session-expired-notice"
+          style={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+            padding: 16,
+            background: "white",
+            border: "1px solid #b42318",
+            borderRadius: 8,
+            boxShadow: "0 8px 24px #0002",
+            maxWidth: 360,
+          }}
+        >
+          Сессия истекла, войдите снова. Введённые данные останутся на странице
+          до вашего действия.
+          <button
+            type="button"
+            onClick={() => {
+              setSessionExpired(false);
+              clearSession();
+            }}
+          >
+            Войти снова
+          </button>
+        </div>
+      )}
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function createAuthFlags(authorization: PlatformAuthorization) {

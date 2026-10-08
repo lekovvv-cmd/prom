@@ -53,8 +53,7 @@ class BrowserSessionManager:
                 session_version=user.session_version,
                 last_seen_at=now,
                 rotated_at=now,
-                idle_expires_at=now
-                + timedelta(seconds=self.settings.session_idle_ttl_seconds),
+                idle_expires_at=now + timedelta(seconds=self.settings.session_idle_ttl_seconds),
                 absolute_expires_at=now
                 + timedelta(seconds=self.settings.session_absolute_ttl_seconds),
             )
@@ -115,9 +114,7 @@ class BrowserSessionManager:
                 detail="Authentication required",
             )
         browser_session = session.scalar(
-            select(BrowserSession).where(
-                BrowserSession.token_hash == self._hash(session_secret)
-            )
+            select(BrowserSession).where(BrowserSession.token_hash == self._hash(session_secret))
         )
         if browser_session is None:
             raise HTTPException(
@@ -152,18 +149,6 @@ class BrowserSessionManager:
             now + timedelta(seconds=self.settings.session_idle_ttl_seconds),
             self._utc(browser_session.absolute_expires_at),
         )
-        if (
-            now - self._utc(browser_session.rotated_at)
-            >= timedelta(seconds=self.settings.session_rotation_seconds)
-        ):
-            rotated = BrowserSessionCredentials(
-                session_secret=secrets.token_urlsafe(48),
-                csrf_token=secrets.token_urlsafe(32),
-            )
-            browser_session.token_hash = self._hash(rotated.session_secret)
-            browser_session.csrf_hash = self._hash(rotated.csrf_token)
-            browser_session.rotated_at = now
-            self.set_cookies(response, rotated)
         session.commit()
         return user
 
@@ -192,9 +177,7 @@ class BrowserSessionManager:
         if not session_secret:
             return
         browser_session = session.scalar(
-            select(BrowserSession).where(
-                BrowserSession.token_hash == self._hash(session_secret)
-            )
+            select(BrowserSession).where(BrowserSession.token_hash == self._hash(session_secret))
         )
         if browser_session is not None and browser_session.revoked_at is None:
             browser_session.revoked_at = datetime.now(timezone.utc)

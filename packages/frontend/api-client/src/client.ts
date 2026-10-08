@@ -3,6 +3,7 @@ import { authTokenStorage, type AuthTokenStorage } from "./authTokenStorage";
 export type RequestOptions = RequestInit & {
   auth?: boolean;
   timeoutMs?: number;
+  responseType?: "blob";
 };
 
 export type ApiFieldError = {
@@ -155,6 +156,7 @@ function csrfToken(): string | null {
 export function createApiClient(
   baseUrl: string,
   tokenStorage: AuthTokenStorage = authTokenStorage,
+  renewToken?: () => Promise<string>,
 ) {
   return {
     getToken() {
@@ -164,7 +166,12 @@ export function createApiClient(
       tokenStorage.setToken(token);
     },
     async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-      const { auth = true, timeoutMs = 15_000, ...requestInit } = options;
+      const {
+        auth = true,
+        timeoutMs = 15_000,
+        responseType,
+        ...requestInit
+      } = options;
       const headers = new Headers(requestInit.headers);
       if (
         !headers.has("Content-Type") &&
@@ -173,8 +180,6 @@ export function createApiClient(
       ) {
         headers.set("Content-Type", "application/json");
       }
-      const token = tokenStorage.getToken();
-      if (token && auth) headers.set("Authorization", `Bearer ${token}`);
       const method = (requestInit.method ?? "GET").toUpperCase();
       const csrf = csrfToken();
       if (auth && csrf && UNSAFE_METHODS.has(method)) {
@@ -190,12 +195,38 @@ export function createApiClient(
         once: true,
       });
       try {
-        const response = await fetch(`${baseUrl}${path}`, {
-          ...requestInit,
-          headers,
-          credentials: requestInit.credentials ?? "include",
-          signal: controller.signal,
-        });
+        let token = tokenStorage.getToken();
+        if (auth && token && renewToken && tokenExpiresSoon(token)) {
+          token = await renewToken();
+        }
+        const send = () => {
+          if (auth && token) headers.set("Authorization", `Bearer ${token}`);
+          return fetch(`${baseUrl}${path}`, {
+            ...requestInit,
+            headers,
+            credentials: requestInit.credentials ?? "include",
+            signal: controller.signal,
+          });
+        };
+        let response = await send();
+        if (
+          auth &&
+          token &&
+          renewToken &&
+          response.status === 401 &&
+          !(requestInit.body instanceof ReadableStream)
+        ) {
+          const currentToken = tokenStorage.getToken();
+          token =
+            currentToken && currentToken !== token
+              ? currentToken
+              : await renewToken();
+          response = await send();
+        }
+        if (responseType === "blob") {
+          if (!response.ok) await parseResponse(response);
+          return (await response.blob()) as T;
+        }
         return await parseResponse<T>(response);
       } catch (reason) {
         if (reason instanceof ApiError) throw reason;
@@ -213,4 +244,19 @@ export function createApiClient(
       }
     },
   };
+}
+
+function tokenExpiresSoon(token: string): boolean {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return false;
+    const claims = JSON.parse(
+      atob(payload.replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    return (
+      typeof claims.exp === "number" && claims.exp * 1000 <= Date.now() + 75_000
+    );
+  } catch {
+    return false;
+  }
 }

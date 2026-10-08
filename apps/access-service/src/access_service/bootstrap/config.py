@@ -26,9 +26,8 @@ class AccessSettings(BaseSettings):
     session_cookie_name: str = "prom_session"
     session_csrf_cookie_name: str = "prom_csrf"
     session_same_site: Literal["lax", "strict"] = "lax"
-    session_idle_ttl_seconds: int = 1800
-    session_absolute_ttl_seconds: int = 28800
-    session_rotation_seconds: int = 900
+    session_idle_ttl_seconds: int = 604800
+    session_absolute_ttl_seconds: int = 2592000
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -68,8 +67,6 @@ class AccessSettings(BaseSettings):
                 raise ValueError("ACCESS_TOKEN_AUDIENCES is required in production")
         if self.session_idle_ttl_seconds > self.session_absolute_ttl_seconds:
             raise ValueError("Session idle TTL cannot exceed absolute TTL")
-        if self.session_rotation_seconds <= 0:
-            raise ValueError("Session rotation interval must be positive")
         return self
 
     @property

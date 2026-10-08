@@ -22,10 +22,7 @@ def make_request(
     method: str = "GET",
     include_csrf_header: bool = True,
 ) -> Request:
-    cookie = (
-        f"prom_session={credentials.session_secret}; "
-        f"prom_csrf={credentials.csrf_token}"
-    )
+    cookie = f"prom_session={credentials.session_secret}; prom_csrf={credentials.csrf_token}"
     headers = [(b"cookie", cookie.encode())]
     if include_csrf_header:
         headers.append((b"x-csrf-token", credentials.csrf_token.encode()))
@@ -145,26 +142,18 @@ def test_revoked_disabled_and_expired_sessions_fail_closed() -> None:
     engine.dispose()
 
 
-def test_session_secret_rotates_without_extending_absolute_expiry() -> None:
-    settings = AccessSettings(
-        database_url="sqlite+pysqlite:///:memory:",
-        session_rotation_seconds=1,
-    )
+def test_parallel_session_use_keeps_stable_credential_and_absolute_expiry() -> None:
+    settings = AccessSettings(database_url="sqlite+pysqlite:///:memory:")
     engine, db, _, manager, credentials = create_session(settings)
     browser_session = db.scalar(select(BrowserSession))
     assert browser_session is not None
     absolute_expiry = browser_session.absolute_expires_at
-    browser_session.rotated_at = datetime.now(timezone.utc) - timedelta(seconds=2)
-    db.commit()
-    response = Response()
-    manager.authenticate(make_request(credentials), response, db)
+    for _ in range(5):
+        response = Response()
+        manager.authenticate(make_request(credentials), response, db)
+        assert not response.headers.getlist("set-cookie")
     db.refresh(browser_session)
     assert browser_session.absolute_expires_at == absolute_expiry
-    assert any(
-        cookie.startswith("prom_session=")
-        and credentials.session_secret not in cookie
-        for cookie in response.headers.getlist("set-cookie")
-    )
     db.close()
     engine.dispose()
 
