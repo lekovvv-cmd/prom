@@ -85,3 +85,57 @@ test("a long response form survives bearer expiry and submits with one renewal",
     });
   }
 });
+
+test("project manager cannot respond to their own project in UI or API", async ({
+  page,
+  request,
+}) => {
+  await loginAs(page, "Руководитель проектов", "/admin/projects");
+  const token = await page.evaluate(async () => {
+    const response = await fetch("/api/access/v1/session/token", {
+      credentials: "include",
+    });
+    return ((await response.json()) as { access_token: string }).access_token;
+  });
+  const headers = { Authorization: `Bearer ${token}` };
+  const me = await request.get("/api/projects/v1/me", { headers });
+  expect(me.status()).toBe(200);
+  const managerId = ((await me.json()) as { id: string }).id;
+  const created = await request.post("/api/projects/v1/admin/projects", {
+    headers,
+    data: {
+      title: `E2E own project ${Date.now()}`,
+      short_description: "Проверка собственного проекта",
+      description: "Менеджер не должен отправлять отклик на свой проект",
+      goal: "Проверка запрета отклика",
+      responsible_user_id: managerId,
+      status: "active",
+    },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  const projectId = ((await created.json()) as { id: string }).id;
+  try {
+    await page.goto(`/projects/${projectId}`);
+    await expect(
+      page.getByText("На собственный проект откликнуться нельзя."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Отправить отклик" }),
+    ).toHaveCount(0);
+    const response = await request.post(
+      `/api/projects/v1/projects/${projectId}/responses`,
+      {
+        headers,
+        data: {
+          full_name: "Project Manager",
+          email: "project.manager@utmn.ru",
+        },
+      },
+    );
+    expect(response.status()).toBe(403);
+  } finally {
+    await request.delete(`/api/projects/v1/admin/projects/${projectId}`, {
+      headers,
+    });
+  }
+});

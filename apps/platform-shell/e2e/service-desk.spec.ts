@@ -668,6 +668,13 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
     .fill("Пожалуйста, уточните адрес объекта.");
   await dialog.getByRole("button", { name: "Подтвердить" }).click();
   await expect(page.getByText("Ожидает заявителя")).toBeVisible();
+  await expect(
+    page.getByText("Пожалуйста, уточните адрес объекта."),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("Пожалуйста, уточните адрес объекта."),
+  ).toBeVisible();
 
   await loginAsManager(page);
   await page.goto(ticketUrl);

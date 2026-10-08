@@ -4,6 +4,7 @@ import { loginAs, watchPage } from "./helpers";
 
 test("employee session, profile, direct guards and logout stay consistent", async ({
   page,
+  request,
 }) => {
   const diagnostics = watchPage(page);
   await loginAs(page, "Сотрудник", "/projects");
@@ -14,6 +15,19 @@ test("employee session, profile, direct guards and logout stay consistent", asyn
   await expect(page.getByRole("heading", { name: "Профиль" })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Email")).toHaveValue("employee@utmn.ru");
+  const token = await page.evaluate(async () => {
+    const response = await fetch("/api/access/v1/session/token", {
+      credentials: "include",
+    });
+    return ((await response.json()) as { access_token: string }).access_token;
+  });
+  const forbidden = await request.get(
+    "/api/service-desk/v1/admin/dictionaries",
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  expect(forbidden.status()).toBe(403);
   await page.goto("/admin/projects");
   await expect(page).toHaveURL(/\/projects$/);
   await page.getByRole("button", { name: "Выйти" }).click();
