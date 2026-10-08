@@ -30,19 +30,24 @@ test("template preview keeps controls aligned within each row", async ({
 
   const preview = page.locator(".template-preview-card");
   await expect(preview).toBeVisible();
-  const [eventName, peopleCount, studentsCount, startsAt] = await Promise.all([
-    preview.getByLabel("Название мероприятия").boundingBox(),
-    preview.getByLabel("Количество человек (всего)").boundingBox(),
-    preview.getByLabel("Количество студентов").boundingBox(),
-    preview.getByLabel("Дата и время начала мероприятия").boundingBox(),
-  ]);
-
-  expect(eventName).not.toBeNull();
-  expect(peopleCount).not.toBeNull();
-  expect(studentsCount).not.toBeNull();
-  expect(startsAt).not.toBeNull();
-  expect(eventName!.y).toBe(peopleCount!.y);
-  expect(studentsCount!.y).toBe(startsAt!.y);
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  await expect
+    .poll(async () => {
+      const [eventName, peopleCount, studentsCount, startsAt] =
+        await Promise.all([
+          preview.getByLabel("Название мероприятия").boundingBox(),
+          preview.getByLabel("Количество человек (всего)").boundingBox(),
+          preview.getByLabel("Количество студентов").boundingBox(),
+          preview.getByLabel("Дата и время начала мероприятия").boundingBox(),
+        ]);
+      return [
+        Boolean(eventName && peopleCount && eventName.y === peopleCount.y),
+        Boolean(studentsCount && startsAt && studentsCount.y === startsAt.y),
+      ];
+    })
+    .toEqual([true, true]);
 
   await attachScreenshot(page, testInfo, "template-preview-aligned");
   diagnostics.assertClean();
