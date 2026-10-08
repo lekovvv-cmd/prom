@@ -15,9 +15,6 @@ def test_health_endpoints_are_available(client):
     assert ready.json()["outbox"]["pending"] >= 0
     assert "oldest_age_seconds" in ready.json()["outbox"]
 
-    api_health = client.get("/api/health")
-    assert api_health.status_code == 200
-    assert api_health.json() == {"status": "ok", "service": "service-desk"}
 
 
 def test_readiness_returns_safe_503_when_database_is_unavailable(client):

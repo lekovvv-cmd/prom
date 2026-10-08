@@ -90,6 +90,8 @@ class ServiceDeskTestClient(TestClient):
     def request(self, method, url, *args, **kwargs):
         if str(url).startswith("/admin") and kwargs.get("headers") is None:
             kwargs["headers"] = self.admin_headers
+        if str(url).startswith("/") and not str(url).startswith(("/health/", "/api/v1/")):
+            url = f"/api/v1{url}"
         return super().request(method, url, *args, **kwargs)
 
 

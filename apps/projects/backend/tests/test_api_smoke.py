@@ -43,7 +43,7 @@ def employee_response_payload(full_name="Pytest Employee"):
 
 
 def test_health_checks_database_and_upload_storage(client):
-    response = client.get("/api/health")
+    response = client.get("/health/ready")
 
     assert response.status_code == 200
     body = response.json()

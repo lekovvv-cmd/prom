@@ -60,8 +60,3 @@ def ready(db: Session = Depends(get_db)) -> dict[str, object] | JSONResponse:
         "outbox": outbox_snapshot,
         "attachments": {"status_counts": AttachmentRepository(db).status_counts()},
     }
-
-
-@router.get("/api/health")
-def api_health() -> dict[str, str]:
-    return {"status": "ok", "service": settings.service_code}

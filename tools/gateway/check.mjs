@@ -10,10 +10,11 @@ const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
 
 const requiredNginxFragments = [
   "location /api/access/v1/",
-  "location /api/access/v1/auth/mock/",
-  "rewrite ^/api/access/v1/auth/mock/(.*)$ /auth/mock/$1 break;",
+  "rewrite ^/api/access/v1/(.*)$ /api/v1/$1 break;",
   "location /api/projects/v1/",
+  "rewrite ^/api/projects/v1/(.*)$ /api/v1/$1 break;",
   "location /api/service-desk/v1/",
+  "rewrite ^/api/service-desk/v1/(.*)$ /api/v1/$1 break;",
   "location = /healthz",
   "X-Request-ID $prom_request_id",
   "client_max_body_size",

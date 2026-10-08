@@ -93,5 +93,11 @@ def database():
 
 @pytest.fixture()
 def client(database):
-    with TestClient(app) as test_client:
+    class ProjectsTestClient(TestClient):
+        def request(self, method, url, *args, **kwargs):
+            if str(url).startswith("/api/") and not str(url).startswith("/api/v1/"):
+                url = str(url).replace("/api/", "/api/v1/", 1)
+            return super().request(method, url, *args, **kwargs)
+
+    with ProjectsTestClient(app) as test_client:
         yield test_client

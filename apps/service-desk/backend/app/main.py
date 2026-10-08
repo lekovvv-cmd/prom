@@ -8,6 +8,7 @@ from platform_sdk.observability import (
 )
 
 from app.api.router import api_router
+from app.api.routes.health import router as health_router
 from app.core.config import settings
 
 
@@ -26,7 +27,8 @@ def create_app() -> FastAPI:
     install_request_context(app, metrics=metrics)
     install_metrics_endpoint(app, metrics)
     install_problem_details_handlers(app)
-    app.include_router(api_router)
+    app.include_router(health_router)
+    app.include_router(api_router, prefix="/api/v1")
     return app
 
 

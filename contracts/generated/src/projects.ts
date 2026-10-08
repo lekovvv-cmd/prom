@@ -1,6 +1,6 @@
 // Generated from projects.openapi.json. Do not edit by hand.
 export interface paths {
-    "/api/admin/audit": {
+    "/api/v1/admin/audit": {
         parameters: {
             query?: never;
             header?: never;
@@ -8,7 +8,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Audit Events */
-        get: operations["list_audit_events_api_admin_audit_get"];
+        get: operations["list_audit_events_api_v1_admin_audit_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -17,7 +17,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects": {
+    "/api/v1/admin/projects": {
         parameters: {
             query?: never;
             header?: never;
@@ -25,17 +25,17 @@ export interface paths {
             cookie?: never;
         };
         /** List Admin Projects */
-        get: operations["list_admin_projects_api_admin_projects_get"];
+        get: operations["list_admin_projects_api_v1_admin_projects_get"];
         put?: never;
         /** Create Admin Project */
-        post: operations["create_admin_project_api_admin_projects_post"];
+        post: operations["create_admin_project_api_v1_admin_projects_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}": {
+    "/api/v1/admin/projects/{project_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -43,18 +43,18 @@ export interface paths {
             cookie?: never;
         };
         /** Get Admin Project */
-        get: operations["get_admin_project_api_admin_projects__project_id__get"];
+        get: operations["get_admin_project_api_v1_admin_projects__project_id__get"];
         put?: never;
         post?: never;
         /** Archive Admin Project */
-        delete: operations["archive_admin_project_api_admin_projects__project_id__delete"];
+        delete: operations["archive_admin_project_api_v1_admin_projects__project_id__delete"];
         options?: never;
         head?: never;
         /** Update Admin Project */
-        patch: operations["update_admin_project_api_admin_projects__project_id__patch"];
+        patch: operations["update_admin_project_api_v1_admin_projects__project_id__patch"];
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/attachments": {
+    "/api/v1/admin/projects/{project_id}/attachments": {
         parameters: {
             query?: never;
             header?: never;
@@ -64,14 +64,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Upload Project Attachment */
-        post: operations["upload_project_attachment_api_admin_projects__project_id__attachments_post"];
+        post: operations["upload_project_attachment_api_v1_admin_projects__project_id__attachments_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/candidates": {
+    "/api/v1/admin/projects/{project_id}/candidates": {
         parameters: {
             query?: never;
             header?: never;
@@ -79,7 +79,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Project Candidates */
-        get: operations["list_project_candidates_api_admin_projects__project_id__candidates_get"];
+        get: operations["list_project_candidates_api_v1_admin_projects__project_id__candidates_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -88,7 +88,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/members/{user_id}": {
+    "/api/v1/admin/projects/{project_id}/members/{user_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -98,15 +98,15 @@ export interface paths {
         get?: never;
         put?: never;
         /** Add Project Member */
-        post: operations["add_project_member_api_admin_projects__project_id__members__user_id__post"];
+        post: operations["add_project_member_api_v1_admin_projects__project_id__members__user_id__post"];
         /** Remove Project Member */
-        delete: operations["remove_project_member_api_admin_projects__project_id__members__user_id__delete"];
+        delete: operations["remove_project_member_api_v1_admin_projects__project_id__members__user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/responses": {
+    "/api/v1/admin/projects/{project_id}/responses": {
         parameters: {
             query?: never;
             header?: never;
@@ -114,7 +114,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Project Responses */
-        get: operations["list_project_responses_api_admin_projects__project_id__responses_get"];
+        get: operations["list_project_responses_api_v1_admin_projects__project_id__responses_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -123,7 +123,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/restore": {
+    "/api/v1/admin/projects/{project_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -137,10 +137,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Restore Admin Project */
-        patch: operations["restore_admin_project_api_admin_projects__project_id__restore_patch"];
+        patch: operations["restore_admin_project_api_v1_admin_projects__project_id__restore_patch"];
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/stages": {
+    "/api/v1/admin/projects/{project_id}/stages": {
         parameters: {
             query?: never;
             header?: never;
@@ -148,17 +148,17 @@ export interface paths {
             cookie?: never;
         };
         /** List Admin Project Stages */
-        get: operations["list_admin_project_stages_api_admin_projects__project_id__stages_get"];
+        get: operations["list_admin_project_stages_api_v1_admin_projects__project_id__stages_get"];
         put?: never;
         /** Create Admin Project Stage */
-        post: operations["create_admin_project_stage_api_admin_projects__project_id__stages_post"];
+        post: operations["create_admin_project_stage_api_v1_admin_projects__project_id__stages_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/stages/{stage_id}": {
+    "/api/v1/admin/projects/{project_id}/stages/{stage_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -172,10 +172,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update Admin Project Stage */
-        patch: operations["update_admin_project_stage_api_admin_projects__project_id__stages__stage_id__patch"];
+        patch: operations["update_admin_project_stage_api_v1_admin_projects__project_id__stages__stage_id__patch"];
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/stages/{stage_id}/attachments": {
+    "/api/v1/admin/projects/{project_id}/stages/{stage_id}/attachments": {
         parameters: {
             query?: never;
             header?: never;
@@ -185,14 +185,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Upload Stage Attachment */
-        post: operations["upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post"];
+        post: operations["upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/tasks": {
+    "/api/v1/admin/projects/{project_id}/tasks": {
         parameters: {
             query?: never;
             header?: never;
@@ -202,14 +202,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Create Admin Project Task */
-        post: operations["create_admin_project_task_api_admin_projects__project_id__tasks_post"];
+        post: operations["create_admin_project_task_api_v1_admin_projects__project_id__tasks_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/admin/projects/{project_id}/tasks/{task_id}": {
+    "/api/v1/admin/projects/{project_id}/tasks/{task_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -223,10 +223,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update Admin Project Task */
-        patch: operations["update_admin_project_task_api_admin_projects__project_id__tasks__task_id__patch"];
+        patch: operations["update_admin_project_task_api_v1_admin_projects__project_id__tasks__task_id__patch"];
         trace?: never;
     };
-    "/api/admin/reports": {
+    "/api/v1/admin/reports": {
         parameters: {
             query?: never;
             header?: never;
@@ -234,7 +234,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Reports */
-        get: operations["list_reports_api_admin_reports_get"];
+        get: operations["list_reports_api_v1_admin_reports_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -243,7 +243,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/reports/periods": {
+    "/api/v1/admin/reports/periods": {
         parameters: {
             query?: never;
             header?: never;
@@ -251,17 +251,17 @@ export interface paths {
             cookie?: never;
         };
         /** List Report Periods */
-        get: operations["list_report_periods_api_admin_reports_periods_get"];
+        get: operations["list_report_periods_api_v1_admin_reports_periods_get"];
         put?: never;
         /** Open Report Period */
-        post: operations["open_report_period_api_admin_reports_periods_post"];
+        post: operations["open_report_period_api_v1_admin_reports_periods_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/admin/reports/periods/{period_id}/close": {
+    "/api/v1/admin/reports/periods/{period_id}/close": {
         parameters: {
             query?: never;
             header?: never;
@@ -275,10 +275,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Close Report Period */
-        patch: operations["close_report_period_api_admin_reports_periods__period_id__close_patch"];
+        patch: operations["close_report_period_api_v1_admin_reports_periods__period_id__close_patch"];
         trace?: never;
     };
-    "/api/admin/responses": {
+    "/api/v1/admin/responses": {
         parameters: {
             query?: never;
             header?: never;
@@ -286,7 +286,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Admin Responses */
-        get: operations["list_admin_responses_api_admin_responses_get"];
+        get: operations["list_admin_responses_api_v1_admin_responses_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -295,7 +295,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/responses/{response_id}": {
+    "/api/v1/admin/responses/{response_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -306,14 +306,14 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete Response */
-        delete: operations["delete_response_api_admin_responses__response_id__delete"];
+        delete: operations["delete_response_api_v1_admin_responses__response_id__delete"];
         options?: never;
         head?: never;
         /** Update Response Status */
-        patch: operations["update_response_status_api_admin_responses__response_id__patch"];
+        patch: operations["update_response_status_api_v1_admin_responses__response_id__patch"];
         trace?: never;
     };
-    "/api/admin/stats": {
+    "/api/v1/admin/stats": {
         parameters: {
             query?: never;
             header?: never;
@@ -321,7 +321,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Admin Stats */
-        get: operations["get_admin_stats_api_admin_stats_get"];
+        get: operations["get_admin_stats_api_v1_admin_stats_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -330,7 +330,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/users": {
+    "/api/v1/admin/users": {
         parameters: {
             query?: never;
             header?: never;
@@ -338,7 +338,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Admin Users */
-        get: operations["list_admin_users_api_admin_users_get"];
+        get: operations["list_admin_users_api_v1_admin_users_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -347,7 +347,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/attachments/{attachment_id}": {
+    "/api/v1/attachments/{attachment_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -355,17 +355,17 @@ export interface paths {
             cookie?: never;
         };
         /** Download Attachment */
-        get: operations["download_attachment_api_attachments__attachment_id__get"];
+        get: operations["download_attachment_api_v1_attachments__attachment_id__get"];
         put?: never;
         post?: never;
         /** Delete Attachment */
-        delete: operations["delete_attachment_api_attachments__attachment_id__delete"];
+        delete: operations["delete_attachment_api_v1_attachments__attachment_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/competencies": {
+    "/api/v1/competencies": {
         parameters: {
             query?: never;
             header?: never;
@@ -373,7 +373,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Competencies */
-        get: operations["list_competencies_api_competencies_get"];
+        get: operations["list_competencies_api_v1_competencies_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -382,24 +382,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_api_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me": {
+    "/api/v1/me": {
         parameters: {
             query?: never;
             header?: never;
@@ -407,7 +390,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Me */
-        get: operations["get_me_api_me_get"];
+        get: operations["get_me_api_v1_me_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -416,7 +399,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/me/profile": {
+    "/api/v1/me/profile": {
         parameters: {
             query?: never;
             header?: never;
@@ -430,10 +413,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update My Profile */
-        patch: operations["update_my_profile_api_me_profile_patch"];
+        patch: operations["update_my_profile_api_v1_me_profile_patch"];
         trace?: never;
     };
-    "/api/me/project-tasks/{task_id}": {
+    "/api/v1/me/project-tasks/{task_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -447,10 +430,10 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update My Project Task Status */
-        patch: operations["update_my_project_task_status_api_me_project_tasks__task_id__patch"];
+        patch: operations["update_my_project_task_status_api_v1_me_project_tasks__task_id__patch"];
         trace?: never;
     };
-    "/api/me/projects": {
+    "/api/v1/me/projects": {
         parameters: {
             query?: never;
             header?: never;
@@ -458,7 +441,7 @@ export interface paths {
             cookie?: never;
         };
         /** List My Projects */
-        get: operations["list_my_projects_api_me_projects_get"];
+        get: operations["list_my_projects_api_v1_me_projects_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -467,7 +450,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/me/projects/{project_id}": {
+    "/api/v1/me/projects/{project_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -475,7 +458,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get My Project */
-        get: operations["get_my_project_api_me_projects__project_id__get"];
+        get: operations["get_my_project_api_v1_me_projects__project_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -484,7 +467,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/me/projects/{project_id}/tasks": {
+    "/api/v1/me/projects/{project_id}/tasks": {
         parameters: {
             query?: never;
             header?: never;
@@ -492,7 +475,7 @@ export interface paths {
             cookie?: never;
         };
         /** List My Project Tasks */
-        get: operations["list_my_project_tasks_api_me_projects__project_id__tasks_get"];
+        get: operations["list_my_project_tasks_api_v1_me_projects__project_id__tasks_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -501,7 +484,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/me/responses": {
+    "/api/v1/me/responses": {
         parameters: {
             query?: never;
             header?: never;
@@ -509,7 +492,7 @@ export interface paths {
             cookie?: never;
         };
         /** List My Responses */
-        get: operations["list_my_responses_api_me_responses_get"];
+        get: operations["list_my_responses_api_v1_me_responses_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -518,7 +501,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/me/responses/{response_id}": {
+    "/api/v1/me/responses/{response_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -529,13 +512,13 @@ export interface paths {
         put?: never;
         post?: never;
         /** Withdraw My Response */
-        delete: operations["withdraw_my_response_api_me_responses__response_id__delete"];
+        delete: operations["withdraw_my_response_api_v1_me_responses__response_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/project-tasks/{task_id}/attachments": {
+    "/api/v1/project-tasks/{task_id}/attachments": {
         parameters: {
             query?: never;
             header?: never;
@@ -545,14 +528,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Upload Task Attachment */
-        post: operations["upload_task_attachment_api_project_tasks__task_id__attachments_post"];
+        post: operations["upload_task_attachment_api_v1_project_tasks__task_id__attachments_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/projects": {
+    "/api/v1/projects": {
         parameters: {
             query?: never;
             header?: never;
@@ -560,7 +543,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Projects */
-        get: operations["list_projects_api_projects_get"];
+        get: operations["list_projects_api_v1_projects_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -569,7 +552,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/recommendations": {
+    "/api/v1/projects/recommendations": {
         parameters: {
             query?: never;
             header?: never;
@@ -577,7 +560,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Project Recommendations */
-        get: operations["list_project_recommendations_api_projects_recommendations_get"];
+        get: operations["list_project_recommendations_api_v1_projects_recommendations_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -586,7 +569,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{project_id}": {
+    "/api/v1/projects/{project_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -594,7 +577,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Project */
-        get: operations["get_project_api_projects__project_id__get"];
+        get: operations["get_project_api_v1_projects__project_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -603,7 +586,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{project_id}/responses": {
+    "/api/v1/projects/{project_id}/responses": {
         parameters: {
             query?: never;
             header?: never;
@@ -613,14 +596,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Create Project Response */
-        post: operations["create_project_response_api_projects__project_id__responses_post"];
+        post: operations["create_project_response_api_v1_projects__project_id__responses_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{project_id}/responses/{response_id}/attachments": {
+    "/api/v1/projects/{project_id}/responses/{response_id}/attachments": {
         parameters: {
             query?: never;
             header?: never;
@@ -630,14 +613,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Upload Response Attachment */
-        post: operations["upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post"];
+        post: operations["upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/reports/current": {
+    "/api/v1/reports/current": {
         parameters: {
             query?: never;
             header?: never;
@@ -645,9 +628,9 @@ export interface paths {
             cookie?: never;
         };
         /** Get Current Report State */
-        get: operations["get_current_report_state_api_reports_current_get"];
+        get: operations["get_current_report_state_api_v1_reports_current_get"];
         /** Submit Current Report */
-        put: operations["submit_current_report_api_reports_current_put"];
+        put: operations["submit_current_report_api_v1_reports_current_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -655,7 +638,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/reports/{report_id}/attachments": {
+    "/api/v1/reports/{report_id}/attachments": {
         parameters: {
             query?: never;
             header?: never;
@@ -665,14 +648,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Upload Report Attachment */
-        post: operations["upload_report_attachment_api_reports__report_id__attachments_post"];
+        post: operations["upload_report_attachment_api_v1_reports__report_id__attachments_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/users/directory": {
+    "/api/v1/users/directory": {
         parameters: {
             query?: never;
             header?: never;
@@ -680,7 +663,41 @@ export interface paths {
             cookie?: never;
         };
         /** List User Directory */
-        get: operations["list_user_directory_api_users_directory_get"];
+        get: operations["list_user_directory_api_v1_users_directory_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live */
+        get: operations["live_health_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_health_ready_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -833,28 +850,28 @@ export interface components {
          * @enum {string}
          */
         AttachmentStatus: "pending" | "quarantined" | "available" | "rejected" | "pending_delete" | "deleted";
-        /** Body_upload_project_attachment_api_admin_projects__project_id__attachments_post */
-        Body_upload_project_attachment_api_admin_projects__project_id__attachments_post: {
+        /** Body_upload_project_attachment_api_v1_admin_projects__project_id__attachments_post */
+        Body_upload_project_attachment_api_v1_admin_projects__project_id__attachments_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_report_attachment_api_reports__report_id__attachments_post */
-        Body_upload_report_attachment_api_reports__report_id__attachments_post: {
+        /** Body_upload_report_attachment_api_v1_reports__report_id__attachments_post */
+        Body_upload_report_attachment_api_v1_reports__report_id__attachments_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post */
-        Body_upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post: {
+        /** Body_upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post */
+        Body_upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post */
-        Body_upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post: {
+        /** Body_upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post */
+        Body_upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_task_attachment_api_project_tasks__task_id__attachments_post */
-        Body_upload_task_attachment_api_project_tasks__task_id__attachments_post: {
+        /** Body_upload_task_attachment_api_v1_project_tasks__task_id__attachments_post */
+        Body_upload_task_attachment_api_v1_project_tasks__task_id__attachments_post: {
             /** File */
             file: string;
         };
@@ -1681,7 +1698,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_audit_events_api_admin_audit_get: {
+    list_audit_events_api_v1_admin_audit_get: {
         parameters: {
             query?: {
                 action?: string | null;
@@ -1718,7 +1735,7 @@ export interface operations {
             };
         };
     };
-    list_admin_projects_api_admin_projects_get: {
+    list_admin_projects_api_v1_admin_projects_get: {
         parameters: {
             query?: {
                 search?: string | null;
@@ -1757,7 +1774,7 @@ export interface operations {
             };
         };
     };
-    create_admin_project_api_admin_projects_post: {
+    create_admin_project_api_v1_admin_projects_post: {
         parameters: {
             query?: never;
             header?: {
@@ -1793,7 +1810,7 @@ export interface operations {
             };
         };
     };
-    get_admin_project_api_admin_projects__project_id__get: {
+    get_admin_project_api_v1_admin_projects__project_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -1826,7 +1843,7 @@ export interface operations {
             };
         };
     };
-    archive_admin_project_api_admin_projects__project_id__delete: {
+    archive_admin_project_api_v1_admin_projects__project_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -1860,7 +1877,7 @@ export interface operations {
             };
         };
     };
-    update_admin_project_api_admin_projects__project_id__patch: {
+    update_admin_project_api_v1_admin_projects__project_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -1898,7 +1915,7 @@ export interface operations {
             };
         };
     };
-    upload_project_attachment_api_admin_projects__project_id__attachments_post: {
+    upload_project_attachment_api_v1_admin_projects__project_id__attachments_post: {
         parameters: {
             query?: never;
             header?: {
@@ -1911,7 +1928,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_project_attachment_api_admin_projects__project_id__attachments_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_project_attachment_api_v1_admin_projects__project_id__attachments_post"];
             };
         };
         responses: {
@@ -1935,7 +1952,7 @@ export interface operations {
             };
         };
     };
-    list_project_candidates_api_admin_projects__project_id__candidates_get: {
+    list_project_candidates_api_v1_admin_projects__project_id__candidates_get: {
         parameters: {
             query?: {
                 search?: string | null;
@@ -1975,7 +1992,7 @@ export interface operations {
             };
         };
     };
-    add_project_member_api_admin_projects__project_id__members__user_id__post: {
+    add_project_member_api_v1_admin_projects__project_id__members__user_id__post: {
         parameters: {
             query?: never;
             header?: {
@@ -2010,7 +2027,7 @@ export interface operations {
             };
         };
     };
-    remove_project_member_api_admin_projects__project_id__members__user_id__delete: {
+    remove_project_member_api_v1_admin_projects__project_id__members__user_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -2045,7 +2062,7 @@ export interface operations {
             };
         };
     };
-    list_project_responses_api_admin_projects__project_id__responses_get: {
+    list_project_responses_api_v1_admin_projects__project_id__responses_get: {
         parameters: {
             query?: {
                 status?: components["schemas"]["ProjectResponseStatus"] | null;
@@ -2082,7 +2099,7 @@ export interface operations {
             };
         };
     };
-    restore_admin_project_api_admin_projects__project_id__restore_patch: {
+    restore_admin_project_api_v1_admin_projects__project_id__restore_patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2116,7 +2133,7 @@ export interface operations {
             };
         };
     };
-    list_admin_project_stages_api_admin_projects__project_id__stages_get: {
+    list_admin_project_stages_api_v1_admin_projects__project_id__stages_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2149,7 +2166,7 @@ export interface operations {
             };
         };
     };
-    create_admin_project_stage_api_admin_projects__project_id__stages_post: {
+    create_admin_project_stage_api_v1_admin_projects__project_id__stages_post: {
         parameters: {
             query?: never;
             header?: {
@@ -2187,7 +2204,7 @@ export interface operations {
             };
         };
     };
-    update_admin_project_stage_api_admin_projects__project_id__stages__stage_id__patch: {
+    update_admin_project_stage_api_v1_admin_projects__project_id__stages__stage_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2226,7 +2243,7 @@ export interface operations {
             };
         };
     };
-    upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post: {
+    upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post: {
         parameters: {
             query?: never;
             header?: {
@@ -2240,7 +2257,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post"];
             };
         };
         responses: {
@@ -2264,7 +2281,7 @@ export interface operations {
             };
         };
     };
-    create_admin_project_task_api_admin_projects__project_id__tasks_post: {
+    create_admin_project_task_api_v1_admin_projects__project_id__tasks_post: {
         parameters: {
             query?: never;
             header?: {
@@ -2302,7 +2319,7 @@ export interface operations {
             };
         };
     };
-    update_admin_project_task_api_admin_projects__project_id__tasks__task_id__patch: {
+    update_admin_project_task_api_v1_admin_projects__project_id__tasks__task_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2341,7 +2358,7 @@ export interface operations {
             };
         };
     };
-    list_reports_api_admin_reports_get: {
+    list_reports_api_v1_admin_reports_get: {
         parameters: {
             query?: {
                 period_id?: string | null;
@@ -2374,7 +2391,7 @@ export interface operations {
             };
         };
     };
-    list_report_periods_api_admin_reports_periods_get: {
+    list_report_periods_api_v1_admin_reports_periods_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2405,7 +2422,7 @@ export interface operations {
             };
         };
     };
-    open_report_period_api_admin_reports_periods_post: {
+    open_report_period_api_v1_admin_reports_periods_post: {
         parameters: {
             query?: never;
             header?: {
@@ -2440,7 +2457,7 @@ export interface operations {
             };
         };
     };
-    close_report_period_api_admin_reports_periods__period_id__close_patch: {
+    close_report_period_api_v1_admin_reports_periods__period_id__close_patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2473,7 +2490,7 @@ export interface operations {
             };
         };
     };
-    list_admin_responses_api_admin_responses_get: {
+    list_admin_responses_api_v1_admin_responses_get: {
         parameters: {
             query?: {
                 project_id?: string | null;
@@ -2510,7 +2527,7 @@ export interface operations {
             };
         };
     };
-    delete_response_api_admin_responses__response_id__delete: {
+    delete_response_api_v1_admin_responses__response_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -2543,7 +2560,7 @@ export interface operations {
             };
         };
     };
-    update_response_status_api_admin_responses__response_id__patch: {
+    update_response_status_api_v1_admin_responses__response_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2581,7 +2598,7 @@ export interface operations {
             };
         };
     };
-    get_admin_stats_api_admin_stats_get: {
+    get_admin_stats_api_v1_admin_stats_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2612,7 +2629,7 @@ export interface operations {
             };
         };
     };
-    list_admin_users_api_admin_users_get: {
+    list_admin_users_api_v1_admin_users_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2643,7 +2660,7 @@ export interface operations {
             };
         };
     };
-    download_attachment_api_attachments__attachment_id__get: {
+    download_attachment_api_v1_attachments__attachment_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -2676,7 +2693,7 @@ export interface operations {
             };
         };
     };
-    delete_attachment_api_attachments__attachment_id__delete: {
+    delete_attachment_api_v1_attachments__attachment_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -2709,7 +2726,7 @@ export interface operations {
             };
         };
     };
-    list_competencies_api_competencies_get: {
+    list_competencies_api_v1_competencies_get: {
         parameters: {
             query?: {
                 search?: string | null;
@@ -2740,27 +2757,7 @@ export interface operations {
             };
         };
     };
-    health_api_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_me_api_me_get: {
+    get_me_api_v1_me_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2791,7 +2788,7 @@ export interface operations {
             };
         };
     };
-    update_my_profile_api_me_profile_patch: {
+    update_my_profile_api_v1_me_profile_patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2826,7 +2823,7 @@ export interface operations {
             };
         };
     };
-    update_my_project_task_status_api_me_project_tasks__task_id__patch: {
+    update_my_project_task_status_api_v1_me_project_tasks__task_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2864,7 +2861,7 @@ export interface operations {
             };
         };
     };
-    list_my_projects_api_me_projects_get: {
+    list_my_projects_api_v1_me_projects_get: {
         parameters: {
             query?: {
                 search?: string | null;
@@ -2901,7 +2898,7 @@ export interface operations {
             };
         };
     };
-    get_my_project_api_me_projects__project_id__get: {
+    get_my_project_api_v1_me_projects__project_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -2934,7 +2931,7 @@ export interface operations {
             };
         };
     };
-    list_my_project_tasks_api_me_projects__project_id__tasks_get: {
+    list_my_project_tasks_api_v1_me_projects__project_id__tasks_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2967,7 +2964,7 @@ export interface operations {
             };
         };
     };
-    list_my_responses_api_me_responses_get: {
+    list_my_responses_api_v1_me_responses_get: {
         parameters: {
             query?: {
                 limit?: number | null;
@@ -3001,7 +2998,7 @@ export interface operations {
             };
         };
     };
-    withdraw_my_response_api_me_responses__response_id__delete: {
+    withdraw_my_response_api_v1_me_responses__response_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -3034,7 +3031,7 @@ export interface operations {
             };
         };
     };
-    upload_task_attachment_api_project_tasks__task_id__attachments_post: {
+    upload_task_attachment_api_v1_project_tasks__task_id__attachments_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3047,7 +3044,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_task_attachment_api_project_tasks__task_id__attachments_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_task_attachment_api_v1_project_tasks__task_id__attachments_post"];
             };
         };
         responses: {
@@ -3071,7 +3068,7 @@ export interface operations {
             };
         };
     };
-    list_projects_api_projects_get: {
+    list_projects_api_v1_projects_get: {
         parameters: {
             query?: {
                 search?: string | null;
@@ -3108,7 +3105,7 @@ export interface operations {
             };
         };
     };
-    list_project_recommendations_api_projects_recommendations_get: {
+    list_project_recommendations_api_v1_projects_recommendations_get: {
         parameters: {
             query?: {
                 limit?: number | null;
@@ -3141,7 +3138,7 @@ export interface operations {
             };
         };
     };
-    get_project_api_projects__project_id__get: {
+    get_project_api_v1_projects__project_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3172,7 +3169,7 @@ export interface operations {
             };
         };
     };
-    create_project_response_api_projects__project_id__responses_post: {
+    create_project_response_api_v1_projects__project_id__responses_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3210,7 +3207,7 @@ export interface operations {
             };
         };
     };
-    upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post: {
+    upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3224,7 +3221,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post"];
             };
         };
         responses: {
@@ -3248,7 +3245,7 @@ export interface operations {
             };
         };
     };
-    get_current_report_state_api_reports_current_get: {
+    get_current_report_state_api_v1_reports_current_get: {
         parameters: {
             query?: never;
             header?: {
@@ -3279,7 +3276,7 @@ export interface operations {
             };
         };
     };
-    submit_current_report_api_reports_current_put: {
+    submit_current_report_api_v1_reports_current_put: {
         parameters: {
             query?: never;
             header?: {
@@ -3314,7 +3311,7 @@ export interface operations {
             };
         };
     };
-    upload_report_attachment_api_reports__report_id__attachments_post: {
+    upload_report_attachment_api_v1_reports__report_id__attachments_post: {
         parameters: {
             query?: never;
             header?: {
@@ -3327,7 +3324,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_report_attachment_api_reports__report_id__attachments_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_report_attachment_api_v1_reports__report_id__attachments_post"];
             };
         };
         responses: {
@@ -3351,7 +3348,7 @@ export interface operations {
             };
         };
     };
-    list_user_directory_api_users_directory_get: {
+    list_user_directory_api_v1_users_directory_get: {
         parameters: {
             query?: {
                 search?: string | null;
@@ -3380,6 +3377,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    live_health_live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
+    health_health_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

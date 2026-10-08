@@ -356,7 +356,7 @@
         "title": "AttachmentStatus",
         "type": "string"
       },
-      "Body_upload_project_attachment_api_admin_projects__project_id__attachments_post": {
+      "Body_upload_project_attachment_api_v1_admin_projects__project_id__attachments_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -367,10 +367,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_project_attachment_api_admin_projects__project_id__attachments_post",
+        "title": "Body_upload_project_attachment_api_v1_admin_projects__project_id__attachments_post",
         "type": "object"
       },
-      "Body_upload_report_attachment_api_reports__report_id__attachments_post": {
+      "Body_upload_report_attachment_api_v1_reports__report_id__attachments_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -381,10 +381,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_report_attachment_api_reports__report_id__attachments_post",
+        "title": "Body_upload_report_attachment_api_v1_reports__report_id__attachments_post",
         "type": "object"
       },
-      "Body_upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post": {
+      "Body_upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -395,10 +395,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post",
+        "title": "Body_upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post",
         "type": "object"
       },
-      "Body_upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post": {
+      "Body_upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -409,10 +409,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post",
+        "title": "Body_upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post",
         "type": "object"
       },
-      "Body_upload_task_attachment_api_project_tasks__task_id__attachments_post": {
+      "Body_upload_task_attachment_api_v1_project_tasks__task_id__attachments_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -423,7 +423,7 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_task_attachment_api_project_tasks__task_id__attachments_post",
+        "title": "Body_upload_task_attachment_api_v1_project_tasks__task_id__attachments_post",
         "type": "object"
       },
       "CompetencyRead": {
@@ -2910,9 +2910,9 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/admin/audit": {
+    "/api/v1/admin/audit": {
       "get": {
-        "operationId": "list_audit_events_api_admin_audit_get",
+        "operationId": "list_audit_events_api_v1_admin_audit_get",
         "parameters": [
           {
             "in": "query",
@@ -3007,7 +3007,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ProjectAuditEventRead"
                   },
-                  "title": "Response List Audit Events Api Admin Audit Get",
+                  "title": "Response List Audit Events Api V1 Admin Audit Get",
                   "type": "array"
                 }
               }
@@ -3031,9 +3031,9 @@
         ]
       }
     },
-    "/api/admin/projects": {
+    "/api/v1/admin/projects": {
       "get": {
-        "operationId": "list_admin_projects_api_admin_projects_get",
+        "operationId": "list_admin_projects_api_v1_admin_projects_get",
         "parameters": [
           {
             "in": "query",
@@ -3192,7 +3192,7 @@
         ]
       },
       "post": {
-        "operationId": "create_admin_project_api_admin_projects_post",
+        "operationId": "create_admin_project_api_v1_admin_projects_post",
         "parameters": [
           {
             "in": "header",
@@ -3265,9 +3265,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}": {
+    "/api/v1/admin/projects/{project_id}": {
       "delete": {
-        "operationId": "archive_admin_project_api_admin_projects__project_id__delete",
+        "operationId": "archive_admin_project_api_v1_admin_projects__project_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -3340,7 +3340,7 @@
         ]
       },
       "get": {
-        "operationId": "get_admin_project_api_admin_projects__project_id__get",
+        "operationId": "get_admin_project_api_v1_admin_projects__project_id__get",
         "parameters": [
           {
             "in": "path",
@@ -3397,7 +3397,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_admin_project_api_admin_projects__project_id__patch",
+        "operationId": "update_admin_project_api_v1_admin_projects__project_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -3480,9 +3480,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/attachments": {
+    "/api/v1/admin/projects/{project_id}/attachments": {
       "post": {
-        "operationId": "upload_project_attachment_api_admin_projects__project_id__attachments_post",
+        "operationId": "upload_project_attachment_api_v1_admin_projects__project_id__attachments_post",
         "parameters": [
           {
             "in": "path",
@@ -3515,7 +3515,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_project_attachment_api_admin_projects__project_id__attachments_post"
+                "$ref": "#/components/schemas/Body_upload_project_attachment_api_v1_admin_projects__project_id__attachments_post"
               }
             }
           },
@@ -3549,9 +3549,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/candidates": {
+    "/api/v1/admin/projects/{project_id}/candidates": {
       "get": {
-        "operationId": "list_project_candidates_api_admin_projects__project_id__candidates_get",
+        "operationId": "list_project_candidates_api_v1_admin_projects__project_id__candidates_get",
         "parameters": [
           {
             "in": "path",
@@ -3703,9 +3703,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/members/{user_id}": {
+    "/api/v1/admin/projects/{project_id}/members/{user_id}": {
       "delete": {
-        "operationId": "remove_project_member_api_admin_projects__project_id__members__user_id__delete",
+        "operationId": "remove_project_member_api_v1_admin_projects__project_id__members__user_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -3788,7 +3788,7 @@
         ]
       },
       "post": {
-        "operationId": "add_project_member_api_admin_projects__project_id__members__user_id__post",
+        "operationId": "add_project_member_api_v1_admin_projects__project_id__members__user_id__post",
         "parameters": [
           {
             "in": "path",
@@ -3871,9 +3871,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/responses": {
+    "/api/v1/admin/projects/{project_id}/responses": {
       "get": {
-        "operationId": "list_project_responses_api_admin_projects__project_id__responses_get",
+        "operationId": "list_project_responses_api_v1_admin_projects__project_id__responses_get",
         "parameters": [
           {
             "in": "path",
@@ -3978,9 +3978,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/restore": {
+    "/api/v1/admin/projects/{project_id}/restore": {
       "patch": {
-        "operationId": "restore_admin_project_api_admin_projects__project_id__restore_patch",
+        "operationId": "restore_admin_project_api_v1_admin_projects__project_id__restore_patch",
         "parameters": [
           {
             "in": "path",
@@ -4053,9 +4053,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/stages": {
+    "/api/v1/admin/projects/{project_id}/stages": {
       "get": {
-        "operationId": "list_admin_project_stages_api_admin_projects__project_id__stages_get",
+        "operationId": "list_admin_project_stages_api_v1_admin_projects__project_id__stages_get",
         "parameters": [
           {
             "in": "path",
@@ -4092,7 +4092,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ProjectStageWithTasksRead"
                   },
-                  "title": "Response List Admin Project Stages Api Admin Projects  Project Id  Stages Get",
+                  "title": "Response List Admin Project Stages Api V1 Admin Projects  Project Id  Stages Get",
                   "type": "array"
                 }
               }
@@ -4116,7 +4116,7 @@
         ]
       },
       "post": {
-        "operationId": "create_admin_project_stage_api_admin_projects__project_id__stages_post",
+        "operationId": "create_admin_project_stage_api_v1_admin_projects__project_id__stages_post",
         "parameters": [
           {
             "in": "path",
@@ -4199,9 +4199,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/stages/{stage_id}": {
+    "/api/v1/admin/projects/{project_id}/stages/{stage_id}": {
       "patch": {
-        "operationId": "update_admin_project_stage_api_admin_projects__project_id__stages__stage_id__patch",
+        "operationId": "update_admin_project_stage_api_v1_admin_projects__project_id__stages__stage_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -4294,9 +4294,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/stages/{stage_id}/attachments": {
+    "/api/v1/admin/projects/{project_id}/stages/{stage_id}/attachments": {
       "post": {
-        "operationId": "upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post",
+        "operationId": "upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post",
         "parameters": [
           {
             "in": "path",
@@ -4339,7 +4339,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_stage_attachment_api_admin_projects__project_id__stages__stage_id__attachments_post"
+                "$ref": "#/components/schemas/Body_upload_stage_attachment_api_v1_admin_projects__project_id__stages__stage_id__attachments_post"
               }
             }
           },
@@ -4373,9 +4373,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/tasks": {
+    "/api/v1/admin/projects/{project_id}/tasks": {
       "post": {
-        "operationId": "create_admin_project_task_api_admin_projects__project_id__tasks_post",
+        "operationId": "create_admin_project_task_api_v1_admin_projects__project_id__tasks_post",
         "parameters": [
           {
             "in": "path",
@@ -4458,9 +4458,9 @@
         ]
       }
     },
-    "/api/admin/projects/{project_id}/tasks/{task_id}": {
+    "/api/v1/admin/projects/{project_id}/tasks/{task_id}": {
       "patch": {
-        "operationId": "update_admin_project_task_api_admin_projects__project_id__tasks__task_id__patch",
+        "operationId": "update_admin_project_task_api_v1_admin_projects__project_id__tasks__task_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -4553,9 +4553,9 @@
         ]
       }
     },
-    "/api/admin/reports": {
+    "/api/v1/admin/reports": {
       "get": {
-        "operationId": "list_reports_api_admin_reports_get",
+        "operationId": "list_reports_api_v1_admin_reports_get",
         "parameters": [
           {
             "in": "query",
@@ -4599,7 +4599,7 @@
                   "items": {
                     "$ref": "#/components/schemas/AdminHalfYearReportRead"
                   },
-                  "title": "Response List Reports Api Admin Reports Get",
+                  "title": "Response List Reports Api V1 Admin Reports Get",
                   "type": "array"
                 }
               }
@@ -4623,9 +4623,9 @@
         ]
       }
     },
-    "/api/admin/reports/periods": {
+    "/api/v1/admin/reports/periods": {
       "get": {
-        "operationId": "list_report_periods_api_admin_reports_periods_get",
+        "operationId": "list_report_periods_api_v1_admin_reports_periods_get",
         "parameters": [
           {
             "in": "header",
@@ -4652,7 +4652,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ReportPeriodRead"
                   },
-                  "title": "Response List Report Periods Api Admin Reports Periods Get",
+                  "title": "Response List Report Periods Api V1 Admin Reports Periods Get",
                   "type": "array"
                 }
               }
@@ -4676,7 +4676,7 @@
         ]
       },
       "post": {
-        "operationId": "open_report_period_api_admin_reports_periods_post",
+        "operationId": "open_report_period_api_v1_admin_reports_periods_post",
         "parameters": [
           {
             "in": "header",
@@ -4733,9 +4733,9 @@
         ]
       }
     },
-    "/api/admin/reports/periods/{period_id}/close": {
+    "/api/v1/admin/reports/periods/{period_id}/close": {
       "patch": {
-        "operationId": "close_report_period_api_admin_reports_periods__period_id__close_patch",
+        "operationId": "close_report_period_api_v1_admin_reports_periods__period_id__close_patch",
         "parameters": [
           {
             "in": "path",
@@ -4792,9 +4792,9 @@
         ]
       }
     },
-    "/api/admin/responses": {
+    "/api/v1/admin/responses": {
       "get": {
-        "operationId": "list_admin_responses_api_admin_responses_get",
+        "operationId": "list_admin_responses_api_v1_admin_responses_get",
         "parameters": [
           {
             "in": "query",
@@ -4922,9 +4922,9 @@
         ]
       }
     },
-    "/api/admin/responses/{response_id}": {
+    "/api/v1/admin/responses/{response_id}": {
       "delete": {
-        "operationId": "delete_response_api_admin_responses__response_id__delete",
+        "operationId": "delete_response_api_v1_admin_responses__response_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -4981,7 +4981,7 @@
         ]
       },
       "patch": {
-        "operationId": "update_response_status_api_admin_responses__response_id__patch",
+        "operationId": "update_response_status_api_v1_admin_responses__response_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -5064,9 +5064,9 @@
         ]
       }
     },
-    "/api/admin/stats": {
+    "/api/v1/admin/stats": {
       "get": {
-        "operationId": "get_admin_stats_api_admin_stats_get",
+        "operationId": "get_admin_stats_api_v1_admin_stats_get",
         "parameters": [
           {
             "in": "header",
@@ -5113,9 +5113,9 @@
         ]
       }
     },
-    "/api/admin/users": {
+    "/api/v1/admin/users": {
       "get": {
-        "operationId": "list_admin_users_api_admin_users_get",
+        "operationId": "list_admin_users_api_v1_admin_users_get",
         "parameters": [
           {
             "in": "header",
@@ -5142,7 +5142,7 @@
                   "items": {
                     "$ref": "#/components/schemas/UserRead"
                   },
-                  "title": "Response List Admin Users Api Admin Users Get",
+                  "title": "Response List Admin Users Api V1 Admin Users Get",
                   "type": "array"
                 }
               }
@@ -5166,9 +5166,9 @@
         ]
       }
     },
-    "/api/attachments/{attachment_id}": {
+    "/api/v1/attachments/{attachment_id}": {
       "delete": {
-        "operationId": "delete_attachment_api_attachments__attachment_id__delete",
+        "operationId": "delete_attachment_api_v1_attachments__attachment_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -5225,7 +5225,7 @@
         ]
       },
       "get": {
-        "operationId": "download_attachment_api_attachments__attachment_id__get",
+        "operationId": "download_attachment_api_v1_attachments__attachment_id__get",
         "parameters": [
           {
             "in": "path",
@@ -5280,9 +5280,9 @@
         ]
       }
     },
-    "/api/competencies": {
+    "/api/v1/competencies": {
       "get": {
-        "operationId": "list_competencies_api_competencies_get",
+        "operationId": "list_competencies_api_v1_competencies_get",
         "parameters": [
           {
             "in": "query",
@@ -5309,7 +5309,7 @@
                   "items": {
                     "$ref": "#/components/schemas/CompetencyRead"
                   },
-                  "title": "Response List Competencies Api Competencies Get",
+                  "title": "Response List Competencies Api V1 Competencies Get",
                   "type": "array"
                 }
               }
@@ -5333,28 +5333,9 @@
         ]
       }
     },
-    "/api/health": {
+    "/api/v1/me": {
       "get": {
-        "operationId": "health_api_health_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Health",
-        "tags": [
-          "health"
-        ]
-      }
-    },
-    "/api/me": {
-      "get": {
-        "operationId": "get_me_api_me_get",
+        "operationId": "get_me_api_v1_me_get",
         "parameters": [
           {
             "in": "header",
@@ -5401,9 +5382,9 @@
         ]
       }
     },
-    "/api/me/profile": {
+    "/api/v1/me/profile": {
       "patch": {
-        "operationId": "update_my_profile_api_me_profile_patch",
+        "operationId": "update_my_profile_api_v1_me_profile_patch",
         "parameters": [
           {
             "in": "header",
@@ -5460,9 +5441,9 @@
         ]
       }
     },
-    "/api/me/project-tasks/{task_id}": {
+    "/api/v1/me/project-tasks/{task_id}": {
       "patch": {
-        "operationId": "update_my_project_task_status_api_me_project_tasks__task_id__patch",
+        "operationId": "update_my_project_task_status_api_v1_me_project_tasks__task_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -5545,9 +5526,9 @@
         ]
       }
     },
-    "/api/me/projects": {
+    "/api/v1/me/projects": {
       "get": {
-        "operationId": "list_my_projects_api_me_projects_get",
+        "operationId": "list_my_projects_api_v1_me_projects_get",
         "parameters": [
           {
             "in": "query",
@@ -5674,9 +5655,9 @@
         ]
       }
     },
-    "/api/me/projects/{project_id}": {
+    "/api/v1/me/projects/{project_id}": {
       "get": {
-        "operationId": "get_my_project_api_me_projects__project_id__get",
+        "operationId": "get_my_project_api_v1_me_projects__project_id__get",
         "parameters": [
           {
             "in": "path",
@@ -5733,9 +5714,9 @@
         ]
       }
     },
-    "/api/me/projects/{project_id}/tasks": {
+    "/api/v1/me/projects/{project_id}/tasks": {
       "get": {
-        "operationId": "list_my_project_tasks_api_me_projects__project_id__tasks_get",
+        "operationId": "list_my_project_tasks_api_v1_me_projects__project_id__tasks_get",
         "parameters": [
           {
             "in": "path",
@@ -5772,7 +5753,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ProjectTaskRead"
                   },
-                  "title": "Response List My Project Tasks Api Me Projects  Project Id  Tasks Get",
+                  "title": "Response List My Project Tasks Api V1 Me Projects  Project Id  Tasks Get",
                   "type": "array"
                 }
               }
@@ -5796,9 +5777,9 @@
         ]
       }
     },
-    "/api/me/responses": {
+    "/api/v1/me/responses": {
       "get": {
-        "operationId": "list_my_responses_api_me_responses_get",
+        "operationId": "list_my_responses_api_v1_me_responses_get",
         "parameters": [
           {
             "in": "query",
@@ -5877,9 +5858,9 @@
         ]
       }
     },
-    "/api/me/responses/{response_id}": {
+    "/api/v1/me/responses/{response_id}": {
       "delete": {
-        "operationId": "withdraw_my_response_api_me_responses__response_id__delete",
+        "operationId": "withdraw_my_response_api_v1_me_responses__response_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -5936,9 +5917,9 @@
         ]
       }
     },
-    "/api/project-tasks/{task_id}/attachments": {
+    "/api/v1/project-tasks/{task_id}/attachments": {
       "post": {
-        "operationId": "upload_task_attachment_api_project_tasks__task_id__attachments_post",
+        "operationId": "upload_task_attachment_api_v1_project_tasks__task_id__attachments_post",
         "parameters": [
           {
             "in": "path",
@@ -5971,7 +5952,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_task_attachment_api_project_tasks__task_id__attachments_post"
+                "$ref": "#/components/schemas/Body_upload_task_attachment_api_v1_project_tasks__task_id__attachments_post"
               }
             }
           },
@@ -6005,9 +5986,9 @@
         ]
       }
     },
-    "/api/projects": {
+    "/api/v1/projects": {
       "get": {
-        "operationId": "list_projects_api_projects_get",
+        "operationId": "list_projects_api_v1_projects_get",
         "parameters": [
           {
             "in": "query",
@@ -6150,9 +6131,9 @@
         ]
       }
     },
-    "/api/projects/recommendations": {
+    "/api/v1/projects/recommendations": {
       "get": {
-        "operationId": "list_project_recommendations_api_projects_recommendations_get",
+        "operationId": "list_project_recommendations_api_v1_projects_recommendations_get",
         "parameters": [
           {
             "in": "query",
@@ -6195,7 +6176,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ProjectRecommendationRead"
                   },
-                  "title": "Response List Project Recommendations Api Projects Recommendations Get",
+                  "title": "Response List Project Recommendations Api V1 Projects Recommendations Get",
                   "type": "array"
                 }
               }
@@ -6219,9 +6200,9 @@
         ]
       }
     },
-    "/api/projects/{project_id}": {
+    "/api/v1/projects/{project_id}": {
       "get": {
-        "operationId": "get_project_api_projects__project_id__get",
+        "operationId": "get_project_api_v1_projects__project_id__get",
         "parameters": [
           {
             "in": "path",
@@ -6262,9 +6243,9 @@
         ]
       }
     },
-    "/api/projects/{project_id}/responses": {
+    "/api/v1/projects/{project_id}/responses": {
       "post": {
-        "operationId": "create_project_response_api_projects__project_id__responses_post",
+        "operationId": "create_project_response_api_v1_projects__project_id__responses_post",
         "parameters": [
           {
             "in": "path",
@@ -6347,9 +6328,9 @@
         ]
       }
     },
-    "/api/projects/{project_id}/responses/{response_id}/attachments": {
+    "/api/v1/projects/{project_id}/responses/{response_id}/attachments": {
       "post": {
-        "operationId": "upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post",
+        "operationId": "upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post",
         "parameters": [
           {
             "in": "path",
@@ -6392,7 +6373,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_response_attachment_api_projects__project_id__responses__response_id__attachments_post"
+                "$ref": "#/components/schemas/Body_upload_response_attachment_api_v1_projects__project_id__responses__response_id__attachments_post"
               }
             }
           },
@@ -6426,9 +6407,9 @@
         ]
       }
     },
-    "/api/reports/current": {
+    "/api/v1/reports/current": {
       "get": {
-        "operationId": "get_current_report_state_api_reports_current_get",
+        "operationId": "get_current_report_state_api_v1_reports_current_get",
         "parameters": [
           {
             "in": "header",
@@ -6475,7 +6456,7 @@
         ]
       },
       "put": {
-        "operationId": "submit_current_report_api_reports_current_put",
+        "operationId": "submit_current_report_api_v1_reports_current_put",
         "parameters": [
           {
             "in": "header",
@@ -6532,9 +6513,9 @@
         ]
       }
     },
-    "/api/reports/{report_id}/attachments": {
+    "/api/v1/reports/{report_id}/attachments": {
       "post": {
-        "operationId": "upload_report_attachment_api_reports__report_id__attachments_post",
+        "operationId": "upload_report_attachment_api_v1_reports__report_id__attachments_post",
         "parameters": [
           {
             "in": "path",
@@ -6567,7 +6548,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_report_attachment_api_reports__report_id__attachments_post"
+                "$ref": "#/components/schemas/Body_upload_report_attachment_api_v1_reports__report_id__attachments_post"
               }
             }
           },
@@ -6601,9 +6582,9 @@
         ]
       }
     },
-    "/api/users/directory": {
+    "/api/v1/users/directory": {
       "get": {
-        "operationId": "list_user_directory_api_users_directory_get",
+        "operationId": "list_user_directory_api_v1_users_directory_get",
         "parameters": [
           {
             "in": "query",
@@ -6646,7 +6627,7 @@
                   "items": {
                     "$ref": "#/components/schemas/UserRead"
                   },
-                  "title": "Response List User Directory Api Users Directory Get",
+                  "title": "Response List User Directory Api V1 Users Directory Get",
                   "type": "array"
                 }
               }
@@ -6667,6 +6648,50 @@
         "summary": "List User Directory",
         "tags": [
           "users"
+        ]
+      }
+    },
+    "/health/live": {
+      "get": {
+        "operationId": "live_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Live Health Live Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "health_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "health"
         ]
       }
     }

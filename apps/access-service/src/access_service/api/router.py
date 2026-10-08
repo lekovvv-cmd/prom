@@ -152,7 +152,7 @@ def require_mock_provider(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
-@router.post("/auth/mock/code", response_model=MockCodeOut)
+@router.post("/api/v1/auth/mock/code", response_model=MockCodeOut)
 def mock_code(payload: MockCodeInput, request: Request) -> MockCodeOut:
     require_mock_provider(request)
     return MockCodeOut(email=payload.email.lower(), dev_code="000000")
@@ -196,7 +196,7 @@ def start_browser_session(
     return serialize_session(session, user)
 
 
-@router.post("/auth/mock/verify", response_model=SessionOut)
+@router.post("/api/v1/auth/mock/verify", response_model=SessionOut)
 def mock_verify(
     payload: MockLoginInput,
     request: Request,

@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
     install_metrics_endpoint(app, metrics)
     install_problem_details_handlers(app)
 
-    @app.get("/api/health", tags=["health"], response_model=None)
+    @app.get("/health/ready", tags=["health"], response_model=None)
     def health(db: Session = Depends(get_session)) -> dict[str, object] | JSONResponse:
         marker: Path | None = None
         try:
@@ -58,7 +58,11 @@ def create_app() -> FastAPI:
             "outbox": outbox_snapshot,
         }
 
-    app.include_router(api_router, prefix="/api")
+    @app.get("/health/live", tags=["health"])
+    def live() -> dict[str, str]:
+        return {"status": "live"}
+
+    app.include_router(api_router, prefix="/api/v1")
     return app
 
 

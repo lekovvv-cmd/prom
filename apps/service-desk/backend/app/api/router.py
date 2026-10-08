@@ -10,14 +10,12 @@ from app.api.routes import (
     admin_stats,
     admin_templates,
     catalog,
-    health,
     notifications,
     tickets,
     workbench,
 )
 
 api_router = APIRouter()
-api_router.include_router(health.router)
 api_router.include_router(notifications.router)
 api_router.include_router(access.router)
 api_router.include_router(catalog.router)
