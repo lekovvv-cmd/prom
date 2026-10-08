@@ -389,7 +389,7 @@ jobs:
           retention-days: 14
 
   access-postgres-integration:
-    name: Access PostgreSQL, group RBAC, and key rotation
+    name: Access PostgreSQL and group RBAC
     needs: detect-changes
     if: needs.detect-changes.outputs.access == 'true' || needs.detect-changes.outputs.sdk == 'true'
     runs-on: ubuntu-latest
@@ -419,64 +419,14 @@ jobs:
       - name: Apply Access migrations to PostgreSQL
         working-directory: apps/access-service
         run: ../../.venv/bin/alembic upgrade head
-      - name: Exercise PostgreSQL group RBAC and persisted key rotation
+      - name: Exercise PostgreSQL group RBAC
         run: >
           uv run --frozen --package prom-access-service --extra dev python -m pytest -q
           apps/access-service/tests/test_postgres_integration.py
-      - name: Re-run negative RBAC and rotation suites
+      - name: Re-run negative RBAC suite
         run: >
           uv run --frozen --package prom-access-service --extra dev python -m pytest -q
           apps/access-service/tests/test_access_rbac.py
-          apps/access-service/tests/test_signing_key_rotation.py
-
-  legacy-identity-migration:
-    name: Legacy identity migration rehearsal
-    needs: detect-changes
-    if: >
-      needs.detect-changes.outputs.access == 'true' ||
-      needs.detect-changes.outputs.projects == 'true' ||
-      needs.detect-changes.outputs.service_desk == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
-        with:
-          version: ${{ env.UV_VERSION }}
-          python-version: ${{ env.PYTHON_VERSION }}
-          enable-cache: true
-      - run: uv sync --locked --package prom-access-service --extra dev
-      - name: Verify UUID, relationship, conflict, and idempotency behavior
-        run: >
-          uv run --frozen --package prom-access-service --extra dev python -m pytest -q
-          apps/access-service/tests/test_identity_migration.py
-      - name: Start long-running PostgreSQL-backed services
-        run: ./dev.sh up
-      - name: Rehearse dry-run, partial recovery, and repeatable apply against PostgreSQL
-        run: |
-          mkdir -p outputs/identity-migration
-          docker compose --profile tooling run --rm --no-deps --user "$(id -u):$(id -g)" --entrypoint python access-identity-migrate scripts/rehearse_identity_resumability.py
-          ./dev.sh migrate-identities --dry-run
-          ./dev.sh migrate-identities --apply
-          ./dev.sh migrate-identities --apply
-          test -s outputs/identity-migration/identity-reconciliation.json
-          test -s outputs/identity-migration/identity-reconciliation.md
-      - name: Capture diagnostics
-        if: always()
-        run: |
-          docker compose ps --all > docker-compose-ps.txt
-          docker compose logs --no-color > docker-compose.log
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: legacy-identity-migration-diagnostics
-          path: |
-            docker-compose-ps.txt
-            docker-compose.log
-            outputs/identity-migration
-      - name: Stop rehearsal databases
-        if: always()
-        run: docker compose down -v --remove-orphans
 
   projects-tests:
     name: Projects unit tests

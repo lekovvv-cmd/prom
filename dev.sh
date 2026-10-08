@@ -6,14 +6,14 @@ COMMAND="${1:-up}"
 if [[ $# -gt 0 ]]; then shift; fi
 
 case "$COMMAND" in
-  up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module|migrate-identities) ;;
-  *) printf 'Usage: ./dev.sh {up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module|migrate-identities} [args]\n' >&2; exit 2 ;;
+  up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module) ;;
+  *) printf 'Usage: ./dev.sh {up|down|restart|logs|status|reset|test|test-unit|test-integration|test-e2e|generate-contracts|architecture-check|create-module} [args]\n' >&2; exit 2 ;;
 esac
 
 cd "$ROOT_DIR"
 
 case "$COMMAND" in
-  up|down|restart|logs|status|reset|test|test-integration|migrate-identities)
+  up|down|restart|logs|status|reset|test|test-integration)
     command -v docker >/dev/null 2>&1 || { printf 'Docker is required for %s.\n' "$COMMAND" >&2; exit 1; }
     docker info >/dev/null 2>&1 || { printf 'Docker is not running.\n' >&2; exit 1; }
     ;;
@@ -33,9 +33,6 @@ case "$COMMAND" in
       exit 1
     fi
     "$PROM_PYTHON" tools/postgres/ensure_generated_databases.py
-    if [[ "${PROM_SKIP_LEGACY_IMPORT:-}" != "1" ]]; then
-      "$PROM_PYTHON" tools/postgres/import_legacy_databases.py
-    fi
     for service in access-service projects-backend service-desk-backend platform-shell; do
       docker compose build "$service"
     done
@@ -68,7 +65,7 @@ case "$COMMAND" in
   reset)
     printf 'WARNING: this removes the shared local PROM database and attachment volumes.\n' >&2
     docker compose down --volumes --remove-orphans
-    PROM_SKIP_LEGACY_IMPORT=1 "$0" up
+    "$0" up
     ;;
   test)
     docker compose --profile test run --rm projects-tests
@@ -86,13 +83,5 @@ case "$COMMAND" in
   create-module)
     [[ $# -ge 1 && $# -le 2 ]] || { printf 'Usage: ./dev.sh create-module <module-name> [--dry-run|--check|--remove]\n' >&2; exit 2; }
     "$PROM_PYTHON" tools/generators/create_module.py "$@"
-    ;;
-  migrate-identities)
-    [[ $# -eq 1 && ( "$1" == "--dry-run" || "$1" == "--apply" ) ]] || {
-      printf 'Usage: ./dev.sh migrate-identities {--dry-run|--apply}\n' >&2
-      exit 2
-    }
-    mkdir -p outputs/identity-migration
-    docker compose --profile tooling run --rm --no-deps --user "$(id -u):$(id -g)" access-identity-migrate "$1"
     ;;
 esac

@@ -51,6 +51,7 @@ services:
       ACCESS_ENVIRONMENT: ${PLATFORM_ENVIRONMENT:-development}
       ACCESS_DEBUG: ${PLATFORM_DEBUG:-false}
       ACCESS_JWT_PRIVATE_KEY: ${ACCESS_JWT_PRIVATE_KEY:-}
+      ACCESS_JWT_PRIVATE_KEY_FILE: ${ACCESS_JWT_PRIVATE_KEY_FILE:-}
       ACCESS_JWT_KEY_ID: ${ACCESS_JWT_KEY_ID:-local-ephemeral}
       ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:-prom-access}
       ACCESS_TOKEN_AUDIENCES: ${ACCESS_TOKEN_AUDIENCES:-projects,service-desk}
@@ -183,20 +184,6 @@ services:
     profiles: ["tooling"]
     environment: *service-desk-environment
     command: ["python", "-m", "scripts.seed_if_empty"]
-    restart: "no"
-
-  access-identity-migrate:
-    image: prom-access-service:local
-    build: *access-build
-    profiles: ["tooling"]
-    environment:
-      <<: *access-environment
-      PROJECTS_DATABASE_URL: postgresql+psycopg://project_showcase:${PROJECTS_DB_PASSWORD:-project_showcase}@postgres:5432/project_showcase
-      SERVICE_DESK_DATABASE_URL: postgresql+psycopg://service_desk:${SERVICE_DESK_DB_PASSWORD:-service_desk}@postgres:5432/service_desk
-      IDENTITY_MIGRATION_REPORT_DIR: /workspace/backend/outputs/identity-migration
-    volumes:
-      - ./outputs/identity-migration:/workspace/backend/outputs/identity-migration
-    entrypoint: ["python", "scripts/migrate_identities.py"]
     restart: "no"
 
   projects-tests:

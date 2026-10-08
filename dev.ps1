@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "down", "restart", "logs", "status", "reset", "test", "test-unit", "test-integration", "test-e2e", "generate-contracts", "architecture-check", "create-module", "migrate-identities")]
+    [ValidateSet("up", "down", "restart", "logs", "status", "reset", "test", "test-unit", "test-integration", "test-e2e", "generate-contracts", "architecture-check", "create-module")]
     [string]$Command = "up",
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -30,7 +30,7 @@ function Invoke-PromPython {
 
 Push-Location $RootDir
 try {
-    $DockerCommands = @("up", "down", "restart", "logs", "status", "reset", "test", "test-integration", "migrate-identities")
+    $DockerCommands = @("up", "down", "restart", "logs", "status", "reset", "test", "test-integration")
     if ($DockerCommands -contains $Command) {
         if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
             throw "Docker Desktop is required for '$Command'."
@@ -47,10 +47,6 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "PostgreSQL startup failed." }
             Invoke-PromPython tools/postgres/ensure_generated_databases.py
             if ($LASTEXITCODE -ne 0) { throw "Generated module database setup failed." }
-            if ($env:PROM_SKIP_LEGACY_IMPORT -ne "1") {
-                Invoke-PromPython tools/postgres/import_legacy_databases.py
-                if ($LASTEXITCODE -ne 0) { throw "Legacy local database import failed." }
-            }
             foreach ($service in @("access-service", "projects-backend", "service-desk-backend", "platform-shell")) {
                 & docker compose build $service
                 if ($LASTEXITCODE -ne 0) { throw "Docker image build failed: $service" }
@@ -90,14 +86,7 @@ try {
             Write-Warning "This removes the shared local PROM database and attachment volumes."
             & docker compose down --volumes --remove-orphans
             if ($LASTEXITCODE -ne 0) { throw "Docker Compose reset failed." }
-            $previousSkip = $env:PROM_SKIP_LEGACY_IMPORT
-            try {
-                $env:PROM_SKIP_LEGACY_IMPORT = "1"
-                & $PSCommandPath up
-            }
-            finally {
-                $env:PROM_SKIP_LEGACY_IMPORT = $previousSkip
-            }
+            & $PSCommandPath up
         }
         "test" {
             & docker compose --profile test run --rm projects-tests
@@ -118,13 +107,6 @@ try {
         "create-module" {
             if ($Services.Count -lt 1 -or $Services.Count -gt 2) { throw "Usage: .\dev.cmd create-module <module-name> [--dry-run|--check|--remove]" }
             Invoke-PromPython tools/generators/create_module.py @Services
-        }
-        "migrate-identities" {
-            if ($Services.Count -ne 1 -or $Services[0] -notin @("--dry-run", "--apply")) {
-                throw "Usage: .\dev.cmd migrate-identities {--dry-run|--apply}"
-            }
-            New-Item -ItemType Directory -Force -Path (Join-Path $RootDir "outputs/identity-migration") | Out-Null
-            & docker compose --profile tooling run --rm --no-deps access-identity-migrate $Services[0]
         }
     }
 
