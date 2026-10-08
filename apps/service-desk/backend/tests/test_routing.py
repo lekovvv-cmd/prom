@@ -2,6 +2,8 @@ import uuid
 
 from app.core.enums import ServiceDeskAccessType
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
+from app.modules.routing.service import RoutingService
+from app.modules.tickets.models import ServiceDeskTicket
 
 
 def create_routing_user(
@@ -124,7 +126,9 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
 
     catalog_options = client.get("/admin/routing-rules/catalog-options", headers=admin_headers)
     assert catalog_options.status_code == 200, catalog_options.text
-    catalog_service = next(item for item in catalog_options.json()["services"] if item["id"] == service_id)
+    catalog_service = next(
+        item for item in catalog_options.json()["services"] if item["id"] == service_id
+    )
     assert catalog_service["is_active"] is True
     assert catalog_service["category_id"] in {
         item["id"] for item in catalog_options.json()["categories"]
@@ -140,10 +144,13 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
         headers=auth_headers_for_user(requester_id),
     )
     assert forbidden.status_code == 403
-    assert client.get(
-        "/admin/routing-rules/catalog-options",
-        headers=auth_headers_for_user(requester_id),
-    ).status_code == 403
+    assert (
+        client.get(
+            "/admin/routing-rules/catalog-options",
+            headers=auth_headers_for_user(requester_id),
+        ).status_code
+        == 403
+    )
 
     invalid_assignee_id = create_routing_user(db_session_factory, "ineligible@utmn.ru")
     invalid = client.post(
@@ -199,6 +206,21 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
     assert payload["history"][-1]["payload"]["assignment_source"] == "routing_rule"
     assert payload["history"][-1]["payload"]["routing_rule_id"] == first_rule.json()["id"]
 
+    # A target that becomes unavailable after the snapshot is skipped safely.
+    with db_session_factory() as db:
+        target = db.get(ServiceDeskUser, uuid.UUID(routed_assignee_id))
+        ticket = db.get(ServiceDeskTicket, uuid.UUID(draft["id"]))
+        assert target is not None and ticket is not None
+        target.is_active = False
+        db.flush()
+        assert RoutingService(db).apply_snapshot_assignment(ticket) is False
+        db.commit()
+    reloaded = client.get(f"/tickets/{draft['id']}", headers=requester_headers)
+    assert reloaded.status_code == 200
+    assert any(
+        event["event_type"] == "routing_assignment_skipped" for event in reloaded.json()["history"]
+    )
+
     reordered = client.post(
         "/admin/routing-rules/reorder",
         json={"rule_ids": [second_rule.json()["id"], first_rule.json()["id"]]},
@@ -215,7 +237,55 @@ def test_routing_assigns_first_priority_match_and_preserves_snapshot(
         headers=admin_headers,
     )
     assert deleted.status_code == 204
-    assert client.get("/admin/routing-rules", headers=admin_headers).json()[0]["id"] == first_rule.json()["id"]
+    assert (
+        client.get("/admin/routing-rules", headers=admin_headers).json()[0]["id"]
+        == first_rule.json()["id"]
+    )
+
+
+def test_routing_unmatched_rule_uses_default_or_leaves_ticket_unassigned(
+    client,
+    db_session_factory,
+    auth_headers_for_user,
+):
+    admin_id = create_routing_user(
+        db_session_factory,
+        "fallback-routing-admin@utmn.ru",
+        capabilities=("service_desk.manage_routing",),
+    )
+    requester_id = create_routing_user(db_session_factory, "fallback-routing-requester@utmn.ru")
+    default_id = create_routing_user(
+        db_session_factory,
+        "fallback-routing-assignee@utmn.ru",
+        capabilities=("service_desk.be_assignee",),
+    )
+    service_id, _ = create_published_service(client, default_assignee_user_id=default_id)
+    no_default_service_id, _ = create_published_service(client)
+    rule = client.post(
+        "/admin/routing-rules",
+        json={
+            "name": "Only critical",
+            "conditions": [{"field": "priority", "operator": "equals", "value": "critical"}],
+            "action": {"type": "assign_user", "user_id": default_id},
+        },
+        headers=auth_headers_for_user(admin_id),
+    )
+    assert rule.status_code == 201
+    requester_headers = auth_headers_for_user(requester_id)
+    with_default = create_draft(client, service_id, requester_headers, priority="medium")
+    assigned = client.post(f"/tickets/{with_default['id']}/submit", headers=requester_headers)
+    assert assigned.status_code == 200
+    assert assigned.json()["assignee_user_id"] == default_id
+    assert assigned.json()["routing_snapshot"]["matched_rules"] == []
+    assert assigned.json()["history"][-1]["payload"]["assignment_source"] == "default"
+
+    without_default = create_draft(
+        client, no_default_service_id, requester_headers, priority="medium"
+    )
+    unassigned = client.post(f"/tickets/{without_default['id']}/submit", headers=requester_headers)
+    assert unassigned.status_code == 200
+    assert unassigned.json()["assignee_user_id"] is None
+    assert unassigned.json()["status"] == "approved"
 
 
 def test_routing_field_value_can_set_priority_before_assignment(
