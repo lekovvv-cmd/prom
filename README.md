@@ -1,14 +1,14 @@
 # PROM platform workspace
 
-PROM is a modular university platform with a shared shell and three independently deployable backend services:
+PROM is a modular university platform with a shared shell and three backend services:
 
 - `apps/access-service` — demo login, browser sessions, JWT/JWKS and central RBAC;
-- `apps/projects/backend` — Projects domain and its PostgreSQL database;
-- `apps/service-desk/backend` — Service Desk domain and its separate PostgreSQL database;
+- `apps/projects/backend` — Projects domain and its own PostgreSQL database;
+- `apps/service-desk/backend` — Service Desk domain and its own PostgreSQL database;
 - `apps/platform-shell` — React platform shell; product routes are lazy-loaded from module manifests;
 - `packages/python/platform-sdk` — infrastructure-only Python helpers.
 
-Services never access one another's databases. Browser traffic goes only through the platform-shell gateway.
+One PostgreSQL server hosts three separately owned databases: `prom_access`, `project_showcase`, and `service_desk`. Services never access one another's databases. Browser traffic goes through the platform-shell gateway.
 
 ## Start locally
 
@@ -24,8 +24,7 @@ or:
 ./dev.sh up
 ```
 
-The full profile starts databases, migrations, APIs, workers and the gateway without
-creating demo data. Open `http://localhost:5173/`.
+`up` starts PostgreSQL, applies migrations and demo fixtures with temporary containers, then starts the seven runtime containers. Open `http://localhost:5173/`. Repeating `up` preserves existing demo data.
 
 | Surface | URL |
 | --- | --- |
@@ -34,25 +33,7 @@ creating demo data. Open `http://localhost:5173/`.
 | Projects API | `http://localhost:5173/api/projects/v1/` |
 | Service Desk API | `http://localhost:5173/api/service-desk/v1/` |
 
-The previous `/api/` and `/service-desk-api/` gateway paths remain compatibility aliases during migration.
-
-## Compose profiles
-
-| Profile | Contents |
-| --- | --- |
-| `core` | gateway/platform shell, Access Service, Access PostgreSQL |
-| `projects` | Projects PostgreSQL, migrations, API and workers |
-| `service-desk` | Service Desk PostgreSQL, migrations, API and workers |
-| `full` | complete production-like local platform without demo fixtures |
-| `demo` | optional idempotent users, projects, Service Desk access and catalog fixtures |
-| `test` | isolated backend and frontend test images |
-
-```powershell
-docker compose --profile core --profile projects up --build
-docker compose --profile core --profile service-desk up --build
-docker compose --profile full up --build
-docker compose --profile full --profile demo up -d --wait
-```
+The runtime containers are `postgres`, `access-service`, `projects-backend`, `projects-worker`, `service-desk-backend`, `service-desk-worker`, and `platform-shell`. The `tooling` and `test` Compose profiles contain temporary jobs only.
 
 ## Common commands
 
@@ -66,7 +47,11 @@ docker compose --profile full --profile demo up -d --wait
 .\dev.cmd create-module example-module
 ```
 
-`reset` intentionally removes the local PostgreSQL volumes and uploaded files. `down` preserves them.
+`reset` removes the local shared PostgreSQL and attachment volumes and brings back a ready demo. `down` preserves them.
+
+```powershell
+.\dev.cmd reset
+```
 
 For host-side tooling, use Python 3.14 and Node 24:
 
@@ -81,21 +66,19 @@ OpenAPI snapshots are committed in `contracts/openapi/`; regenerate them after a
 
 ## Demo identities
 
-After the optional `demo` profile is applied, the development Access Service
+After `up`, the development Access Service
 accepts code `000000` for the seeded accounts: `employee@utmn.ru`,
 `project.manager@utmn.ru`, `sd.manager@utmn.ru`, `sd.admin@utmn.ru`, and
 `admin@utmn.ru`. The backend verifies this code and creates the same browser
 session used by the platform. Demo login is available only outside production.
-The single command `docker compose --profile full --profile demo up --build -d --wait`
-runs Access seed, Projects seed, Service Desk identity bootstrap, and Service Desk seed.
 Legacy identity reconciliation is a separate migration tool for existing databases.
 
 For existing Projects or Service Desk databases, inspect the reconciliation report
 before applying it:
 
 ```powershell
-docker compose --profile migration run --rm access-identity-migrate --dry-run
-docker compose --profile migration run --rm access-identity-migrate --apply
+.\dev.cmd migrate-identities --dry-run
+.\dev.cmd migrate-identities --apply
 ```
 
 Reports are written to `outputs/identity-migration/`. An empty source database
@@ -105,7 +88,7 @@ produces `identities: 0` and an explicit warning; it does not create demo users.
 
 Copy `.env.example` only as a local inventory; inject production values from a
 secret manager. Production startup rejects default signing material, empty
-PostgreSQL passwords, debug mode, wildcard credentialed CORS, and missing
+PostgreSQL passwords, debug mode, and missing
 issuer/audience values.
 
 The primary prefixes are `PLATFORM_`, `ACCESS_`, `PROJECTS_`,

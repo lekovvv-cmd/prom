@@ -7,23 +7,18 @@
 .\dev.cmd architecture-check
 ```
 
-`up` selects the `full` Compose profile and exposes only the gateway at
-`http://localhost:5173`. Targeted module stacks use Compose profiles directly:
+`up` starts one PostgreSQL server, runs migrations and idempotent demo setup in
+temporary containers, then starts the seven runtime containers. Only the gateway
+is exposed at `http://localhost:5173`.
 
 ```powershell
-docker compose --profile core --profile projects up --build
-docker compose --profile core --profile service-desk up --build
+.\dev.cmd reset
 ```
 
-For a complete demo with seeded identities and business data:
-
-```powershell
-docker compose --profile full --profile demo up --build -d --wait
-```
-
-Open `http://localhost:5173/`, choose a demo user, and enter code `000000`.
-This runs Access seed, Projects seed, Service Desk identity bootstrap, and
-Service Desk seed. Legacy identity reconciliation is only for pre-existing data.
+`reset` removes local demo database and attachment volumes, then calls `up` to
+restore a ready demo. Repeating `up` preserves existing demo changes. Open
+`http://localhost:5173/`, choose a demo user, and enter code `000000`.
+Legacy identity reconciliation is only for pre-existing data.
 
 ## Coverage
 
