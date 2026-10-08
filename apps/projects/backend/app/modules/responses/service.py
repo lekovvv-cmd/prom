@@ -1,7 +1,12 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from platform_sdk.error_types import ConflictDetected, EntityNotFound, InvalidRequest, PermissionDenied
+from platform_sdk.error_types import (
+    ConflictDetected,
+    EntityNotFound,
+    InvalidRequest,
+    PermissionDenied,
+)
 from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -21,6 +26,7 @@ from app.modules.attachments.schemas import AttachmentRead
 from app.modules.platform.events import ProjectEventRecorder
 from app.modules.platform.idempotency import IdempotencyStore, request_fingerprint
 from app.modules.projects.service_base import ProjectServiceBase
+from app.modules.projects.repository import ProjectRepository
 from app.modules.responses.models import ProjectResponse
 from app.modules.responses.repository import ProjectResponseRepository
 from app.modules.responses.schemas import (
@@ -83,12 +89,17 @@ class ProjectResponseService:
         current_user: User,
     ) -> ProjectResponseRead:
         project = ProjectServiceBase(self.db).get_existing_project(project_id)
-        if project.status not in {ProjectStatus.ACTIVE, ProjectStatus.PAUSED} or project.archived_at is not None:
+        if (
+            project.status not in {ProjectStatus.ACTIVE, ProjectStatus.PAUSED}
+            or project.archived_at is not None
+        ):
             raise InvalidRequest("Отклики доступны только для активных и приостановленных проектов")
 
         email = ensure_utmn_email(payload.email)
         if is_platform_admin(current_user):
             raise PermissionDenied("Администратор не может отправлять отклики на проекты")
+        if ProjectRepository(self.db).user_can_manage_project(project_id, current_user.id):
+            raise PermissionDenied("Нельзя откликнуться на собственный проект")
         if email != current_user.email:
             raise PermissionDenied("Отклик можно отправить только от своего email")
         if self.repo.exists_for_project_email(project_id, email):
@@ -203,7 +214,9 @@ class ProjectResponseService:
         idempotency_key: str | None = None,
     ) -> AdminProjectResponseRead:
         scope = f"DecideProjectResponse:{response_id}:{current_user.id}"
-        request_hash = request_fingerprint({"response_id": str(response_id), "status": status.value})
+        request_hash = request_fingerprint(
+            {"response_id": str(response_id), "status": status.value}
+        )
         with SqlAlchemyUnitOfWork(self.db) as uow:
             store = IdempotencyStore(self.db)
             replay = store.replay(
@@ -271,13 +284,17 @@ class ProjectResponseService:
         self.db.refresh(response)
         return self._to_admin_read(response)
 
-    def withdraw_current_user(self, response_id: UUID, current_user: User) -> UserProjectResponseRead:
+    def withdraw_current_user(
+        self, response_id: UUID, current_user: User
+    ) -> UserProjectResponseRead:
         with SqlAlchemyUnitOfWork(self.db) as uow:
             result = self._withdraw_current_user(response_id, current_user)
             uow.commit()
             return result
 
-    def _withdraw_current_user(self, response_id: UUID, current_user: User) -> UserProjectResponseRead:
+    def _withdraw_current_user(
+        self, response_id: UUID, current_user: User
+    ) -> UserProjectResponseRead:
         response = self.repo.get_user_response(response_id, current_user.id)
         if response is None:
             raise EntityNotFound("Отклик не найден")
@@ -337,7 +354,9 @@ class ProjectResponseService:
             raise PermissionDenied("Недостаточно прав для работы с откликами этого проекта")
 
     def _to_admin_read(self, response: ProjectResponse) -> AdminProjectResponseRead:
-        attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.RESPONSE, response.id)
+        attachments = AttachmentRepository(self.db).list_for_owner(
+            AttachmentOwnerType.RESPONSE, response.id
+        )
         return AdminProjectResponseRead(
             id=response.id,
             project_id=response.project_id,
@@ -366,7 +385,9 @@ class ProjectResponseService:
         )
 
     def _to_user_read(self, response: ProjectResponse) -> UserProjectResponseRead:
-        attachments = AttachmentRepository(self.db).list_for_owner(AttachmentOwnerType.RESPONSE, response.id)
+        attachments = AttachmentRepository(self.db).list_for_owner(
+            AttachmentOwnerType.RESPONSE, response.id
+        )
         return UserProjectResponseRead(
             id=response.id,
             project_id=response.project_id,

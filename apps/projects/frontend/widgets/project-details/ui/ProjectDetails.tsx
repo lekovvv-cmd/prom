@@ -9,6 +9,7 @@ import { ProjectStatusBadge } from "../../../entities/project/ui/ProjectStatusBa
 import { ProjectResponseForm } from "../../../features/submit-project-response/ui/ProjectResponseForm";
 import { formatDate } from "@prom/utils/date";
 import { Card } from "@prom/ui/Card";
+import { useAuth } from "@prom/auth";
 
 export function ProjectDetails({
   project,
@@ -19,12 +20,21 @@ export function ProjectDetails({
   onResponseSubmitted?: () => void;
   showResponseForm?: boolean;
 }) {
+  const { user } = useAuth();
   const competencyBlocks = normalizeCompetencyBlocks(
     project.competency_blocks,
     project.required_competencies,
   );
   const plannedTasks = splitProjectTasks(project.planned_tasks);
-  const canRespond = canAcceptProjectResponses(project.status);
+  const ownsProject = Boolean(
+    user &&
+    (project.responsible?.id === user.id ||
+      project.members.some(
+        (member) =>
+          member.member_role === "manager" && member.email === user.email,
+      )),
+  );
+  const canRespond = canAcceptProjectResponses(project.status) && !ownsProject;
   const workingGroup = project.members.filter(
     (member) => member.member_role === "working_group_member",
   );
@@ -83,7 +93,12 @@ export function ProjectDetails({
         </Card>
       </section>
       <aside className="details-side">
-        {!showResponseForm ? null : canRespond ? (
+        {!showResponseForm ? null : ownsProject ? (
+          <Card>
+            <h3>Отклик недоступен</h3>
+            <p className="muted">На собственный проект откликнуться нельзя.</p>
+          </Card>
+        ) : canRespond ? (
           <ProjectResponseForm
             projectId={project.id}
             onSubmitted={onResponseSubmitted}

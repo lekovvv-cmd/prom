@@ -37,7 +37,9 @@ class ProjectRepository:
         safe_limit = clamp_limit(limit)
         safe_offset = clamp_offset(offset)
         base = select(Project)
-        base = self._apply_filters(base, public, search, status, project_type, competency, manager_user_id)
+        base = self._apply_filters(
+            base, public, search, status, project_type, competency, manager_user_id
+        )
 
         total = self.db.scalar(select(func.count()).select_from(base.subquery())) or 0
 
@@ -46,7 +48,10 @@ class ProjectRepository:
                 ProjectResponse.project_id.label("project_id"),
                 func.count(ProjectResponse.id).label("responses_count"),
             )
-            .where(ProjectResponse.deleted_at.is_(None))
+            .where(
+                ProjectResponse.deleted_at.is_(None),
+                ProjectResponse.status != ProjectResponseStatus.CANCELLED,
+            )
             .group_by(ProjectResponse.project_id)
             .subquery()
         )
@@ -61,7 +66,9 @@ class ProjectRepository:
             .outerjoin(response_counts, Project.id == response_counts.c.project_id)
             .options(selectinload(Project.responsible))
         )
-        query = self._apply_filters(query, public, search, status, project_type, competency, manager_user_id)
+        query = self._apply_filters(
+            query, public, search, status, project_type, competency, manager_user_id
+        )
         if sort == "created_at_asc":
             query = query.order_by(Project.created_at.asc())
         elif sort == "priority_asc":
@@ -98,7 +105,10 @@ class ProjectRepository:
                 ProjectResponse.project_id.label("project_id"),
                 func.count(ProjectResponse.id).label("responses_count"),
             )
-            .where(ProjectResponse.deleted_at.is_(None))
+            .where(
+                ProjectResponse.deleted_at.is_(None),
+                ProjectResponse.status != ProjectResponseStatus.CANCELLED,
+            )
             .group_by(ProjectResponse.project_id)
             .subquery()
         )
@@ -119,13 +129,20 @@ class ProjectRepository:
     def get_with_counts(self, project_id: UUID) -> tuple[Project, int] | None:
         response_count = (
             select(func.count(ProjectResponse.id))
-            .where(ProjectResponse.project_id == project_id, ProjectResponse.deleted_at.is_(None))
+            .where(
+                ProjectResponse.project_id == project_id,
+                ProjectResponse.deleted_at.is_(None),
+                ProjectResponse.status != ProjectResponseStatus.CANCELLED,
+            )
             .scalar_subquery()
         )
         query = (
             select(Project, response_count)
             .where(Project.id == project_id)
-            .options(selectinload(Project.responsible), selectinload(Project.members).selectinload(ProjectMember.user))
+            .options(
+                selectinload(Project.responsible),
+                selectinload(Project.members).selectinload(ProjectMember.user),
+            )
         )
         row = self.db.execute(query).one_or_none()
         if row is None:
@@ -167,7 +184,10 @@ class ProjectRepository:
         query = select(ProjectResponse.project_id).where(
             ProjectResponse.deleted_at.is_(None),
             ProjectResponse.status != ProjectResponseStatus.CANCELLED,
-            or_(ProjectResponse.user_id == user_id, func.lower(ProjectResponse.email) == email.lower()),
+            or_(
+                ProjectResponse.user_id == user_id,
+                func.lower(ProjectResponse.email) == email.lower(),
+            ),
         )
         return {project_id for project_id in self.db.scalars(query)}
 
@@ -205,7 +225,9 @@ class ProjectRepository:
 
     def replace_working_group(self, project: Project, user_ids: list[UUID]) -> None:
         project.members[:] = [
-            member for member in project.members if member.member_role != ProjectMemberRole.WORKING_GROUP_MEMBER
+            member
+            for member in project.members
+            if member.member_role != ProjectMemberRole.WORKING_GROUP_MEMBER
         ]
         self.db.flush()
         project.members.extend(
@@ -269,7 +291,9 @@ class ProjectRepository:
     ) -> Select:
         query = query.where(Project.deleted_at.is_(None))
         if public:
-            query = query.where(Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED]))
+            query = query.where(
+                Project.status.notin_([ProjectStatus.DRAFT, ProjectStatus.ARCHIVED])
+            )
             query = query.where(Project.archived_at.is_(None))
         elif status is None:
             query = query.where(Project.status != ProjectStatus.ARCHIVED)
@@ -296,10 +320,7 @@ class ProjectRepository:
             if competencies:
                 query = query.where(
                     or_(
-                        *(
-                            Project.required_competencies.ilike(f"%{item}%")
-                            for item in competencies
-                        )
+                        *(Project.required_competencies.ilike(f"%{item}%") for item in competencies)
                     )
                 )
         return query
@@ -334,7 +355,10 @@ class ProjectRepository:
                 ProjectResponse.project_id == Project.id,
                 ProjectResponse.deleted_at.is_(None),
                 ProjectResponse.status == ProjectResponseStatus.ACCEPTED,
-                or_(ProjectResponse.user_id == user_id, func.lower(ProjectResponse.email) == email.lower()),
+                or_(
+                    ProjectResponse.user_id == user_id,
+                    func.lower(ProjectResponse.email) == email.lower(),
+                ),
             )
             .exists()
         )

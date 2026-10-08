@@ -54,11 +54,16 @@ def test_health_checks_database_and_upload_storage(client):
 
 
 def test_rejects_non_utmn_email(client):
-    assert client.post("/api/auth/request-code", json={"email": "user@example.com"}).status_code == 404
-    assert client.post(
-        "/api/auth/verify-code",
-        json={"email": "user@example.com", "code": "000000"},
-    ).status_code == 404
+    assert (
+        client.post("/api/auth/request-code", json={"email": "user@example.com"}).status_code == 404
+    )
+    assert (
+        client.post(
+            "/api/auth/verify-code",
+            json={"email": "user@example.com", "code": "000000"},
+        ).status_code
+        == 404
+    )
 
 
 def test_public_projects_hide_archived_seed_project(client):
@@ -74,7 +79,10 @@ def test_public_projects_hide_archived_seed_project(client):
     stats = client.get("/api/admin/stats", headers=admin_headers(client))
     assert stats.status_code == 200
     assert stats.json()["projects_active"] == payload["total"]
-    assert stats.json()["projects_total"] == stats.json()["projects_active"] + stats.json()["projects_archived"]
+    assert (
+        stats.json()["projects_total"]
+        == stats.json()["projects_active"] + stats.json()["projects_archived"]
+    )
 
 
 def test_user_can_update_profile_competencies(client):
@@ -183,7 +191,10 @@ def test_half_year_reports_are_profile_based_and_admin_controlled(client):
     reports = client.get("/api/admin/reports", params={"period_id": period_id}, headers=headers)
     assert reports.status_code == 200
     payload = reports.json()
-    assert {item["user"]["email"] for item in payload} == {"employee@utmn.ru", "project.manager@utmn.ru"}
+    assert {item["user"]["email"] for item in payload} == {
+        "employee@utmn.ru",
+        "project.manager@utmn.ru",
+    }
     assert all(item["period"]["id"] == period_id for item in payload)
 
     periods = client.get("/api/admin/reports/periods", headers=headers)
@@ -249,7 +260,11 @@ def test_admin_projects_keep_archive_separate(client):
 
     archive_after_archive = client.get(
         "/api/admin/projects",
-        params={"status": "archived", "search": "Pytest project for archive deletion", "limit": 100},
+        params={
+            "status": "archived",
+            "search": "Pytest project for archive deletion",
+            "limit": 100,
+        },
         headers=headers,
     )
     assert archive_after_archive.status_code == 200
@@ -269,7 +284,11 @@ def test_admin_projects_keep_archive_separate(client):
 
     archive_after_restore = client.get(
         "/api/admin/projects",
-        params={"status": "archived", "search": "Pytest project for archive deletion", "limit": 100},
+        params={
+            "status": "archived",
+            "search": "Pytest project for archive deletion",
+            "limit": 100,
+        },
         headers=headers,
     )
     assert archive_after_restore.status_code == 200
@@ -283,7 +302,11 @@ def test_admin_projects_keep_archive_separate(client):
 
     archive_after_delete = client.get(
         "/api/admin/projects",
-        params={"status": "archived", "search": "Pytest project for archive deletion", "limit": 100},
+        params={
+            "status": "archived",
+            "search": "Pytest project for archive deletion",
+            "limit": 100,
+        },
         headers=headers,
     )
     assert archive_after_delete.status_code == 200
@@ -309,7 +332,9 @@ def test_competencies_catalog_and_role_access(client):
     assert filtered.json()["total"] >= 1
     assert all("SQL" in item["required_competencies"] for item in filtered.json()["items"])
 
-    multi_filtered = client.get("/api/projects", params={"competency": "SQL, Наставничество", "limit": 100})
+    multi_filtered = client.get(
+        "/api/projects", params={"competency": "SQL, Наставничество", "limit": 100}
+    )
     assert multi_filtered.status_code == 200
     multi_competencies = [item["required_competencies"] for item in multi_filtered.json()["items"]]
     assert any("SQL" in competencies for competencies in multi_competencies)
@@ -424,6 +449,13 @@ def test_manager_sees_only_own_project_responses(client):
     owned_project_payload["responsible_user_id"] = manager_id
     owned_project = client.post("/api/admin/projects", json=owned_project_payload, headers=headers)
     assert owned_project.status_code == 201, owned_project.text
+
+    own_response = client.post(
+        f"/api/projects/{owned_project.json()['id']}/responses",
+        json={**employee_response_payload("Project Manager"), "email": "project.manager@utmn.ru"},
+        headers=manager_headers,
+    )
+    assert own_response.status_code == 403
 
     other_project = client.post(
         "/api/admin/projects",
@@ -542,13 +574,28 @@ def test_user_response_list_withdraw_and_admin_delete(client):
     assert any(item["id"] == employee_response_id for item in my_responses.json()["items"])
     assert my_responses.json()["items"][0]["project_title"]
 
-    analyst_responses = client.get("/api/me/responses", params={"limit": 100}, headers=analyst_headers)
+    analyst_responses = client.get(
+        "/api/me/responses", params={"limit": 100}, headers=analyst_headers
+    )
     assert analyst_responses.status_code == 200
     assert all(item["id"] != employee_response_id for item in analyst_responses.json()["items"])
 
     withdrawn = client.delete(f"/api/me/responses/{employee_response_id}", headers=employee_headers)
     assert withdrawn.status_code == 200
     assert withdrawn.json()["status"] == "cancelled"
+
+    project_after_withdraw = client.get(f"/api/projects/{project_id}")
+    assert project_after_withdraw.json()["responses_count"] == 0
+    stats_after_withdraw = client.get("/api/admin/stats", headers=headers)
+    assert stats_after_withdraw.status_code == 200
+    assert (
+        next(
+            item["responses_count"]
+            for item in stats_after_withdraw.json()["responses_by_project"]
+            if item["project_id"] == project_id
+        )
+        == 0
+    )
 
     duplicate_after_withdraw = client.post(
         f"/api/projects/{project_id}/responses",
@@ -638,11 +685,15 @@ def test_my_projects_include_accepted_responses_and_working_group(client):
     assert my_projects.json()["total"] == 1
     assert my_projects.json()["items"][0]["id"] == accepted_project_id
 
-    my_project_details = client.get(f"/api/me/projects/{accepted_project_id}", headers=employee_headers)
+    my_project_details = client.get(
+        f"/api/me/projects/{accepted_project_id}", headers=employee_headers
+    )
     assert my_project_details.status_code == 200
     assert my_project_details.json()["id"] == accepted_project_id
 
-    forbidden_details = client.get(f"/api/me/projects/{accepted_project_id}", headers=analyst_headers)
+    forbidden_details = client.get(
+        f"/api/me/projects/{accepted_project_id}", headers=analyst_headers
+    )
     assert forbidden_details.status_code == 403
 
     group_payload = project_payload("Pytest working group user project", "active")
@@ -780,7 +831,12 @@ def test_project_tasks_workspace_and_result_files(client):
 
     stage = client.post(
         f"/api/admin/projects/{project_id}/stages",
-        json={"title": "Discovery", "position": 0, "start_date": "2026-01-01", "end_date": "2026-01-31"},
+        json={
+            "title": "Discovery",
+            "position": 0,
+            "start_date": "2026-01-01",
+            "end_date": "2026-01-31",
+        },
         headers=manager_headers,
     )
     assert stage.status_code == 201, stage.text
@@ -880,7 +936,9 @@ def test_manager_scope_admin_only_and_project_hunting(client):
     manager_stats = client.get("/api/admin/stats", headers=manager_headers)
     assert manager_stats.status_code == 403
 
-    directory = client.get("/api/users/directory", params={"search": "SQL"}, headers=manager_headers)
+    directory = client.get(
+        "/api/users/directory", params={"search": "SQL"}, headers=manager_headers
+    )
     assert directory.status_code == 200
     assert any(user["email"] == "sd.manager@utmn.ru" for user in directory.json())
 
@@ -897,7 +955,9 @@ def test_manager_scope_admin_only_and_project_hunting(client):
         headers=manager_headers,
     )
     assert candidates.status_code == 200, candidates.text
-    analyst_candidate = next(item for item in candidates.json()["items"] if item["email"] == "sd.manager@utmn.ru")
+    analyst_candidate = next(
+        item for item in candidates.json()["items"] if item["email"] == "sd.manager@utmn.ru"
+    )
     assert analyst_candidate["match_score"] >= 1
     assert analyst_candidate["matched_competencies"] == ["SQL"]
 
@@ -1008,7 +1068,9 @@ def test_full_mvp_flow(client):
         "comment": "Хочу участвовать.",
         "competencies": "Коммуникации, тестирование",
     }
-    response = client.post(f"/api/projects/{project_id}/responses", json=response_payload, headers=employee_headers)
+    response = client.post(
+        f"/api/projects/{project_id}/responses", json=response_payload, headers=employee_headers
+    )
     assert response.status_code == 201, response.text
     response_id = response.json()["id"]
 
@@ -1037,11 +1099,15 @@ def test_full_mvp_flow(client):
     details = client.get(f"/api/projects/{project_id}")
     assert details.status_code == 200
     assert details.json()["responses_count"] == 1
-    project_attachment_names = {attachment["file_name"] for attachment in details.json()["attachments"]}
+    project_attachment_names = {
+        attachment["file_name"] for attachment in details.json()["attachments"]
+    }
     assert {"brief.txt", "brief.pdf"}.issubset(project_attachment_names)
 
     text_attachment = next(
-        attachment for attachment in details.json()["attachments"] if attachment["file_name"] == "brief.txt"
+        attachment
+        for attachment in details.json()["attachments"]
+        if attachment["file_name"] == "brief.txt"
     )
     download = client.get(text_attachment["download_url"], headers=headers)
     assert download.status_code == 200
