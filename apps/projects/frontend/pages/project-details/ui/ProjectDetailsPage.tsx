@@ -52,7 +52,6 @@ export function ProjectDetailsPage() {
             hasActiveResponse={hasActiveResponse}
             onResponseSubmitted={() => {
               void projectQuery.refetch();
-              void myResponsesQuery.refetch();
             }}
           />
         )}
