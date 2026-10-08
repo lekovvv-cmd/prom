@@ -72,6 +72,23 @@ def test_template_fields_and_dictionaries_are_versioned(client: TestClient):
     )
     assert dictionary.status_code == 201, dictionary.text
     dictionary_id = dictionary.json()["id"]
+    disabled = client.patch(
+        f"/admin/dictionaries/{dictionary_id}", json={"is_active": False}
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["is_active"] is False
+    assert any(
+        item["id"] == dictionary_id and item["is_active"] is False
+        for item in client.get("/admin/dictionaries").json()
+    )
+    assert all(
+        item["id"] != dictionary_id
+        for item in client.get("/admin/dictionaries", params={"active": "true"}).json()
+    )
+    restored = client.patch(
+        f"/admin/dictionaries/{dictionary_id}", json={"is_active": True}
+    )
+    assert restored.status_code == 200
     item = client.post(
         f"/admin/dictionaries/{dictionary_id}/items",
         json={"label": "Ленина 16", "value": "lenina_16", "metadata": {"campus": "center"}},

@@ -1,5 +1,4 @@
 import { serviceDeskApiClient } from "@prom/api-client";
-import { env } from "@prom/api-client/env";
 import type {
   ServiceDeskAttachment,
   ServiceDeskPriority,
@@ -190,14 +189,8 @@ export async function downloadServiceDeskAttachment(
   ticketId: string,
   attachmentId: string,
 ) {
-  const response = await fetch(
-    `${env.serviceDeskApiBaseUrl}/tickets/${ticketId}/attachments/${attachmentId}/download`,
-    {
-      headers: serviceDeskApiClient.getToken()
-        ? { Authorization: `Bearer ${serviceDeskApiClient.getToken()}` }
-        : undefined,
-    },
+  return serviceDeskApiClient.request<Blob>(
+    `/tickets/${ticketId}/attachments/${attachmentId}/download`,
+    { responseType: "blob" },
   );
-  if (!response.ok) throw new Error("Не удалось скачать файл");
-  return response.blob();
 }

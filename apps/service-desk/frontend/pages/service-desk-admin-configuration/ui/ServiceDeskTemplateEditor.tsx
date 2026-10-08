@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -103,6 +103,14 @@ export function ServiceDeskTemplateEditor() {
   const [preview, setPreview] = useState<ServiceDeskTemplateField[] | null>(
     null,
   );
+  const previewRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (preview)
+      previewRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+  }, [preview]);
   const [error, setError] = useState<string | null>(null);
   const selected =
     versions.find((version) => version.id === selectedId) ?? null;
@@ -471,7 +479,11 @@ export function ServiceDeskTemplateEditor() {
                 ))}
               </div>
             </section>
-            {preview ? <TemplatePreview fields={preview} /> : null}
+            {preview ? (
+              <div ref={previewRef}>
+                <TemplatePreview fields={preview} />
+              </div>
+            ) : null}
           </Card>
         ) : (
           <Card className="template-empty-state">

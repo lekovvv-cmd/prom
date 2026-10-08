@@ -236,6 +236,17 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(
     )
     assert clarification.status_code == 200, clarification.text
     assert clarification.json()["status"] == "waiting_requester"
+    reloaded = client.get(
+        f"/tickets/{ticket_id}", headers=auth_headers_for_user(requester_id)
+    )
+    assert reloaded.status_code == 200
+    clarification_event = next(
+        item for item in reloaded.json()["history"]
+        if item["event_type"] == "clarification_requested"
+    )
+    assert clarification_event["payload"]["comment"] == "Уточните количество участников"
+    assert clarification_event["actor_user_id"] == assignee_id
+    assert clarification_event["created_at"]
 
     with db_session_factory() as db:
         repository = TicketRepository(db)

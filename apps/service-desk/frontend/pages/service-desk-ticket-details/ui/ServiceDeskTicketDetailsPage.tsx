@@ -33,6 +33,8 @@ const historyLabels: Record<string, string> = {
   comment_added: "Добавлен комментарий",
   attachment_uploaded: "Добавлено вложение",
   sla_breached: "Нарушен срок SLA",
+  clarification_requested: "Запрошено уточнение у заявителя",
+  requester_replied: "Заявитель предоставил уточнение",
 };
 
 function historyDetails(payload: Record<string, unknown>) {
@@ -174,7 +176,10 @@ export function ServiceDeskTicketDetailsPage() {
 
               <ServiceDeskTicketActions
                 ticket={ticket}
-                onTicketChanged={setTicket}
+                onTicketChanged={(nextTicket) => {
+                  setTicket(nextTicket);
+                  void loadTicket();
+                }}
               />
 
               <ServiceDeskTicketComments
