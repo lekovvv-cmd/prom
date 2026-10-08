@@ -3465,6 +3465,7 @@ export interface components {
         };
         /** TicketHistoryRead */
         TicketHistoryRead: {
+            actor: components["schemas"]["TicketUserSummary"] | null;
             /** Actor User Id */
             actor_user_id: string | null;
             /**

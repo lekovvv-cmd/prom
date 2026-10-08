@@ -33,7 +33,7 @@ class TicketRepository:
         stmt = (
             select(ServiceDeskTicket)
             .options(
-                joinedload(ServiceDeskTicket.history),
+                joinedload(ServiceDeskTicket.history).joinedload(ServiceDeskTicketHistory.actor),
                 joinedload(ServiceDeskTicket.service).joinedload(ServiceDeskService.category),
                 joinedload(ServiceDeskTicket.requester),
                 joinedload(ServiceDeskTicket.assignee),
@@ -80,7 +80,7 @@ class TicketRepository:
         stmt = (
             select(ServiceDeskTicket)
             .options(
-                joinedload(ServiceDeskTicket.history),
+                joinedload(ServiceDeskTicket.history).joinedload(ServiceDeskTicketHistory.actor),
                 joinedload(ServiceDeskTicket.service).joinedload(ServiceDeskService.category),
                 joinedload(ServiceDeskTicket.requester),
                 joinedload(ServiceDeskTicket.assignee),

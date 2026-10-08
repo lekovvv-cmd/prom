@@ -82,6 +82,7 @@ class TicketHistoryRead(BaseModel):
     ticket_id: uuid.UUID
     event_type: str
     actor_user_id: uuid.UUID | None
+    actor: TicketUserSummary | None
     message: str
     payload: dict[str, Any]
     created_at: datetime

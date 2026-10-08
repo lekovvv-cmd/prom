@@ -64,6 +64,7 @@ type ServiceDeskTicketHistory = {
   ticket_id: string;
   event_type: string;
   actor_user_id: string | null;
+  actor: ServiceDeskTicketUser | null;
   message: string;
   payload: Record<string, unknown>;
   created_at: string;

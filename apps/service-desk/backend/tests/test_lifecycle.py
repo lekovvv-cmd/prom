@@ -246,6 +246,7 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(
     )
     assert clarification_event["payload"]["comment"] == "Уточните количество участников"
     assert clarification_event["actor_user_id"] == assignee_id
+    assert clarification_event["actor"]["id"] == assignee_id
     assert clarification_event["created_at"]
 
     with db_session_factory() as db:

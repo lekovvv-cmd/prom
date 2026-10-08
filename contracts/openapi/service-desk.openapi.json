@@ -4722,6 +4722,16 @@
       },
       "TicketHistoryRead": {
         "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TicketUserSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "actor_user_id": {
             "anyOf": [
               {
@@ -4768,6 +4778,7 @@
           "ticket_id",
           "event_type",
           "actor_user_id",
+          "actor",
           "message",
           "payload",
           "created_at"

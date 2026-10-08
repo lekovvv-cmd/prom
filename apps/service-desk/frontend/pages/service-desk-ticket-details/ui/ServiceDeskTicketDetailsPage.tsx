@@ -224,6 +224,9 @@ export function ServiceDeskTicketDetailsPage() {
                     <li key={event.id}>
                       <span>{formatDateTime(event.created_at)}</span>
                       <div>
+                        <span className="muted">
+                          {event.actor?.display_name ?? "Система"}
+                        </span>
                         <strong>
                           {historyLabels[event.event_type] ?? event.message}
                         </strong>
