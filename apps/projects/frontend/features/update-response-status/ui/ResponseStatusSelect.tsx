@@ -3,14 +3,14 @@ import { responseStatusLabels } from "../../../entities/project-response/ui/Resp
 import { Select } from "@prom/ui/Select";
 import { updateResponseStatus } from "../api/updateResponseStatus";
 
-const statuses: ProjectResponseStatus[] = [
-  "new",
-  "viewed",
-  "contacted",
-  "accepted",
-  "rejected",
-  "cancelled",
-];
+const transitions: Record<ProjectResponseStatus, ProjectResponseStatus[]> = {
+  new: ["viewed", "contacted", "accepted", "rejected", "cancelled"],
+  viewed: ["contacted", "accepted", "rejected", "cancelled"],
+  contacted: ["accepted", "rejected", "cancelled"],
+  accepted: [],
+  rejected: [],
+  cancelled: [],
+};
 
 export function ResponseStatusSelect({
   responseId,
@@ -30,11 +30,12 @@ export function ResponseStatusSelect({
     <Select
       name={`status-${responseId}`}
       value={value}
+      disabled={transitions[value].length === 0}
       onChange={(event) =>
         void handleChange(event.target.value as ProjectResponseStatus)
       }
     >
-      {statuses.map((status) => (
+      {[value, ...transitions[value]].map((status) => (
         <option key={status} value={status}>
           {responseStatusLabels[status]}
         </option>
