@@ -66,7 +66,9 @@ class StatsService:
 
     def _period(self, column, filters: StatsFilters):
         start, end = filters.boundaries()
-        values = []
+        # Event counters must count tickets where that event actually happened,
+        # even when the caller leaves the date range unbounded.
+        values = [column.is_not(None)]
         if start:
             values.append(column >= start)
         if end:

@@ -256,3 +256,56 @@ def test_current_backlog_excludes_draft_and_terminal_statuses(
     aging = client.get("/admin/stats/backlog-aging", headers=headers)
     assert aging.status_code == 200, aging.text
     assert sum(bucket["count"] for bucket in aging.json()) == len(active_statuses)
+
+
+def test_unbounded_event_counters_only_count_events_that_occurred(
+    client, db_session_factory, auth_headers_for_user
+):
+    occurred_at = datetime(2026, 7, 11, 10, tzinfo=UTC)
+    with db_session_factory() as db:
+        service = _service(db)
+        requester = _user(db, "Requester")
+        reports = _user(db, "Reports", reports=True)
+        _ticket(db, service, requester, reports, status=ServiceDeskTicketStatus.ASSIGNED)
+        _ticket(
+            db,
+            service,
+            requester,
+            reports,
+            status=ServiceDeskTicketStatus.CLOSED,
+            closed_at=occurred_at,
+        )
+        _ticket(
+            db,
+            service,
+            requester,
+            reports,
+            status=ServiceDeskTicketStatus.REJECTED,
+            rejected_at=occurred_at,
+        )
+        _ticket(
+            db,
+            service,
+            requester,
+            reports,
+            status=ServiceDeskTicketStatus.CANCELLED,
+            cancelled_at=occurred_at,
+        )
+        _ticket(
+            db,
+            service,
+            requester,
+            reports,
+            status=ServiceDeskTicketStatus.ASSIGNED,
+            approved_at=occurred_at,
+        )
+        db.commit()
+        headers = auth_headers_for_user(str(reports.id))
+
+    response = client.get("/admin/stats/summary", headers=headers)
+    assert response.status_code == 200, response.text
+    summary = response.json()
+    assert summary["closed_in_period"] == 1
+    assert summary["approved_in_period"] == 1
+    assert summary["rejected_in_period"] == 1
+    assert summary["cancelled_in_period"] == 1

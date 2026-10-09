@@ -82,7 +82,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-m", "scripts.worker", "--health"]
       interval: 20s
-      timeout: 3s
+      timeout: 15s
       retries: 3
       start_period: 30s
     restart: unless-stopped
@@ -110,7 +110,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-m", "scripts.worker", "--health"]
       interval: 20s
-      timeout: 3s
+      timeout: 15s
       retries: 3
       start_period: 30s
     restart: unless-stopped

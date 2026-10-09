@@ -32,7 +32,12 @@ const historyLabels: Record<string, string> = {
   reassigned: "Исполнитель изменён",
   comment_added: "Добавлен комментарий",
   attachment_uploaded: "Добавлено вложение",
+  sla_warning: "Предупреждение о приближении срока SLA",
+  sla_escalated: "Порог эскалации SLA достигнут",
   sla_breached: "Нарушен срок SLA",
+  sla_first_response: "Выполнен первый ответ по SLA",
+  sla_paused: "SLA приостановлен",
+  sla_resumed: "SLA возобновлён",
   clarification_requested: "Запрошено уточнение у заявителя",
   requester_replied: "Заявитель предоставил уточнение",
 };
