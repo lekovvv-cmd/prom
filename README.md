@@ -89,3 +89,5 @@ and `SERVICE_DESK_`. Attachments use local filesystem volumes. See
 ## Documentation
 
 Architecture, module boundaries and operational instructions are in [docs/architecture](docs/architecture/overview.md), [docs/development](docs/development/local-development.md), and [docs/operations](docs/operations/deployment.md). Architectural decisions are recorded in `docs/adr/`.
+
+User testing: [Service Desk guide for test users (Russian)](docs/user-guides/service-desk-testing-guide.md).
