@@ -194,3 +194,31 @@ export async function downloadServiceDeskAttachment(
     { responseType: "blob" },
   );
 }
+
+const pendingDownloads = new Map<string, Promise<void>>();
+
+export function saveServiceDeskAttachment(
+  ticketId: string,
+  attachment: { id: string; file_name: string },
+): Promise<void> {
+  const key = `${ticketId}:${attachment.id}`;
+  const existing = pendingDownloads.get(key);
+  if (existing) return existing;
+  const operation = downloadServiceDeskAttachment(ticketId, attachment.id).then(
+    (blob) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.file_name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    },
+  );
+  pendingDownloads.set(key, operation);
+  void operation
+    .finally(() => pendingDownloads.delete(key))
+    .catch(() => undefined);
+  return operation;
+}

@@ -89,7 +89,6 @@ test("администратор включает, изменяет и откл�
   await page
     .getByLabel("Добавить согласующего к этапу 1")
     .selectOption({ index: 1 });
-  await page.getByRole("button", { name: "Добавить согласующего" }).click();
   await expect(page.locator(".approval-approver-tag")).toHaveCount(1);
   await page.getByRole("button", { name: "Сохранить и применить" }).click();
   await expect(

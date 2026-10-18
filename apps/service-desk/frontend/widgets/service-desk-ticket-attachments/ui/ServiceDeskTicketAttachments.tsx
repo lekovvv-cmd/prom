@@ -3,7 +3,7 @@ import { Download, Paperclip, Trash2, Upload } from "lucide-react";
 
 import {
   deleteServiceDeskAttachment,
-  downloadServiceDeskAttachment,
+  saveServiceDeskAttachment,
   listServiceDeskAttachments,
   uploadServiceDeskTicketAttachment,
 } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
@@ -66,13 +66,7 @@ export function ServiceDeskTicketAttachments({
   }
   async function download(attachment: ServiceDeskAttachment) {
     try {
-      const blob = await downloadServiceDeskAttachment(ticketId, attachment.id);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = attachment.file_name;
-      link.click();
-      URL.revokeObjectURL(url);
+      await saveServiceDeskAttachment(ticketId, attachment);
     } catch (reason: unknown) {
       setError(
         reason instanceof Error ? reason.message : "Не удалось скачать файл",

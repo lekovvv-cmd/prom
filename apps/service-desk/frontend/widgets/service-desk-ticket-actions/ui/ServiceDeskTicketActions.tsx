@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { getWorkbenchUsers } from "../../../entities/service-desk-workbench/api/serviceDeskWorkbenchApi";
+import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import {
   changeServiceDeskTicketPriority,
   performServiceDeskTicketAction,
@@ -69,7 +70,11 @@ export function ServiceDeskTicketActions({
         (action) => action === "assign" || action === "reassign",
       )
     )
-      void getWorkbenchUsers(true)
+      void (
+        ticket.allowed_actions.includes("reassign")
+          ? getServiceDeskUserOptions("service_desk.be_assignee")
+          : getWorkbenchUsers(true)
+      )
         .then(setAssignees)
         .catch(() => setAssignees([]));
   }, [ticket.allowed_actions]);

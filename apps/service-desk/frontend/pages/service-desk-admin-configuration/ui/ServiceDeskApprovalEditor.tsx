@@ -52,9 +52,6 @@ export function ServiceDeskApprovalEditor() {
   const [stages, setStages] = useState<DraftStage[]>([]);
   const [newStageTitle, setNewStageTitle] = useState("");
   const [newStageRule, setNewStageRule] = useState<"any" | "all">("all");
-  const [selectedApprovers, setSelectedApprovers] = useState<
-    Record<string, string>
-  >({});
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [canRetryOptions, setCanRetryOptions] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -100,7 +97,6 @@ export function ServiceDeskApprovalEditor() {
         ),
       })),
     );
-    setSelectedApprovers({});
   }
 
   async function selectService(nextServiceId: string) {
@@ -157,15 +153,9 @@ export function ServiceDeskApprovalEditor() {
 
   function removeStage(stageId: string) {
     setStages((current) => current.filter((stage) => stage.id !== stageId));
-    setSelectedApprovers((current) => {
-      const next = { ...current };
-      delete next[stageId];
-      return next;
-    });
   }
 
-  function addApprover(stageId: string) {
-    const userId = selectedApprovers[stageId];
+  function addApprover(stageId: string, userId: string) {
     if (!userId) return;
     setStages((current) =>
       current.map((stage) =>
@@ -174,7 +164,6 @@ export function ServiceDeskApprovalEditor() {
           : stage,
       ),
     );
-    setSelectedApprovers((current) => ({ ...current, [stageId]: "" }));
   }
 
   function removeApprover(stageId: string, userId: string) {
@@ -403,12 +392,9 @@ export function ServiceDeskApprovalEditor() {
                       <div className="approval-draft-approvers">
                         <Select
                           label={`Добавить согласующего к этапу ${index + 1}`}
-                          value={selectedApprovers[stage.id] ?? ""}
+                          value=""
                           onChange={(event) =>
-                            setSelectedApprovers((current) => ({
-                              ...current,
-                              [stage.id]: event.target.value,
-                            }))
+                            addApprover(stage.id, event.target.value)
                           }
                         >
                           <option value="">Выберите согласующего</option>
@@ -422,15 +408,6 @@ export function ServiceDeskApprovalEditor() {
                               </option>
                             ))}
                         </Select>
-                        <Button
-                          className="approval-add-approver"
-                          variant="secondary"
-                          onClick={() => addApprover(stage.id)}
-                          disabled={!selectedApprovers[stage.id]}
-                        >
-                          <Plus size={16} />
-                          Добавить согласующего
-                        </Button>
                         <div className="approval-draft-approver-tags">
                           {stage.approverIds.map((userId) => {
                             const user = users.find(

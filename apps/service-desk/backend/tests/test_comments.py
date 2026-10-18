@@ -114,6 +114,7 @@ def test_public_and_internal_comments_have_separate_visibility_and_audit(
         "comment_added",
         "requester_replied",
     ]
+    assert after_reply.json()["history"][-1]["payload"]["comment_id"] == public.json()["id"]
 
     denied_internal = client.post(
         f"/tickets/{ticket_id}/comments",
@@ -141,9 +142,7 @@ def test_public_and_internal_comments_have_separate_visibility_and_audit(
     )
     requester_list = client.get("/me/tickets", headers=requester_headers)
     assert requester_list.status_code == 200
-    assert [comment["visibility"] for comment in requester_list.json()[0]["comments"]] == [
-        "public"
-    ]
+    assert [comment["visibility"] for comment in requester_list.json()[0]["comments"]] == ["public"]
     assert not any(
         item["payload"].get("comment_id") == internal_id
         for item in requester_list.json()[0]["history"]
@@ -167,7 +166,9 @@ def test_public_and_internal_comments_have_separate_visibility_and_audit(
     )
     assert deleted.status_code == 204
     manager_after_delete = client.get(f"/tickets/{ticket_id}", headers=manager_headers)
-    assert [comment["visibility"] for comment in manager_after_delete.json()["comments"]] == ["public"]
+    assert [comment["visibility"] for comment in manager_after_delete.json()["comments"]] == [
+        "public"
+    ]
     assert [item["event_type"] for item in manager_after_delete.json()["history"]][-2:] == [
         "comment_updated",
         "comment_deleted",

@@ -9,13 +9,21 @@ from app.core.enums import (
     ServiceDeskTicketStatus,
 )
 from app.modules.access.models import ServiceDeskUser, ServiceDeskUserCapability
-from app.modules.tickets.lifecycle import CANCELLABLE_STATUSES, TicketLifecycleService, transition_target
+from app.modules.tickets.lifecycle import (
+    CANCELLABLE_STATUSES,
+    TicketLifecycleService,
+    transition_target,
+)
 from app.modules.tickets.models import ServiceDeskTicket
 from app.modules.tickets.repository import TicketRepository
 
 
 TRANSITION_CASES = [
-    (ServiceDeskTicketStatus.DRAFT, ServiceDeskTicketAction.SUBMIT, ServiceDeskTicketStatus.SUBMITTED),
+    (
+        ServiceDeskTicketStatus.DRAFT,
+        ServiceDeskTicketAction.SUBMIT,
+        ServiceDeskTicketStatus.SUBMITTED,
+    ),
     (
         ServiceDeskTicketStatus.SUBMITTED,
         ServiceDeskTicketAction.START_APPROVAL,
@@ -236,12 +244,11 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(
     )
     assert clarification.status_code == 200, clarification.text
     assert clarification.json()["status"] == "waiting_requester"
-    reloaded = client.get(
-        f"/tickets/{ticket_id}", headers=auth_headers_for_user(requester_id)
-    )
+    reloaded = client.get(f"/tickets/{ticket_id}", headers=auth_headers_for_user(requester_id))
     assert reloaded.status_code == 200
     clarification_event = next(
-        item for item in reloaded.json()["history"]
+        item
+        for item in reloaded.json()["history"]
         if item["event_type"] == "clarification_requested"
     )
     assert clarification_event["payload"]["comment"] == "Уточните количество участников"
@@ -290,6 +297,13 @@ def test_lifecycle_action_endpoints_write_timestamps_and_history(
     assert resolved.json()["status"] == "resolved"
     assert resolved.json()["resolution_summary"] == "Аудитория забронирована"
     assert resolved.json()["resolved_at"] is not None
+
+    assignee_close = client.post(
+        f"/tickets/{ticket_id}/close",
+        json={},
+        headers=auth_headers_for_user(assignee_id),
+    )
+    assert assignee_close.status_code == 403
 
     closed = client.post(
         f"/tickets/{ticket_id}/close",
@@ -354,7 +368,9 @@ def test_assign_and_reassign_require_capabilities_and_write_history(
     db_session_factory,
     auth_headers_for_user,
 ):
-    ticket_id, _ = create_submitted_ticket(client, db_session_factory, auth_headers_for_user)
+    ticket_id, requester_id = create_submitted_ticket(
+        client, db_session_factory, auth_headers_for_user
+    )
     assigner_id = create_user(
         db_session_factory,
         "assignment-manager@utmn.ru",
@@ -421,7 +437,11 @@ def test_assign_and_reassign_require_capabilities_and_write_history(
     assert assigned.json()["status"] == "assigned"
     assert assigned.json()["assignee_user_id"] == first_assignee_id
     assert assigned.json()["assigned_at"] is not None
-    assert assigned.json()["allowed_actions"] == ["reassign"]
+    assert "reassign" not in assigned.json()["allowed_actions"]
+    requester_view = client.get(
+        f"/tickets/{ticket_id}", headers=auth_headers_for_user(requester_id)
+    )
+    assert "reassign" in requester_view.json()["allowed_actions"]
     assert assigned.json()["history"][-1]["event_type"] == "ticket_assigned"
     assert assigned.json()["history"][-1]["payload"] == {
         "from_status": "approved",
@@ -437,10 +457,16 @@ def test_assign_and_reassign_require_capabilities_and_write_history(
     )
     assert duplicate.status_code == 409
 
-    reassigned = client.post(
+    denied_reassignment = client.post(
         f"/tickets/{ticket_id}/reassign",
         json={"assignee_user_id": second_assignee_id},
         headers=auth_headers_for_user(assigner_id),
+    )
+    assert denied_reassignment.status_code == 403
+    reassigned = client.post(
+        f"/tickets/{ticket_id}/reassign",
+        json={"assignee_user_id": second_assignee_id},
+        headers=auth_headers_for_user(requester_id),
     )
     assert reassigned.status_code == 200, reassigned.text
     assert reassigned.json()["status"] == "assigned"

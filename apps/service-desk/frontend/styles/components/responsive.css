@@ -203,12 +203,6 @@
   flex: 1 1 280px;
 }
 
-.approval-add-approver {
-  min-height: 42px;
-  padding-inline: 16px;
-  @apply whitespace-nowrap;
-}
-
 .service-desk-routing-order {
   @apply grid;
   gap: 6px;

@@ -86,6 +86,7 @@ class TicketCommentService:
                 ticket,
                 ServiceDeskTicketAction.REQUESTER_REPLY,
                 actor=actor,
+                metadata={"comment_id": str(comment.id)},
                 occurred_at=now,
             )
             self.sla_service.handle_transition(
@@ -135,7 +136,10 @@ class TicketCommentService:
             self.policy.require_internal_comments(ticket, actor)
         else:
             self.policy.require_view(ticket, actor)
-        if actor.id == comment.author_user_id or actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN:
+        if (
+            actor.id == comment.author_user_id
+            or actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
+        ):
             return
         raise PermissionDenied("Изменять комментарий может только автор или администратор")
 

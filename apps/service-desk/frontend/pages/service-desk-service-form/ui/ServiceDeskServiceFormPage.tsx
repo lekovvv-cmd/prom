@@ -27,7 +27,7 @@ import {
 import { getServiceDeskUserOptions } from "../../../entities/service-desk-user/api/serviceDeskUserApi";
 import {
   deleteServiceDeskAttachment,
-  downloadServiceDeskAttachment,
+  saveServiceDeskAttachment,
   getServiceDeskTicket,
   getServiceDeskTicketForm,
   listServiceDeskFieldAttachments,
@@ -336,6 +336,17 @@ export function ServiceDeskServiceFormPage() {
             : undefined
         }
       >
+        <nav className="breadcrumbs" aria-label="Навигация по каталогу">
+          <Link
+            to={
+              service?.category?.id
+                ? `/service-desk?category=${encodeURIComponent(service.category.id)}`
+                : "/service-desk"
+            }
+          >
+            ← Назад к услугам
+          </Link>
+        </nav>
         {loading ? (
           <Spinner label="Загружаем форму услуги" />
         ) : error && !form ? (
@@ -750,11 +761,5 @@ async function downloadExistingAttachment(
   ticketId: string,
   attachment: ServiceDeskAttachment,
 ) {
-  const blob = await downloadServiceDeskAttachment(ticketId, attachment.id);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = attachment.file_name;
-  link.click();
-  URL.revokeObjectURL(url);
+  await saveServiceDeskAttachment(ticketId, attachment);
 }

@@ -10,14 +10,14 @@
 | `pending_approval` | `complete_approval` | `approved` | система после завершения обязательных этапов |
 | `pending_approval` | `reject_approval` | `rejected` | согласующий после проверки approval policy |
 | `approved` | `assign` | `assigned` | routing/default/manual assignment после проверки capability |
-| `assigned`, `in_progress`, `waiting_requester`, `waiting_external` | `reassign` | same status | manager/admin с `service_desk.assign` |
+| `assigned`, `in_progress`, `waiting_requester`, `waiting_external` | `reassign` | same status | заявитель |
 | `assigned` | `start` | `in_progress` | назначенный исполнитель |
 | `in_progress` | `request_clarification` | `waiting_requester` | назначенный исполнитель |
 | `waiting_requester` | `requester_reply` | `in_progress` | заявитель через публичный ответ |
 | `in_progress` | `wait_external` | `waiting_external` | назначенный исполнитель |
 | `waiting_external` | `resume` | `in_progress` | назначенный исполнитель |
 | `in_progress` | `resolve` | `resolved` | назначенный исполнитель |
-| `resolved` | `close` | `closed` | заявитель, исполнитель или Service Desk admin |
+| `resolved` | `close` | `closed` | заявитель |
 | допустимые незавершённые статусы | `cancel` | `cancelled` | заявитель до `approved`; Service Desk admin — до `resolved` |
 
 Обязательные payload:

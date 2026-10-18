@@ -1,5 +1,6 @@
 import { Header } from "@prom/layout";
 import { LoginForm } from "@prom/auth/login";
+import { Link } from "react-router-dom";
 
 export function LoginPage() {
   return (
@@ -13,6 +14,9 @@ export function LoginPage() {
               Выберите демонстрационную роль или введите корпоративный адрес
               электронной почты.
             </p>
+            <Link className="button button-secondary" to="/">
+              Выбрать сервис
+            </Link>
           </div>
           <LoginForm />
         </section>

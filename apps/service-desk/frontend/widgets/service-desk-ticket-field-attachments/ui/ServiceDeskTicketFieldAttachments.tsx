@@ -3,7 +3,7 @@ import { Download, Paperclip, Trash2 } from "lucide-react";
 
 import {
   deleteServiceDeskAttachment,
-  downloadServiceDeskAttachment,
+  saveServiceDeskAttachment,
   listServiceDeskFieldAttachments,
 } from "../../../entities/service-desk-ticket/api/serviceDeskTicketApi";
 import type { ServiceDeskAttachment } from "../../../entities/service-desk-ticket/model/types";
@@ -23,6 +23,7 @@ export function ServiceDeskTicketFieldAttachments({
   const [attachments, setAttachments] = useState<
     Record<string, ServiceDeskAttachment[]>
   >({});
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     Promise.all(
@@ -45,13 +46,14 @@ export function ServiceDeskTicketFieldAttachments({
   if (!fileFields.some((field) => (attachments[field.key] ?? []).length))
     return null;
   async function download(attachment: ServiceDeskAttachment) {
-    const blob = await downloadServiceDeskAttachment(ticketId, attachment.id);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = attachment.file_name;
-    link.click();
-    URL.revokeObjectURL(url);
+    try {
+      setError(null);
+      await saveServiceDeskAttachment(ticketId, attachment);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Не удалось скачать файл",
+      );
+    }
   }
   async function remove(fieldKey: string, attachment: ServiceDeskAttachment) {
     if (!window.confirm(`Удалить файл «${attachment.file_name}»?`)) return;
@@ -65,6 +67,11 @@ export function ServiceDeskTicketFieldAttachments({
   }
   return (
     <Card>
+      {error ? (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
       <h3>
         <Paperclip size={16} aria-hidden="true" /> Файлы полей формы
       </h3>

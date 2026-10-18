@@ -7,7 +7,7 @@ import {
   ServiceDeskCatalogServiceCard,
 } from "./ServiceDeskCatalogPage";
 
-test("groups only categories that have services and keeps uncategorized services reachable", () => {
+test("keeps empty categories and uncategorized services reachable", () => {
   const categories = [
     {
       id: "category-1",
@@ -60,6 +60,7 @@ test("groups only categories that have services and keeps uncategorized services
     ]),
   ).toEqual([
     ["Первая", 1],
+    ["Пустая", 0],
     ["Другие услуги", 1],
   ]);
 });

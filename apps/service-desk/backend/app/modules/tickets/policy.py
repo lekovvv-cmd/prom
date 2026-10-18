@@ -43,28 +43,26 @@ class TicketPolicyService:
     def allowed_actions(self, ticket: ServiceDeskTicket, actor: ServiceDeskUser) -> list[str]:
         capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
         actions: list[str] = []
-        if (
-            "service_desk.change_priority" in capabilities
-            and ticket.status
-            not in {
-                ServiceDeskTicketStatus.DRAFT,
-                ServiceDeskTicketStatus.REJECTED,
-                ServiceDeskTicketStatus.RESOLVED,
-                ServiceDeskTicketStatus.CLOSED,
-                ServiceDeskTicketStatus.CANCELLED,
-            }
-        ):
+        if "service_desk.change_priority" in capabilities and ticket.status not in {
+            ServiceDeskTicketStatus.DRAFT,
+            ServiceDeskTicketStatus.REJECTED,
+            ServiceDeskTicketStatus.RESOLVED,
+            ServiceDeskTicketStatus.CLOSED,
+            ServiceDeskTicketStatus.CANCELLED,
+        }:
             actions.append("change_priority")
-        if "service_desk.assign" in capabilities:
-            if ticket.status == ServiceDeskTicketStatus.APPROVED:
-                actions.append("assign")
-            elif ticket.status in {
-                ServiceDeskTicketStatus.ASSIGNED,
-                ServiceDeskTicketStatus.IN_PROGRESS,
-                ServiceDeskTicketStatus.WAITING_REQUESTER,
-                ServiceDeskTicketStatus.WAITING_EXTERNAL,
-            }:
-                actions.append("reassign")
+        if (
+            "service_desk.assign" in capabilities
+            and ticket.status == ServiceDeskTicketStatus.APPROVED
+        ):
+            actions.append("assign")
+        if actor.id == ticket.requester_user_id and ticket.status in {
+            ServiceDeskTicketStatus.ASSIGNED,
+            ServiceDeskTicketStatus.IN_PROGRESS,
+            ServiceDeskTicketStatus.WAITING_REQUESTER,
+            ServiceDeskTicketStatus.WAITING_EXTERNAL,
+        }:
+            actions.append("reassign")
         lifecycle_actions = (
             ServiceDeskTicketAction.START,
             ServiceDeskTicketAction.REQUEST_CLARIFICATION,
@@ -77,7 +75,10 @@ class TicketPolicyService:
         actions.extend(
             action.value for action in lifecycle_actions if self.can_perform(ticket, action, actor)
         )
-        if ticket.status != ServiceDeskTicketStatus.PENDING_APPROVAL or "service_desk.approve" not in capabilities:
+        if (
+            ticket.status != ServiceDeskTicketStatus.PENDING_APPROVAL
+            or "service_desk.approve" not in capabilities
+        ):
             return actions
 
         has_active_approval = any(
@@ -109,8 +110,10 @@ class TicketPolicyService:
             return True
         is_admin = actor.access_type == ServiceDeskAccessType.SERVICE_DESK_ADMIN
         capabilities = set(ServiceDeskAccessService.capabilities_for(actor))
-        if action in {ServiceDeskTicketAction.ASSIGN, ServiceDeskTicketAction.REASSIGN}:
+        if action == ServiceDeskTicketAction.ASSIGN:
             return is_admin or "service_desk.assign" in capabilities
+        if action == ServiceDeskTicketAction.REASSIGN:
+            return actor.id == ticket.requester_user_id
         if action == ServiceDeskTicketAction.SUBMIT:
             return actor.id == ticket.requester_user_id
         if action in {
@@ -124,11 +127,12 @@ class TicketPolicyService:
         if action == ServiceDeskTicketAction.REQUESTER_REPLY:
             return actor.id == ticket.requester_user_id
         if action == ServiceDeskTicketAction.CLOSE:
-            return is_admin or actor.id in {ticket.requester_user_id, ticket.assignee_user_id}
+            return actor.id == ticket.requester_user_id
         if action == ServiceDeskTicketAction.CANCEL:
             return is_admin or (
                 actor.id == ticket.requester_user_id
-                and ticket.status in {
+                and ticket.status
+                in {
                     ServiceDeskTicketStatus.DRAFT,
                     ServiceDeskTicketStatus.SUBMITTED,
                     ServiceDeskTicketStatus.PENDING_APPROVAL,

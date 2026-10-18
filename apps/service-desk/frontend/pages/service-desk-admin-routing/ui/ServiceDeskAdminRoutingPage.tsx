@@ -41,10 +41,7 @@ import { EmptyState } from "@prom/ui/EmptyState";
 import { Input } from "@prom/ui/Input";
 import { PageLayout } from "@prom/ui/PageLayout";
 import { Select } from "@prom/ui/Select";
-import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from "@prom/ui/SearchableSelect";
+import type { SearchableSelectOption } from "@prom/ui/SearchableSelect";
 import { Spinner } from "@prom/ui/Spinner";
 
 type RoutingActionDraft = {
@@ -336,45 +333,32 @@ function RoutingRuleForm({
                   ) : null}
                   {condition.field === "service_id" ||
                   condition.field === "category_id" ? (
-                    <SearchableSelect
-                      ariaLabel={`Значение условия ${index + 1}: ${condition.field === "service_id" ? "услуга" : "категория"}`}
-                      name={`routing-condition-${index}-${condition.field}`}
+                    <Select
+                      label={`Значение условия ${index + 1}: ${condition.field === "service_id" ? "услуга" : "категория"}`}
                       value={condition.value}
-                      options={
-                        condition.field === "service_id"
-                          ? serviceOptions
-                          : categoryOptions
-                      }
-                      placeholder={
-                        condition.field === "service_id"
-                          ? "Услуга не выбрана"
-                          : "Категория не выбрана"
-                      }
-                      searchPlaceholder={
-                        condition.field === "service_id"
-                          ? "Найдите или выберите услугу"
-                          : "Найдите или выберите категорию"
-                      }
-                      emptyText={
-                        condition.field === "service_id"
-                          ? "Услуги не найдены"
-                          : "Категории не найдены"
-                      }
-                      clearLabel={
-                        condition.field === "service_id"
-                          ? "Очистить выбранную услугу"
-                          : "Очистить выбранную категорию"
-                      }
-                      onChange={(value) =>
+                      onChange={(event) =>
                         onChange((current) => ({
                           ...current,
                           conditions: current.conditions.map(
                             (item, itemIndex) =>
-                              itemIndex === index ? { ...item, value } : item,
+                              itemIndex === index
+                                ? { ...item, value: event.target.value }
+                                : item,
                           ),
                         }))
                       }
-                    />
+                      required
+                    >
+                      <option value="">Выберите значение</option>
+                      {(condition.field === "service_id"
+                        ? serviceOptions
+                        : categoryOptions
+                      ).map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
                   ) : condition.field === "priority" ? (
                     <Select
                       aria-label={`Значение условия ${index + 1}`}

@@ -222,26 +222,26 @@
   }
 }
 
-@media (max-width: 1260px) {
+@media (max-width: 1700px) {
   .app-header {
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 10px 20px;
   }
 }
 
-@media (max-width: 1260px) {
+@media (max-width: 1700px) {
   .brand {
     grid-column: 1;
   }
 }
 
-@media (max-width: 1260px) {
+@media (max-width: 1700px) {
   .header-auth {
     grid-column: 2;
   }
 }
 
-@media (max-width: 1260px) {
+@media (max-width: 1700px) {
   .main-nav {
     grid-column: 1 / -1;
     grid-row: 2;
@@ -249,7 +249,7 @@
   }
 }
 
-@media (max-width: 1260px) {
+@media (max-width: 1700px) {
   .header-tools {
     grid-column: 1 / -1;
     grid-row: 3;

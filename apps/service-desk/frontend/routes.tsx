@@ -9,6 +9,7 @@ import {
 } from "./providers/ServiceDeskAccessProvider";
 import {
   canAccessServiceDeskWorkbench,
+  canShowServiceDeskAdministration,
   getServiceDeskAdminLanding,
 } from "./entities/service-desk-admin/model/adminLanding";
 import type { ServiceDeskAdminConfigSection } from "./pages/service-desk-admin-configuration/ui/ServiceDeskAdminConfigurationPage";
@@ -148,6 +149,14 @@ function ServiceDeskHeaderTools({ children }: { children: React.ReactNode }) {
       tools={
         user ? (
           <>
+            {canShowServiceDeskAdministration(user) ? (
+              <Link
+                className="button button-secondary"
+                to={getServiceDeskAdminLanding(user) ?? "/admin/service-desk"}
+              >
+                Администрирование
+              </Link>
+            ) : null}
             <ServiceDeskContextualCounters interactive />
             <ServiceDeskNotificationCenter />
           </>

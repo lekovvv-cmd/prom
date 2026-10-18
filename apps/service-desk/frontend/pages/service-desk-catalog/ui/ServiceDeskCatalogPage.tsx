@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Clock3, Search, Settings, Table2, Ticket } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Clock3, Search, Table2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -18,13 +18,15 @@ import { Input } from "@prom/ui/Input";
 import { PageLayout } from "@prom/ui/PageLayout";
 import { Spinner } from "@prom/ui/Spinner";
 import { Header } from "@prom/layout";
-import { useServiceDeskAccess } from "../../../providers/ServiceDeskAccessProvider";
-import {
-  canShowServiceDeskAdministration,
-  getServiceDeskAdminLanding,
-} from "../../../entities/service-desk-admin/model/adminLanding";
 
 const uncategorizedGroupId = "__uncategorized__";
+
+function serviceCountLabel(count: number) {
+  if (count % 100 >= 11 && count % 100 <= 14) return "услуг";
+  if (count % 10 === 1) return "услуга";
+  if (count % 10 >= 2 && count % 10 <= 4) return "услуги";
+  return "услуг";
+}
 
 type CatalogGroup = {
   id: string;
@@ -38,16 +40,12 @@ export function buildCatalogGroups(
   services: ServiceDeskService[],
 ): CatalogGroup[] {
   const categoryIds = new Set(categories.map((category) => category.id));
-  const groups = categories
-    .map((category) => ({
-      id: category.id,
-      title: category.title,
-      description: category.description,
-      services: services.filter(
-        (service) => service.category_id === category.id,
-      ),
-    }))
-    .filter((group) => group.services.length > 0);
+  const groups = categories.map((category) => ({
+    id: category.id,
+    title: category.title,
+    description: category.description,
+    services: services.filter((service) => service.category_id === category.id),
+  }));
   const uncategorized = services.filter(
     (service) => !categoryIds.has(service.category_id),
   );
@@ -66,9 +64,9 @@ export function buildCatalogGroups(
 }
 
 export function ServiceDeskCatalogPage() {
-  const { user } = useServiceDeskAccess();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const selectedCategoryId = searchParams.get("category") ?? "";
   const catalogQuery = useQuery({
     queryKey: serviceDeskQueryKeys.catalog(),
     queryFn: async ({ signal }) => {
@@ -117,23 +115,23 @@ export function ServiceDeskCatalogPage() {
     [categories, services],
   );
   const matchingGroups = useMemo(
-    () => buildCatalogGroups(categories, filteredServices),
+    () =>
+      buildCatalogGroups(categories, filteredServices).filter(
+        (group) => group.services.length,
+      ),
     [categories, filteredServices],
   );
   const shownGroups = selectedCategoryId
-    ? matchingGroups.filter((group) => group.id === selectedCategoryId)
+    ? allGroups.filter((group) => group.id === selectedCategoryId)
     : normalizedQuery
       ? matchingGroups
       : [];
   const selectedGroup = allGroups.find(
     (group) => group.id === selectedCategoryId,
   );
-  const adminLanding = getServiceDeskAdminLanding(user);
-  const showAdministration = canShowServiceDeskAdministration(user);
-
   function selectCategory(categoryId: string) {
     setQuery("");
-    setSelectedCategoryId(categoryId);
+    setSearchParams(categoryId ? { category: categoryId } : {});
   }
 
   return (
@@ -149,23 +147,10 @@ export function ServiceDeskCatalogPage() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
-              setSelectedCategoryId("");
+              setSearchParams({});
             }}
             placeholder="Например, доступ к системе"
           />
-          <Link
-            className="button button-secondary"
-            to="/service-desk/my-tickets"
-          >
-            <Ticket size={16} aria-hidden="true" />
-            Мои заявки
-          </Link>
-          {adminLanding && showAdministration ? (
-            <Link className="button button-secondary" to={adminLanding}>
-              <Settings size={16} aria-hidden="true" />
-              Администрирование
-            </Link>
-          ) : null}
         </div>
         {catalogQuery.isLoading ? (
           <Spinner label="Загружаем каталог" />
@@ -194,10 +179,7 @@ export function ServiceDeskCatalogPage() {
                   </p>
                 </div>
                 {selectedCategoryId ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => setSelectedCategoryId("")}
-                  >
+                  <Button variant="ghost" onClick={() => selectCategory("")}>
                     Все категории
                   </Button>
                 ) : null}
@@ -214,11 +196,7 @@ export function ServiceDeskCatalogPage() {
                     <strong>{group.title}</strong>
                     <span>
                       {group.services.length}{" "}
-                      {group.services.length === 1
-                        ? "услуга"
-                        : group.services.length < 5
-                          ? "услуги"
-                          : "услуг"}
+                      {serviceCountLabel(group.services.length)}
                     </span>
                   </button>
                 ))}
@@ -268,6 +246,9 @@ export function ServiceDeskCatalogPage() {
                         />
                       ))}
                     </div>
+                    {group.services.length === 0 ? (
+                      <p className="muted">В этой категории пока нет услуг.</p>
+                    ) : null}
                   </section>
                 ))}
               </div>

@@ -13,7 +13,7 @@ import type { ServiceDeskTicket } from "../../../entities/service-desk-ticket/mo
 import { addTicketComment } from "../../../features/add-ticket-comment/api/addTicketComment";
 import {
   deleteServiceDeskComment,
-  downloadServiceDeskAttachment,
+  saveServiceDeskAttachment,
   listServiceDeskCommentAttachments,
   updateServiceDeskComment,
   uploadServiceDeskCommentAttachment,
@@ -51,6 +51,12 @@ export function ServiceDeskTicketComments({
     currentUser.id === ticket.assignee_user_id ||
     currentUser.capabilities.includes("service_desk.view_all_tickets");
   const isLocked = FINAL_STATUSES.has(ticket.status);
+  const clarificationReplyIds = new Set(
+    ticket.history
+      .filter((event) => event.event_type === "requester_replied")
+      .map((event) => event.payload.comment_id)
+      .filter((id): id is string => typeof id === "string"),
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -141,6 +147,11 @@ export function ServiceDeskTicketComments({
                     <Lock size={12} /> Внутренний
                   </span>
                 ) : null}
+                {clarificationReplyIds.has(comment.id) ? (
+                  <span className="service-desk-comment-visibility">
+                    Ответ на уточнение
+                  </span>
+                ) : null}
               </div>
               {editingId === comment.id ? (
                 <div className="service-desk-comment-form">
@@ -217,18 +228,23 @@ export function ServiceDeskTicketComments({
             required
           />
           {canAddInternal ? (
-            <Select
-              label="Видимость"
-              value={visibility}
-              onChange={(event) =>
-                setVisibility(event.target.value as "public" | "internal")
-              }
-            >
-              <option value="public">Публичный — виден заявителю</option>
-              <option value="internal">
-                Внутренний — только для Service Desk
-              </option>
-            </Select>
+            <>
+              <Select
+                label="Кто увидит комментарий"
+                value={visibility}
+                onChange={(event) =>
+                  setVisibility(event.target.value as "public" | "internal")
+                }
+              >
+                <option value="public">
+                  Заявитель и сотрудники Service Desk
+                </option>
+                <option value="internal">Только сотрудники Service Desk</option>
+              </Select>
+              <p className="muted">
+                Внутренний комментарий заявитель не увидит.
+              </p>
+            </>
           ) : null}
           {error ? <p className="form-error">{error}</p> : null}
           <div className="button-row">
@@ -275,13 +291,7 @@ function CommentAttachments({
   }
   async function download(attachment: ServiceDeskAttachment) {
     try {
-      const blob = await downloadServiceDeskAttachment(ticketId, attachment.id);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = attachment.file_name;
-      link.click();
-      URL.revokeObjectURL(url);
+      await saveServiceDeskAttachment(ticketId, attachment);
     } catch (reason: unknown) {
       setError(
         reason instanceof Error ? reason.message : "Не удалось скачать файл",
