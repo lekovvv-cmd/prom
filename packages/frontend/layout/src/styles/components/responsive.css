@@ -58,9 +58,27 @@
 
 @media (max-width: 760px) {
   .header-tools {
-    grid-column: 1;
-    grid-row: 2;
+    grid-column: 1 / -1;
+    grid-row: 3;
     justify-content: flex-start;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .header-tools > .button {
+    width: auto;
+  }
+
+  .header-tools > .notification-center {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .header-tools > .service-desk-counters {
+    order: 2;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    overflow: visible;
   }
 }
 
@@ -75,6 +93,6 @@
 @media (max-width: 760px) {
   .main-nav {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 4;
   }
 }

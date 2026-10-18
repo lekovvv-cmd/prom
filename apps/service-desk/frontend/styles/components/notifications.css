@@ -4,11 +4,8 @@
 
 .service-desk-counters {
   @apply flex;
-  grid-column: 1 / -1;
   @apply gap-2 items-center;
-  padding: 0 0 10px;
   overflow-x: auto;
-  grid-row: 2;
 }
 
 .service-desk-counter {

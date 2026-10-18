@@ -679,7 +679,7 @@ test("Service Desk complete requester lifecycle runs through catalog and ticket 
   await loginAsManager(page);
   await page.goto(ticketUrl);
   await page
-    .getByLabel("Комментарий")
+    .getByLabel("Комментарий", { exact: true })
     .fill("Адрес объекта: главный корпус, кабинет 204.");
   await page.getByRole("button", { name: "Добавить комментарий" }).click();
   await expect(page.getByText("В работе")).toBeVisible();
