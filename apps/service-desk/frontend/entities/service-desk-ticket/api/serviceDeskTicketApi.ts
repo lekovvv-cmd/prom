@@ -185,7 +185,7 @@ export function performServiceDeskTicketAction(
   });
 }
 
-export async function downloadServiceDeskAttachment(
+async function downloadServiceDeskAttachment(
   ticketId: string,
   attachmentId: string,
 ) {
