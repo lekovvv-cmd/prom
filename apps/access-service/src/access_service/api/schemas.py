@@ -63,6 +63,10 @@ class MockLoginInput(BaseModel):
     code: str = Field(min_length=6, max_length=32)
 
 
+class PilotLoginInput(BaseModel):
+    email: str = Field(pattern=r"^pilot\.(?:admin|pm|employee)\d{2}@utmn\.ru$", max_length=64)
+
+
 class MockCodeInput(BaseModel):
     email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

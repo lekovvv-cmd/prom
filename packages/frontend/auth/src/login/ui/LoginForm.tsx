@@ -7,6 +7,7 @@ import { Button } from "@prom/ui/Button";
 import { Input } from "@prom/ui/Input";
 import { isUtmnEmail, normalizeEmail } from "@prom/utils/email";
 import { requestCode, verifyCode } from "../api/authApi";
+import { PilotAccountSelector } from "./PilotAccountSelector";
 
 const demoUsers = [
   {
@@ -37,6 +38,13 @@ const demoUsers = [
 ];
 
 export function LoginForm() {
+  if (import.meta.env.VITE_PLATFORM_ENVIRONMENT === "pilot") {
+    return <PilotLoginForm />;
+  }
+  return <DevelopmentLoginForm />;
+}
+
+function DevelopmentLoginForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -121,4 +129,8 @@ export function LoginForm() {
       </Button>
     </form>
   );
+}
+
+function PilotLoginForm() {
+  return <PilotAccountSelector />;
 }

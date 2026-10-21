@@ -36,7 +36,12 @@ function ModuleRoute({ moduleId }: { moduleId: string }) {
 
 export function AppRouter() {
   const location = useLocation();
-  if (location.pathname === "/") return <ModuleSelectorPage />;
+  if (location.pathname === "/") {
+    if (import.meta.env.VITE_PLATFORM_ENVIRONMENT === "pilot") {
+      return <Navigate to="/projects" replace />;
+    }
+    return <ModuleSelectorPage />;
+  }
   if (location.pathname === "/login") return <LoginPage />;
 
   const manifest = getPlatformModuleForPath(location.pathname);

@@ -96,6 +96,30 @@ def test_production_session_cookie_is_secure() -> None:
     assert "HttpOnly" in session_cookie
 
 
+def test_pilot_session_cookie_is_secure_and_http_only() -> None:
+    settings = AccessSettings(
+        environment="pilot",
+        database_url="postgresql+psycopg://access:secret@db/access",
+        token_issuer="https://prom.example.edu/access",
+        token_audiences="projects",
+        jwt_private_key=generate_private_key_pem(),
+        jwt_key_id="pilot-key",
+    )
+    manager = BrowserSessionManager(settings)
+    response = Response()
+    from access_service.infrastructure.sessions import BrowserSessionCredentials
+
+    manager.set_cookies(response, BrowserSessionCredentials("secret", "csrf"))
+    session_cookie = next(
+        cookie
+        for cookie in response.headers.getlist("set-cookie")
+        if cookie.startswith("prom_session=")
+    )
+    assert "Secure" in session_cookie
+    assert "HttpOnly" in session_cookie
+    assert "SameSite=lax" in session_cookie
+
+
 def test_csrf_is_required_for_state_changes() -> None:
     settings = AccessSettings(database_url="sqlite+pysqlite:///:memory:")
     engine, db, user, manager, credentials = create_session(settings)

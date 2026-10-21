@@ -3,10 +3,15 @@ import type { PlatformModuleManifest } from "@prom/platform-contracts";
 import { projectsManifest } from "../../../../projects/frontend/manifest";
 import { serviceDeskManifest } from "../../../../service-desk/frontend/manifest";
 
-export const platformModules: readonly PlatformModuleManifest[] = [
+const allModules: readonly PlatformModuleManifest[] = [
   projectsManifest,
   serviceDeskManifest,
 ];
+
+export const platformModules: readonly PlatformModuleManifest[] =
+  import.meta.env.VITE_PLATFORM_ENVIRONMENT === "pilot"
+    ? [projectsManifest]
+    : allModules;
 
 export function getPlatformModule(
   id: string,

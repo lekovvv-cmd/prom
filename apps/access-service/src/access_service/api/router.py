@@ -11,6 +11,7 @@ from access_service.api.schemas import (
     MockCodeInput,
     MockCodeOut,
     MockLoginInput,
+    PilotLoginInput,
     ModuleAdminOut,
     ModuleInput,
     ModuleOut,
@@ -148,7 +149,7 @@ def token_audiences_for(session: Session, signer: InternalTokenSigner) -> list[s
 
 def require_mock_provider(request: Request) -> None:
     signer: InternalTokenSigner = request.app.state.token_signer
-    if signer.settings.environment.lower() in {"production", "prod"}:
+    if signer.settings.environment.lower() not in {"development", "dev"}:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
@@ -210,6 +211,28 @@ def mock_verify(
         session=session,
         user=user,
         action="mock_session_created",
+    )
+
+
+@router.post("/api/v1/auth/pilot/login", response_model=SessionOut)
+def pilot_login(
+    payload: PilotLoginInput,
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+) -> SessionOut:
+    signer: InternalTokenSigner = request.app.state.token_signer
+    if signer.settings.environment.lower() != "pilot":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    user = find_user_by_email(session, payload.email.lower())
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Pilot account is unavailable")
+    return start_browser_session(
+        request=request,
+        response=response,
+        session=session,
+        user=user,
+        action="pilot_session_created",
     )
 
 

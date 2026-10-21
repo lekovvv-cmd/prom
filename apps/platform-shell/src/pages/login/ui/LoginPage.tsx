@@ -3,6 +3,7 @@ import { LoginForm } from "@prom/auth/login";
 import { Link } from "react-router-dom";
 
 export function LoginPage() {
+  const isPilot = import.meta.env.VITE_PLATFORM_ENVIRONMENT === "pilot";
   return (
     <>
       <Header />
@@ -11,11 +12,12 @@ export function LoginPage() {
           <div className="login-copy">
             <h1 id="login-title">Вход в PROM</h1>
             <p>
-              Выберите демонстрационную роль или введите корпоративный адрес
-              электронной почты.
+              {isPilot
+                ? "Пилотное тестирование PROM для сотрудников ТюмГУ."
+                : "Выберите демонстрационную роль или введите корпоративный адрес электронной почты."}
             </p>
             <Link className="button button-secondary" to="/">
-              Выбрать сервис
+              {isPilot ? "Перейти в PROM" : "Выбрать сервис"}
             </Link>
           </div>
           <LoginForm />

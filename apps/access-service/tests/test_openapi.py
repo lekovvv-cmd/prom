@@ -14,5 +14,6 @@ def test_openapi_declares_demo_session_routes() -> None:
 
     assert "/api/v1/auth/mock/code" in schema["paths"]
     assert "/api/v1/auth/mock/verify" in schema["paths"]
+    assert "/api/v1/auth/pilot/login" in schema["paths"]
     assert "/api/v1/session/token" in schema["paths"]
     assert "/auth/callback" not in schema["paths"]

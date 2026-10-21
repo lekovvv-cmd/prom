@@ -37,3 +37,24 @@ export async function verifyCode(
     permissions: session.permissions,
   };
 }
+
+export async function pilotLogin(email: string): Promise<AuthSession> {
+  await accessApiClient.request<AccessContract["schemas"]["SessionOut"]>(
+    "/auth/pilot/login",
+    {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({ email }),
+    },
+  );
+  const response =
+    await accessApiClient.request<AccessContract["schemas"]["TokenOut"]>(
+      "/session/token",
+    );
+  accessApiClient.setToken(response.access_token);
+  return {
+    user: response.session.user,
+    modules: response.session.modules,
+    permissions: response.session.permissions,
+  };
+}

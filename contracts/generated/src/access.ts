@@ -226,6 +226,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/pilot/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pilot Login */
+        post: operations["pilot_login_api_v1_auth_pilot_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -439,6 +456,11 @@ export interface components {
             id: string;
             /** Permissions */
             permissions: string[];
+        };
+        /** PilotLoginInput */
+        PilotLoginInput: {
+            /** Email */
+            email: string;
         };
         /** RoleInput */
         RoleInput: {
@@ -1039,6 +1061,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["MockLoginInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pilot_login_api_v1_auth_pilot_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PilotLoginInput"];
             };
         };
         responses: {

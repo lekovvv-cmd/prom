@@ -192,6 +192,21 @@
         "title": "ModuleOut",
         "type": "object"
       },
+      "PilotLoginInput": {
+        "properties": {
+          "email": {
+            "maxLength": 64,
+            "pattern": "^pilot\\.(?:admin|pm|employee)\\d{2}@utmn\\.ru$",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PilotLoginInput",
+        "type": "object"
+      },
       "RoleInput": {
         "properties": {
           "code": {
@@ -1136,6 +1151,44 @@
           }
         },
         "summary": "Mock Verify"
+      }
+    },
+    "/api/v1/auth/pilot/login": {
+      "post": {
+        "operationId": "pilot_login_api_v1_auth_pilot_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PilotLoginInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pilot Login"
       }
     },
     "/api/v1/me": {

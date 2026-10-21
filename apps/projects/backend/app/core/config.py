@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_runtime_configuration(self) -> "Settings":
-        if is_production_environment(self.env):
+        if is_production_environment(self.env) or self.env.lower() == "pilot":
             validate_production_database_url(
                 self.database_url,
                 variable_name="PROJECTS_DATABASE_URL",
