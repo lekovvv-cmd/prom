@@ -1,5 +1,6 @@
 .git
 .codex
+.codex-remote-attachments
 .agents
 **/.venv
 **/.venv-*

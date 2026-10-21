@@ -637,6 +637,12 @@ jobs:
             dockerfile: apps/platform-shell/Dockerfile
           - name: platform-shell-relaxdev
             dockerfile: apps/platform-shell/Dockerfile.relaxdev
+          - name: access-relaxdev
+            dockerfile: Dockerfile.relaxdev.access
+          - name: projects-relaxdev
+            dockerfile: Dockerfile.relaxdev.projects
+          - name: shell-relaxdev-root
+            dockerfile: Dockerfile.relaxdev.shell
     steps:
       - uses: actions/checkout@v4
       - name: Build SHA-tagged image
