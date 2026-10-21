@@ -647,6 +647,111 @@ jobs:
           image --exit-code 1 --ignore-unfixed --severity CRITICAL
           "prom/${{ matrix.name }}:${GITHUB_SHA}"
 
+  pilot-arm64-build:
+    name: Oracle pilot ARM64 image builds
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.infra == 'true' ||
+      needs.detect-changes.outputs.access == 'true' ||
+      needs.detect-changes.outputs.projects == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true' ||
+      needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build all Oracle pilot images for linux/arm64
+        run: |
+          docker buildx build --platform linux/arm64 --file apps/access-service/Dockerfile --tag prom/access-service:arm64 --load .
+          docker buildx build --platform linux/arm64 --file apps/projects/backend/Dockerfile --tag prom/projects-backend:arm64 --load .
+          docker buildx build --platform linux/arm64 --file apps/platform-shell/Dockerfile --tag prom/platform-shell:arm64 --load .
+
+  pilot-compose-smoke:
+    name: Projects-only pilot runtime and persistence smoke
+    needs: detect-changes
+    if: >
+      needs.detect-changes.outputs.infra == 'true' ||
+      needs.detect-changes.outputs.access == 'true' ||
+      needs.detect-changes.outputs.projects == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true' ||
+      needs.detect-changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm exec --workspace=@prom/platform-shell playwright install --with-deps chromium
+      - name: Prepare ephemeral pilot credentials
+        run: |
+          mkdir -p secrets
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/access-jwt.pem
+          chmod 600 secrets/access-jwt.pem
+          cat > .env.pilot <<'EOF'
+          PLATFORM_ENVIRONMENT=pilot
+          PLATFORM_DEBUG=false
+          POSTGRES_ADMIN_PASSWORD=ci-postgres-admin-password
+          ACCESS_DB_PASSWORD=ci-access-password
+          PROJECTS_DB_PASSWORD=ci-projects-password
+          ENABLE_SERVICE_DESK_DATABASE=false
+          ACCESS_JWT_PRIVATE_KEY_HOST_FILE=./secrets/access-jwt.pem
+          ACCESS_JWT_KEY_ID=ci-pilot-key
+          ACCESS_TOKEN_ISSUER=https://pilot.test/access
+          ACCESS_TOKEN_AUDIENCES=projects
+          PILOT_HTTP_PORT=5173
+          PUBLIC_HOSTNAME=pilot.test
+          EOF
+      - name: Start the pilot runtime and seeded data
+        run: bash ./pilot.sh up
+      - name: Verify exact five-service runtime and all account roles
+        run: |
+          expected=$(printf '%s\n' postgres access-service projects-backend projects-worker platform-shell | sort)
+          actual=$(docker compose --project-name prom-pilot --env-file .env.pilot -f compose.yaml -f compose.pilot.yaml ps --services | sort)
+          test "$actual" = "$expected"
+          python - <<'PY'
+          import json
+          from urllib.request import Request, urlopen
+
+          roles = [("admin", 2, "platform.admin"), ("pm", 5, "projects.manage_responses"), ("employee", 5, "projects.respond")]
+          for kind, count, permission in roles:
+              for index in range(1, count + 1):
+                  email = f"pilot.{kind}{index:02d}@utmn.ru"
+                  request = Request("http://127.0.0.1:5173/api/access/v1/auth/pilot/login", data=json.dumps({"email": email}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+                  with urlopen(request, timeout=10) as response:
+                      session = json.load(response)
+                      assert session["user"]["email"] == email
+                      assert permission in session["permissions"]
+                      assert "service-desk" not in {module["id"] for module in session["modules"]}
+                      assert not any(code.startswith("service_desk.") for code in session["permissions"])
+          PY
+      - name: Verify pilot selector double-click guard and retry in a browser
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5173
+          E2E_PILOT: "true"
+        run: npm run test:e2e --workspace=@prom/platform-shell -- e2e/pilot-login.spec.ts
+      - name: Verify database and attachment volume persist through container recreation
+        run: |
+          compose=(docker compose --project-name prom-pilot --env-file .env.pilot -f compose.yaml -f compose.pilot.yaml)
+          "${compose[@]}" exec -T projects-backend sh -c 'printf pilot-persistence > /workspace/backend/storage/projects/persistence-probe.txt'
+          "${compose[@]}" up -d --force-recreate postgres projects-backend
+          "${compose[@]}" up -d --wait access-service projects-backend projects-worker platform-shell
+          count=$("${compose[@]}" exec -T postgres psql -At -U prom_access -d prom_access -c 'SELECT count(*) FROM platform_users')
+          test "$count" = 12
+          contents=$("${compose[@]}" exec -T projects-backend cat /workspace/backend/storage/projects/persistence-probe.txt)
+          test "$contents" = pilot-persistence
+      - name: Capture pilot diagnostics
+        if: always()
+        run: docker compose --project-name prom-pilot --env-file .env.pilot -f compose.yaml -f compose.pilot.yaml logs --no-color
+      - name: Stop pilot without deleting persistent volumes
+        if: always()
+        run: docker compose --project-name prom-pilot --env-file .env.pilot -f compose.yaml -f compose.pilot.yaml down
+
   generated-module-docker-build:
     name: Generated module Docker build and image scan (${{ matrix.module }})
     needs: detect-changes

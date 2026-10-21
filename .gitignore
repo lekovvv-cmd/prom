@@ -1,4 +1,9 @@
 .env
+.env.pilot
+.env.pilot.*
+!.env.pilot.example
+secrets/
+backups/
 .venv/
 .venv-linux/
 .venv-py314/

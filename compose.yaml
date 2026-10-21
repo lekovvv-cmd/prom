@@ -30,6 +30,7 @@ services:
       ACCESS_DB_PASSWORD: ${ACCESS_DB_PASSWORD:-prom_access}
       PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD:-project_showcase}
       SERVICE_DESK_DB_PASSWORD: ${SERVICE_DESK_DB_PASSWORD:-service_desk}
+      ENABLE_SERVICE_DESK_DATABASE: ${ENABLE_SERVICE_DESK_DATABASE:-true}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./tools/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-databases.sh:ro
@@ -123,6 +124,7 @@ services:
         VITE_API_BASE_URL: /api/projects/v1
         VITE_SERVICE_DESK_API_BASE_URL: /api/service-desk/v1
         VITE_ACCESS_API_BASE_URL: /api/access/v1
+        VITE_PLATFORM_ENVIRONMENT: ${PLATFORM_ENVIRONMENT:-development}
     ports: ["5173:80"]
     depends_on:
       access-service: { condition: service_healthy }

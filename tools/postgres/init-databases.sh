@@ -2,7 +2,12 @@
 set -eu
 
 # Runs only when postgres_data is first initialized. Each module owns its own database.
-for module in prom_access project_showcase service_desk; do
+modules="prom_access project_showcase"
+if [ "${ENABLE_SERVICE_DESK_DATABASE:-true}" = "true" ]; then
+  modules="$modules service_desk"
+fi
+
+for module in $modules; do
   case "$module" in
     prom_access) password=$ACCESS_DB_PASSWORD ;;
     project_showcase) password=$PROJECTS_DB_PASSWORD ;;

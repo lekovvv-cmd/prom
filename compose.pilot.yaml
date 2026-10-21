@@ -1,0 +1,58 @@
+services:
+  postgres:
+    environment:
+      ENABLE_SERVICE_DESK_DATABASE: "false"
+
+  access-service:
+    environment:
+      ACCESS_ENVIRONMENT: pilot
+      ACCESS_DEBUG: "false"
+      ACCESS_JWT_PRIVATE_KEY: ""
+      ACCESS_JWT_PRIVATE_KEY_FILE: /run/secrets/access-jwt.pem
+      ACCESS_JWT_KEY_ID: ${ACCESS_JWT_KEY_ID:?Set a stable ACCESS_JWT_KEY_ID in .env.pilot}
+      ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:?Set ACCESS_TOKEN_ISSUER in .env.pilot}
+      ACCESS_TOKEN_AUDIENCES: projects
+    secrets:
+      - access-jwt-key
+
+  projects-backend:
+    environment:
+      PROJECTS_ENV: pilot
+      PROJECTS_DEBUG: "false"
+
+  projects-worker:
+    environment:
+      PROJECTS_ENV: pilot
+      PROJECTS_DEBUG: "false"
+
+  platform-shell:
+    build:
+      args:
+        VITE_PLATFORM_ENVIRONMENT: pilot
+    ports: !override
+      - "127.0.0.1:${PILOT_HTTP_PORT:-5173}:80"
+    depends_on: !override
+      access-service:
+        condition: service_healthy
+      projects-backend:
+        condition: service_healthy
+
+  service-desk-backend:
+    profiles: !override [service-desk]
+  service-desk-worker:
+    profiles: !override [service-desk]
+  service-desk-migrate:
+    profiles: !override [service-desk]
+  service-desk-seed:
+    profiles: !override [service-desk]
+  platform-bootstrap:
+    profiles: !override [service-desk]
+
+  access-seed:
+    command: ["python", "scripts/seed_pilot.py"]
+  projects-seed:
+    command: ["python", "scripts/seed_pilot.py"]
+
+secrets:
+  access-jwt-key:
+    file: ${ACCESS_JWT_PRIVATE_KEY_HOST_FILE:?Set ACCESS_JWT_PRIVATE_KEY_HOST_FILE in .env.pilot}
