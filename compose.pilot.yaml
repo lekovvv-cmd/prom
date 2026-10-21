@@ -1,19 +1,32 @@
+x-pilot-access-environment: &pilot-access-environment
+  ACCESS_ENVIRONMENT: pilot
+  ACCESS_DEBUG: "false"
+  ACCESS_JWT_PRIVATE_KEY: ""
+  ACCESS_JWT_PRIVATE_KEY_FILE: /run/secrets/access-jwt.pem
+  ACCESS_JWT_KEY_ID: ${ACCESS_JWT_KEY_ID:?Set a stable ACCESS_JWT_KEY_ID in .env.pilot}
+  ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:?Set ACCESS_TOKEN_ISSUER in .env.pilot}
+  ACCESS_TOKEN_AUDIENCES: projects
+
 services:
   postgres:
     environment:
       ENABLE_SERVICE_DESK_DATABASE: "false"
 
   access-service:
-    environment:
-      ACCESS_ENVIRONMENT: pilot
-      ACCESS_DEBUG: "false"
-      ACCESS_JWT_PRIVATE_KEY: ""
-      ACCESS_JWT_PRIVATE_KEY_FILE: /run/secrets/access-jwt.pem
-      ACCESS_JWT_KEY_ID: ${ACCESS_JWT_KEY_ID:?Set a stable ACCESS_JWT_KEY_ID in .env.pilot}
-      ACCESS_TOKEN_ISSUER: ${ACCESS_TOKEN_ISSUER:?Set ACCESS_TOKEN_ISSUER in .env.pilot}
-      ACCESS_TOKEN_AUDIENCES: projects
+    environment: *pilot-access-environment
     secrets:
       - access-jwt-key
+
+  access-migrate:
+    environment: *pilot-access-environment
+    secrets:
+      - access-jwt-key
+
+  access-seed:
+    environment: *pilot-access-environment
+    secrets:
+      - access-jwt-key
+    command: ["python", "scripts/seed_pilot.py"]
 
   projects-backend:
     environment:
@@ -48,8 +61,6 @@ services:
   platform-bootstrap:
     profiles: !override [service-desk]
 
-  access-seed:
-    command: ["python", "scripts/seed_pilot.py"]
   projects-seed:
     command: ["python", "scripts/seed_pilot.py"]
 
