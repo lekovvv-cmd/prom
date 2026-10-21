@@ -40,5 +40,5 @@ RUN /usr/local/bin/python -m pip uninstall --yes pip \
 WORKDIR /workspace/backend
 USER app
 EXPOSE 8002
-HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/ready', timeout=2)"]
-CMD ["python", "-m", "uvicorn", "access_service.bootstrap.app:app", "--host", "0.0.0.0", "--port", "8002"]
+HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.getenv('PORT','8002')+'/health/ready', timeout=2)"]
+CMD ["python", "scripts/start.py"]

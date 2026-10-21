@@ -1,19 +1,28 @@
 from platform_sdk.config import (
+    database_url_from_environment,
+    normalize_postgres_url,
     is_production_environment,
     validate_production_database_url,
 )
-from pydantic import model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     app_name: str = "Project Showcase SHPIU"
     env: str = "development"
     debug: bool = False
-    database_url: str = "postgresql+psycopg://project_showcase:project_showcase@localhost:5432/project_showcase"
+    database_url: str = Field(
+        default_factory=lambda: database_url_from_environment(
+            "PROJECTS",
+            "postgresql+psycopg://project_showcase:project_showcase@localhost:5432/project_showcase",
+        )
+    )
     access_jwks_url: str | None = None
     access_token_issuer: str = "prom-access"
     access_token_audience: str = "projects"
     uploads_dir: str = "storage/uploads"
+    storage_backend: str = "local"
     max_attachment_size_bytes: int = 10 * 1024 * 1024
     max_attachments_per_owner: int = 10
     attachment_orphan_grace_seconds: int = 3600
@@ -26,8 +35,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        return normalize_postgres_url(value)
+
     @model_validator(mode="after")
     def validate_runtime_configuration(self) -> "Settings":
+        if self.storage_backend not in {"local", "database"}:
+            raise ValueError("PROJECTS_STORAGE_BACKEND must be local or database")
         if is_production_environment(self.env) or self.env.lower() == "pilot":
             validate_production_database_url(
                 self.database_url,

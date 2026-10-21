@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from sqlalchemy.engine import make_url
 
 DEFAULT_SECRET_MARKERS = (
@@ -8,6 +9,20 @@ DEFAULT_SECRET_MARKERS = (
     "example-secret",
     "development-secret",
 )
+
+
+def database_url_from_environment(prefix: str, default: str) -> str:
+    """Prefer a service override, then a PaaS managed DATABASE_URL."""
+    value = os.getenv(f"{prefix}_DATABASE_URL") or os.getenv("DATABASE_URL") or default
+    return normalize_postgres_url(value)
+
+
+def normalize_postgres_url(value: str) -> str:
+    if value.startswith("postgres://"):
+        return "postgresql+psycopg://" + value[len("postgres://") :]
+    if value.startswith("postgresql://"):
+        return "postgresql+psycopg://" + value[len("postgresql://") :]
+    return value
 
 
 def is_production_environment(environment: str) -> bool:

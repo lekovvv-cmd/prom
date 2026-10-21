@@ -19,6 +19,8 @@ logger = logging.getLogger("prom.projects.attachment_cleanup")
 
 
 def cleanup_once() -> int:
+    if settings.storage_backend == "database":
+        return 0  # DB objects share the attachment transaction and cannot become file orphans.
     root = Path(settings.uploads_dir).resolve()
     root.mkdir(parents=True, exist_ok=True)
     with SessionLocal() as db:

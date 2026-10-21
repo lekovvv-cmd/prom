@@ -41,5 +41,5 @@ RUN /usr/local/bin/python -m pip uninstall --yes pip \
 WORKDIR /workspace/backend
 USER app
 EXPOSE 8000
-HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=10 CMD ["python", "-c", "import os, subprocess, urllib.request; subprocess.run(['python','-m','scripts.worker','--health'],check=True) if os.getenv('PROJECTS_PROCESS')=='worker' else urllib.request.urlopen('http://127.0.0.1:'+os.getenv('PORT','8000')+'/health/ready',timeout=2)"]
+CMD ["python", "scripts/start.py"]

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, String, Uuid
+from sqlalchemy import DateTime, LargeBinary, String, Uuid
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -54,5 +54,16 @@ class Attachment(Base):
     )
     size_bytes: Mapped[int] = mapped_column(nullable=False, default=0)
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+
+
+class AttachmentBlob(Base):
+    __tablename__ = "attachment_blobs"
+
+    key: Mapped[str] = mapped_column(String(1024), primary_key=True)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

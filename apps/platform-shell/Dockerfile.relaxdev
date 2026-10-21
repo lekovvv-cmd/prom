@@ -1,0 +1,24 @@
+FROM node:24.13.1-alpine@sha256:4f696fbf39f383c1e486030ba6b289a5d9af541642fc78ab197e584a113b9c03 AS build
+WORKDIR /workspace
+COPY package.json package-lock.json ./
+COPY contracts/generated contracts/generated
+COPY packages/frontend packages/frontend
+COPY apps apps
+RUN npm ci
+ENV VITE_PLATFORM_ENVIRONMENT=pilot \
+    VITE_ACCESS_API_BASE_URL=/api/access/v1 \
+    VITE_API_BASE_URL=/api/projects/v1 \
+    VITE_SERVICE_DESK_API_BASE_URL=/api/service-desk/v1
+RUN npm run build --workspace=@prom/platform-shell
+
+FROM nginx:1.30.3-alpine@sha256:0d3b80406a13a767339fbe2f41406d6c7da727ab89cf8fae399e81f780f814d1
+COPY apps/platform-shell/nginx.relaxdev.conf.template /etc/nginx/relaxdev.conf.template
+COPY apps/platform-shell/start-relaxdev.sh /start-relaxdev.sh
+COPY --from=build /workspace/apps/platform-shell/dist /usr/share/nginx/html
+RUN chmod +x /start-relaxdev.sh \
+    && chown -R nginx:nginx /etc/nginx/conf.d /usr/share/nginx/html /var/cache/nginx /var/log/nginx /var/run \
+    && touch /run/nginx.pid && chown nginx:nginx /run/nginx.pid
+USER nginx
+EXPOSE 8080
+HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD ["sh", "-c", "wget -q --spider http://127.0.0.1:${PORT:-8080}/healthz"]
+ENTRYPOINT ["/start-relaxdev.sh"]

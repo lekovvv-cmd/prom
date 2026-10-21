@@ -635,10 +635,33 @@ jobs:
             dockerfile: apps/service-desk/backend/Dockerfile
           - name: platform-shell
             dockerfile: apps/platform-shell/Dockerfile
+          - name: platform-shell-relaxdev
+            dockerfile: apps/platform-shell/Dockerfile.relaxdev
     steps:
       - uses: actions/checkout@v4
       - name: Build SHA-tagged image
         run: docker build --file "${{ matrix.dockerfile }}" --tag "prom/${{ matrix.name }}:${GITHUB_SHA}" .
+      - name: Smoke-test RelaxDev shell port and nginx template
+        if: matrix.name == 'platform-shell-relaxdev'
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -keyout /tmp/prom-relaxdev-key.pem -out /tmp/prom-relaxdev-cert.pem \
+            -subj '/CN=localhost' 2>/dev/null
+          python tools/ci/relaxdev_https_upstreams.py /tmp/prom-relaxdev-cert.pem /tmp/prom-relaxdev-key.pem &
+          upstreams=$!
+          docker run -d --name prom-relaxdev-shell-ci --network host \
+            -e PORT=18080 \
+            -e PLATFORM_ACCESS_UPSTREAM=https://127.0.0.1:18081 \
+            -e PLATFORM_PROJECTS_UPSTREAM=https://127.0.0.1:18082 \
+            "prom/${{ matrix.name }}:${GITHUB_SHA}"
+          trap 'docker rm -f prom-relaxdev-shell-ci; kill "$upstreams"' EXIT
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent http://127.0.0.1:18080/healthz | grep -qx 'ok'; then break; fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:18080/healthz | grep -qx 'ok'
+          curl --fail --silent -H 'X-Request-ID: ci-access' http://127.0.0.1:18080/api/access/v1/ping | grep -qx 'access:/api/v1/ping:ci-access'
+          curl --fail --silent -H 'X-Request-ID: ci-projects' http://127.0.0.1:18080/api/projects/v1/ping | grep -qx 'projects:/api/v1/ping:ci-projects'
       - name: Scan image for fixed critical vulnerabilities
         run: >
           docker run --rm

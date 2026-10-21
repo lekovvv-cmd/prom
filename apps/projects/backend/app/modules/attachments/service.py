@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from platform_sdk.error_types import EntityNotFound, PermissionDenied, ValidationFailed
-from platform_sdk.storage import IncomingFile, LocalFilesystemStorage, stream_incoming_file
+from platform_sdk.storage import IncomingFile, stream_incoming_file
 from platform_sdk.unit_of_work import SqlAlchemyUnitOfWork
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,7 @@ from app.core.permissions import (
 from app.modules.attachments.models import Attachment
 from app.modules.attachments.repository import AttachmentRepository
 from app.modules.attachments.schemas import AttachmentRead
+from app.modules.attachments.storage import create_storage
 from app.modules.attachments.validation import detect_and_validate, validate_metadata
 from app.modules.platform.events import ProjectEventRecorder
 from app.modules.projects.repository import ProjectRepository
@@ -38,7 +39,7 @@ class AttachmentService:
         self.tasks = ProjectTaskRepository(db)
         self.reports = ReportRepository(db)
         self.events = ProjectEventRecorder(db)
-        self.storage = LocalFilesystemStorage(settings.uploads_dir)
+        self.storage = create_storage(db)
 
     async def upload_project_file(
         self,
@@ -157,7 +158,10 @@ class AttachmentService:
             raise EntityNotFound("Файл не найден")
         self._require_view_attachment(attachment, current_user)
         storage_key = attachment.storage_key
+        source: BinaryIO
         if not storage_key:
+            if settings.storage_backend == "database":
+                raise EntityNotFound("Файл не найден в хранилище")
             legacy_path = Path(attachment.storage_path)
             if not legacy_path.is_file():
                 raise EntityNotFound("Файл не найден в хранилище")
@@ -261,13 +265,9 @@ class AttachmentService:
             raise ValidationFailed("Превышен лимит вложений для объекта")
 
         safe_name, extension, declared_type = validate_metadata(file)
-        storage_key = (
-            f"{owner_type.value}/{owner_id}/{uuid.uuid4().hex}{extension}"
-        )
+        storage_key = f"{owner_type.value}/{owner_id}/{uuid.uuid4().hex}{extension}"
         quarantine = (
-            Path(settings.uploads_dir)
-            / ".quarantine"
-            / f"{uuid.uuid4().hex}{extension}"
+            Path(settings.uploads_dir) / ".quarantine" / f"{uuid.uuid4().hex}{extension}"
         ).resolve()
         stored = False
         try:
@@ -410,9 +410,8 @@ class AttachmentService:
             return
         if self.projects.user_can_view_project(project_id, actor.id, actor.email):
             return
-        if (
-            can_manage_own_projects(actor)
-            and self.projects.user_can_manage_project(project_id, actor.id)
+        if can_manage_own_projects(actor) and self.projects.user_can_manage_project(
+            project_id, actor.id
         ):
             return
         raise PermissionDenied("Недостаточно прав для просмотра вложения проекта")
@@ -423,9 +422,8 @@ class AttachmentService:
             raise EntityNotFound("Проект не найден")
         if can_manage_all_projects(actor):
             return
-        if (
-            can_manage_own_projects(actor)
-            and self.projects.user_can_manage_project(project_id, actor.id)
+        if can_manage_own_projects(actor) and self.projects.user_can_manage_project(
+            project_id, actor.id
         ):
             return
         raise PermissionDenied("Недостаточно прав для управления вложениями проекта")

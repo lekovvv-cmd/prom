@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
+from pydantic import Field
 
 from platform_sdk.config import (
+    database_url_from_environment,
+    normalize_postgres_url,
     is_insecure_secret,
     is_production_environment,
     parse_nonempty_csv,
@@ -16,7 +19,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class AccessSettings(BaseSettings):
     environment: str = "development"
     debug: bool = False
-    database_url: str = "postgresql+psycopg://prom_access:prom_access@access-db:5432/prom_access"
+    database_url: str = Field(
+        default_factory=lambda: database_url_from_environment(
+            "ACCESS", "postgresql+psycopg://prom_access:prom_access@access-db:5432/prom_access"
+        )
+    )
     token_issuer: str = "prom-access"
     token_audiences: str = "projects,service-desk"
     token_ttl_seconds: int = 900
@@ -44,6 +51,11 @@ class AccessSettings(BaseSettings):
             return value
         normalized = value.strip().replace("\\n", "\n")
         return normalized or None
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        return normalize_postgres_url(value)
 
     @model_validator(mode="after")
     def validate_security(self) -> "AccessSettings":

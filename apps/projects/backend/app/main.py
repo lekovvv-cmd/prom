@@ -20,6 +20,7 @@ from app.core.config import settings
 from app.core.database import engine, get_session, pool_config
 from app.modules.platform.models import ProjectOutboxEvent
 
+
 def create_app() -> FastAPI:
     configure_json_logging(service="projects-api", module="projects", environment=settings.env)
     metrics = get_service_metrics(service="projects-api", module="projects")
@@ -34,10 +35,13 @@ def create_app() -> FastAPI:
         marker: Path | None = None
         try:
             db.execute(text("SELECT 1"))
-            uploads_dir = Path(settings.uploads_dir)
-            uploads_dir.mkdir(parents=True, exist_ok=True)
-            marker = uploads_dir / f".readiness-{uuid.uuid4().hex}"
-            marker.write_bytes(b"ok")
+            if settings.storage_backend == "database":
+                db.execute(text("SELECT 1 FROM attachment_blobs LIMIT 1"))
+            else:
+                uploads_dir = Path(settings.uploads_dir)
+                uploads_dir.mkdir(parents=True, exist_ok=True)
+                marker = uploads_dir / f".readiness-{uuid.uuid4().hex}"
+                marker.write_bytes(b"ok")
         except Exception:
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

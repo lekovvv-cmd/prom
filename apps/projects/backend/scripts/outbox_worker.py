@@ -22,7 +22,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.enums import AttachmentStatus
 from app.modules.attachments.repository import AttachmentRepository
-from platform_sdk.storage import LocalFilesystemStorage
+from app.modules.attachments.storage import create_storage
 from app.modules.platform.models import ProjectOutboxEvent
 
 logger = logging.getLogger("prom.projects.outbox")
@@ -37,9 +37,10 @@ def _dispatch(event: ProjectOutboxEvent, db) -> None:  # type: ignore[no-untyped
         return
     storage_key = event.payload.get("storage_key")
     if storage_key:
-        LocalFilesystemStorage(settings.uploads_dir).delete(str(storage_key))
+        create_storage(db).delete(str(storage_key))
     else:
-        Path(str(event.payload["storage_path"])).unlink(missing_ok=True)
+        if settings.storage_backend == "local":
+            Path(str(event.payload["storage_path"])).unlink(missing_ok=True)
     attachment.status = AttachmentStatus.DELETED
     attachment.deleted_at = datetime.now(UTC)
     db.flush()
