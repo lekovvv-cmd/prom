@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import uuid
+from importlib import import_module
 
 from app.core.database import SessionLocal
 from app.core.enums import ProjectPriority, ProjectStatus, ProjectType, UserRole
 from app.modules.projects.models import Project
-from app.modules.responses.models import ProjectResponse as _ProjectResponse
 from app.modules.users.repository import UserRepository
 
 PILOT_USERS = [
@@ -84,6 +84,8 @@ def stable_user_id(email: str) -> uuid.UUID:
 
 
 def main() -> None:
+    # Register the response model before SQLAlchemy configures Project relationships.
+    import_module("app.modules.responses.models")
     with SessionLocal() as db:
         repo = UserRepository(db)
         users = {}

@@ -15,17 +15,20 @@ services:
   access-service:
     environment: *pilot-access-environment
     secrets:
-      - access-jwt-key
+      - source: access-jwt-key
+        target: access-jwt.pem
 
   access-migrate:
     environment: *pilot-access-environment
     secrets:
-      - access-jwt-key
+      - source: access-jwt-key
+        target: access-jwt.pem
 
   access-seed:
     environment: *pilot-access-environment
     secrets:
-      - access-jwt-key
+      - source: access-jwt-key
+        target: access-jwt.pem
     command: ["python", "scripts/seed_pilot.py"]
 
   projects-backend:
