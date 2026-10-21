@@ -5,6 +5,7 @@ import uuid
 from app.core.database import SessionLocal
 from app.core.enums import ProjectPriority, ProjectStatus, ProjectType, UserRole
 from app.modules.projects.models import Project
+from app.modules.responses.models import ProjectResponse as _ProjectResponse
 from app.modules.users.repository import UserRepository
 
 PILOT_USERS = [
