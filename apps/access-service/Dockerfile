@@ -34,7 +34,7 @@ COPY --from=builder /workspace/.venv /workspace/.venv
 COPY --from=builder /workspace/apps/access-service /workspace/backend
 
 RUN /usr/local/bin/python -m pip uninstall --yes pip \
-    && addgroup --system app && adduser --system --ingroup app app \
+    && addgroup --system --gid 10001 app && adduser --system --uid 10001 --ingroup app app \
     && chown -R app:app /workspace/backend
 
 WORKDIR /workspace/backend

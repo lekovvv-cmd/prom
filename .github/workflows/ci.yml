@@ -692,7 +692,8 @@ jobs:
         run: |
           mkdir -p secrets
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/access-jwt.pem
-          chmod 600 secrets/access-jwt.pem
+          sudo chgrp 10001 secrets/access-jwt.pem
+          chmod 640 secrets/access-jwt.pem
           cat > .env.pilot <<'EOF'
           PLATFORM_ENVIRONMENT=pilot
           PLATFORM_DEBUG=false
@@ -735,16 +736,16 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:5173
           E2E_PILOT: "true"
         run: npm run test:e2e --workspace=@prom/platform-shell -- e2e/pilot-login.spec.ts
-      - name: Verify database and attachment volume persist through container recreation
+      - name: Upload an employee response attachment and download it as project manager
+        run: python tools/ci/pilot_attachment_smoke.py create
+      - name: Verify database and attachment persist through Compose down/up
         run: |
           compose=(docker compose --project-name prom-pilot --env-file .env.pilot -f compose.yaml -f compose.pilot.yaml)
-          "${compose[@]}" exec -T projects-backend sh -c 'printf pilot-persistence > /workspace/backend/storage/projects/persistence-probe.txt'
-          "${compose[@]}" up -d --force-recreate postgres projects-backend
-          "${compose[@]}" up -d --wait access-service projects-backend projects-worker platform-shell
+          "${compose[@]}" down
+          bash ./pilot.sh up
           count=$("${compose[@]}" exec -T postgres psql -At -U prom_access -d prom_access -c 'SELECT count(*) FROM platform_users')
           test "$count" = 12
-          contents=$("${compose[@]}" exec -T projects-backend cat /workspace/backend/storage/projects/persistence-probe.txt)
-          test "$contents" = pilot-persistence
+          python tools/ci/pilot_attachment_smoke.py verify
       - name: Capture pilot diagnostics
         if: always()
         run: docker compose --project-name prom-pilot --env-file .env.pilot -f compose.yaml -f compose.pilot.yaml logs --no-color

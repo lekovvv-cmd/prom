@@ -30,10 +30,11 @@ Set unique database passwords, the public hostname, and a stable key id in `.env
 ```bash
 mkdir -p secrets
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out secrets/access-jwt.pem
-chmod 600 secrets/access-jwt.pem
+sudo chgrp 10001 secrets/access-jwt.pem
+chmod 640 secrets/access-jwt.pem
 ```
 
-The example points `ACCESS_JWT_PRIVATE_KEY_HOST_FILE` at that file. Keep `.env.pilot` and `secrets/` private and include them in the VM's protected backup process.
+The Access container runs with group ID 10001. The group ownership and `640` mode let it read the bind-mounted key while keeping it inaccessible to other host users. The example points `ACCESS_JWT_PRIVATE_KEY_HOST_FILE` at that file. Keep `.env.pilot` and `secrets/` private and include them in the VM's protected backup process.
 
 Start the pilot with one command:
 
