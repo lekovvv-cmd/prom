@@ -33,7 +33,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=builder /workspace/.venv /workspace/.venv
 COPY --from=builder /workspace/apps/access-service /workspace/backend
 
-RUN addgroup --system app && adduser --system --ingroup app app \
+RUN python -m pip uninstall --yes pip \
+    && addgroup --system app && adduser --system --ingroup app app \
     && chown -R app:app /workspace/backend
 
 WORKDIR /workspace/backend
