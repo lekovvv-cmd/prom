@@ -8,8 +8,9 @@ import {
   MessageSquare,
   Table2,
   UserRound,
+  X,
 } from "lucide-react";
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import { useAuth } from "@prom/auth";
@@ -37,6 +38,8 @@ export function Header() {
     useAuth();
   const tools = useContext(HeaderToolsContext);
   const location = useLocation();
+  const [openMenuPath, setOpenMenuPath] = useState<string | null>(null);
+  const isMobileMenuOpen = openMenuPath === location.pathname;
   const isServiceDeskRoute =
     location.pathname.startsWith("/service-desk") ||
     location.pathname.startsWith("/admin/service-desk");
@@ -63,9 +66,12 @@ export function Header() {
     hasPermission("projects.create") || hasPermission("projects.manage");
 
   return (
-    <header className="app-header">
+    <header
+      className={`app-header${isMobileMenuOpen ? " mobile-menu-open" : ""}`}
+    >
       <NavLink
         className={isModuleRoute ? "brand" : "brand brand-standalone"}
+        onClick={() => setOpenMenuPath(null)}
         to={
           isServiceDeskRoute
             ? "/service-desk"
@@ -85,7 +91,12 @@ export function Header() {
         ) : null}
       </NavLink>
       {isModuleRoute ? (
-        <nav className="main-nav">
+        <nav
+          id="header-navigation"
+          className="main-nav"
+          aria-label="Навигация"
+          onClick={() => setOpenMenuPath(null)}
+        >
           {isServiceDeskRoute ? (
             <>
               <NavLink end to="/service-desk">
@@ -153,7 +164,12 @@ export function Header() {
           <div className="header-auth-actions">
             {isAuthenticated ? (
               <>
-                <NavLink className="user-chip user-chip-link" to="/profile">
+                <NavLink
+                  className="user-chip user-chip-link"
+                  to="/profile"
+                  aria-label="Профиль"
+                  onClick={() => setOpenMenuPath(null)}
+                >
                   <UserRound size={15} />
                   <span>
                     {isServiceDeskRoute
@@ -164,19 +180,27 @@ export function Header() {
                   </span>
                   <small>{user?.email}</small>
                 </NavLink>
-                <Button variant="ghost" onClick={logout}>
+                <Button variant="ghost" aria-label="Выйти" onClick={logout}>
                   <LogOut size={16} />
                   Выйти
                 </Button>
               </>
             ) : (
-              <NavLink className="button button-secondary" to="/login">
+              <NavLink
+                className="button button-secondary"
+                to="/login"
+                aria-label="Войти"
+              >
                 <LogIn size={16} />
                 Войти
               </NavLink>
             )}
           </div>
-          <nav className="module-switcher" aria-label="Переключатель модулей">
+          <nav
+            className="module-switcher"
+            aria-label="Переключатель модулей"
+            onClick={() => setOpenMenuPath(null)}
+          >
             {canAccessProjects && (
               <NavLink
                 to="/projects"
@@ -197,6 +221,35 @@ export function Header() {
             )}
           </nav>
         </div>
+      ) : null}
+      {isModuleRoute ? (
+        <button
+          className="mobile-menu-toggle"
+          type="button"
+          aria-label={isMobileMenuOpen ? "Закрыть меню" : "Открыть меню"}
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="header-navigation"
+          onClick={() =>
+            setOpenMenuPath(isMobileMenuOpen ? null : location.pathname)
+          }
+        >
+          {isMobileMenuOpen ? (
+            <X size={22} aria-hidden="true" />
+          ) : (
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
+        </button>
       ) : null}
     </header>
   );
