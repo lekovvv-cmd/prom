@@ -57,8 +57,9 @@ export function Header() {
   const canAccessProjects =
     !isAuthenticated || moduleAccess.some((module) => module.id === "projects");
   const canAccessServiceDesk =
-    !isAuthenticated ||
-    moduleAccess.some((module) => module.id === "service-desk");
+    import.meta.env.VITE_PLATFORM_ENVIRONMENT !== "pilot" &&
+    (!isAuthenticated ||
+      moduleAccess.some((module) => module.id === "service-desk"));
   const canManageProjects =
     hasPermission("projects.create") || hasPermission("projects.manage");
 
