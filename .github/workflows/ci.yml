@@ -99,6 +99,8 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
             infra:
+              - 'Dockerfile*'
+              - 'deploy/relaxdev/**'
               - '.github/workflows/**'
               - '.dockerignore'
               - 'compose.yaml'
@@ -163,6 +165,7 @@ jobs:
           tools/architecture/test_check.py
           tools/ci/test_discover_generated_modules.py
           tools/ci/test_coverage.py
+          tools/ci/test_relaxdev_runtime.py
       - run: python tools/architecture/check.py
       - uses: actions/setup-node@v4
         with:
@@ -643,12 +646,14 @@ jobs:
             dockerfile: Dockerfile.relaxdev.projects
           - name: shell-relaxdev-root
             dockerfile: Dockerfile.relaxdev.shell
+          - name: relaxdev-universal
+            dockerfile: Dockerfile
     steps:
       - uses: actions/checkout@v4
       - name: Build SHA-tagged image
         run: docker build --file "${{ matrix.dockerfile }}" --tag "prom/${{ matrix.name }}:${GITHUB_SHA}" .
       - name: Smoke-test RelaxDev shell port and nginx template
-        if: matrix.name == 'platform-shell-relaxdev'
+        if: matrix.name == 'platform-shell-relaxdev' || matrix.name == 'relaxdev-universal'
         run: |
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
             -keyout /tmp/prom-relaxdev-key.pem -out /tmp/prom-relaxdev-cert.pem \

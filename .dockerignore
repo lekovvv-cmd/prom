@@ -2,6 +2,9 @@
 .codex
 .codex-remote-attachments
 .agents
+**/.env
+**/.env.*
+secrets
 **/.venv
 **/.venv-*
 **/__pycache__
