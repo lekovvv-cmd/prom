@@ -21,6 +21,9 @@ def launch(monkeypatch):
     monkeypatch.setattr(runtime.os, "execv", lambda *args: calls.append(("exec", *args)))
     monkeypatch.delenv("PORT", raising=False)
     monkeypatch.delenv("PROM_SERVICE", raising=False)
+    monkeypatch.setenv("PATH", runtime.os.environ.get("PATH", ""))
+    monkeypatch.delenv("PROJECTS_PROCESS", raising=False)
+    monkeypatch.delenv("PROJECTS_WORKER_METRICS_PORT", raising=False)
     return calls
 
 
