@@ -23,7 +23,11 @@ ENV VITE_PLATFORM_ENVIRONMENT=pilot \
     VITE_ACCESS_API_BASE_URL=/api/access/v1 \
     VITE_API_BASE_URL=/api/projects/v1 \
     VITE_SERVICE_DESK_API_BASE_URL=/api/service-desk/v1
-RUN npm run build --workspace=@prom/platform-shell
+RUN VITE_PLATFORM_ENVIRONMENT=pilot \
+    VITE_ACCESS_API_BASE_URL=/api/access/v1 \
+    VITE_API_BASE_URL=/api/projects/v1 \
+    VITE_SERVICE_DESK_API_BASE_URL=/api/service-desk/v1 \
+    npm run build --workspace=@prom/platform-shell
 
 FROM python:3.14.8-slim@sha256:f85c5697265c178cc6887276c55fe16cf3d14ca35c3df6a5eab3b360534a55d2
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8080
