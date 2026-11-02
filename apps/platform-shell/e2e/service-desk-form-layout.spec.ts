@@ -6,7 +6,7 @@ test("SLA form fields stay aligned and fit the viewport", async ({ page }) => {
   const diagnostics = watchPage(page);
 
   await page.setViewportSize({ width: 1280, height: 720 });
-  await loginAs(page, "Администратор Service Desk", "/admin/service-desk/sla");
+  await loginAs(page, "Администратор платформы", "/admin/service-desk/sla");
   const calendarSection = page.locator(
     'section[aria-labelledby="sla-calendars-title"]',
   );
