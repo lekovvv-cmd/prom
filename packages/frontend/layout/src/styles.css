@@ -3,3 +3,5 @@
 @import "./styles/components/navigation.css";
 @import "./styles/components/account.css";
 @import "./styles/components/responsive.css";
+
+@import "./styles/components/service-navigation.css";

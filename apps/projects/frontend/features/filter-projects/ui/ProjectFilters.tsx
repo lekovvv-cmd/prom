@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { getCompetencies } from "../../../entities/competency/api/competencyApi";
 import {
@@ -35,6 +35,13 @@ export function ProjectFilters({
   includeArchived = false,
   hideStatus = false,
 }: Props) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersId = useId();
+  const activeFilters =
+    Number(Boolean(!hideStatus && value.status)) +
+    Number(Boolean(value.project_type)) +
+    splitCompetencies(value.competency).length +
+    Number(Boolean(value.sort && value.sort !== "created_at_desc"));
   const [competencySearch, setCompetencySearch] = useState("");
   const [competencies, setCompetencies] = useState<Competency[]>([]);
   const selectedCompetencies = splitCompetencies(value.competency);
@@ -85,110 +92,125 @@ export function ProjectFilters({
         onChange={(event) => onChange({ ...value, search: event.target.value })}
         placeholder="Название проекта"
       />
-      {!hideStatus && (
+      <button
+        type="button"
+        className="project-filters-toggle"
+        aria-expanded={filtersOpen}
+        aria-controls={filtersId}
+        onClick={() => setFiltersOpen((open) => !open)}
+      >
+        {filtersOpen ? "Скрыть фильтры" : "Фильтры и сортировка"}
+        {activeFilters > 0 ? ` · ${activeFilters}` : ""}
+      </button>
+      <div
+        id={filtersId}
+        className={`project-filter-options${filtersOpen ? " is-open" : ""}`}
+      >
+        {!hideStatus && (
+          <Select
+            label="Статус"
+            name="status"
+            value={value.status ?? ""}
+            isClearable
+            clearLabel="Сбросить фильтр по статусу"
+            onClear={() => onChange({ ...value, status: "" })}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                status: event.target.value as ProjectFiltersState["status"],
+              })
+            }
+          >
+            <option value="" disabled hidden>
+              Статус не выбран
+            </option>
+            {includeDraft && <option value="draft">Черновик</option>}
+            <option value="active">Активен</option>
+            <option value="paused">Пауза</option>
+            <option value="completed">Завершён</option>
+            {includeArchived && <option value="archived">Архив</option>}
+          </Select>
+        )}
         <Select
-          label="Статус"
-          name="status"
-          value={value.status ?? ""}
+          label="Тип"
+          name="project_type"
+          value={value.project_type ?? ""}
           isClearable
-          clearLabel="Сбросить фильтр по статусу"
-          onClear={() => onChange({ ...value, status: "" })}
+          clearLabel="Сбросить фильтр по типу"
+          onClear={() => onChange({ ...value, project_type: "" })}
           onChange={(event) =>
             onChange({
               ...value,
-              status: event.target.value as ProjectFiltersState["status"],
+              project_type: event.target
+                .value as ProjectFiltersState["project_type"],
             })
           }
         >
           <option value="" disabled hidden>
-            Статус не выбран
+            Тип не выбран
           </option>
-          {includeDraft && <option value="draft">Черновик</option>}
-          <option value="active">Активен</option>
-          <option value="paused">Пауза</option>
-          <option value="completed">Завершён</option>
-          {includeArchived && <option value="archived">Архив</option>}
+          <option value="strategic">Стратегический</option>
         </Select>
-      )}
-      <Select
-        label="Тип"
-        name="project_type"
-        value={value.project_type ?? ""}
-        isClearable
-        clearLabel="Сбросить фильтр по типу"
-        onClear={() => onChange({ ...value, project_type: "" })}
-        onChange={(event) =>
-          onChange({
-            ...value,
-            project_type: event.target
-              .value as ProjectFiltersState["project_type"],
-          })
-        }
-      >
-        <option value="" disabled hidden>
-          Тип не выбран
-        </option>
-        <option value="strategic">Стратегический</option>
-      </Select>
-      <Select
-        label="Сортировка"
-        name="sort"
-        value={value.sort ?? "created_at_desc"}
-        onChange={(event) =>
-          onChange({
-            ...value,
-            sort: event.target.value as ProjectFiltersState["sort"],
-          })
-        }
-      >
-        <option value="created_at_desc">Новые сначала</option>
-        <option value="created_at_asc">Старые сначала</option>
-        <option value="priority_desc">Высокий приоритет</option>
-        <option value="priority_asc">Низкий приоритет</option>
-      </Select>
-      <div className="competency-filter-field">
-        <Input
-          label="Компетенции"
-          name="competency"
-          value={competencySearch}
-          onChange={(event) => setCompetencySearch(event.target.value)}
-          placeholder="SQL, интервью..."
-        />
-        <div
-          className="filter-chips"
-          role="group"
-          aria-label="Фильтр по компетенциям"
+        <Select
+          label="Сортировка"
+          name="sort"
+          value={value.sort ?? "created_at_desc"}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              sort: event.target.value as ProjectFiltersState["sort"],
+            })
+          }
         >
-          {selectedCompetencies.length > 0 && (
-            <button
-              type="button"
-              className="chip"
-              onClick={() => updateCompetencies([])}
-            >
-              Сбросить все компетенции
-            </button>
-          )}
-          {selectedCompetencies.map((competency) => (
-            <button
-              key={competency}
-              type="button"
-              className="chip chip-selected"
-              onClick={() => removeCompetency(competency)}
-            >
-              {competency}
-              <span aria-hidden="true">×</span>
-            </button>
-          ))}
-          {visibleCompetencies.map((competency) => (
-            <button
-              key={competency.name}
-              type="button"
-              className="chip"
-              onClick={() => addCompetency(competency.name)}
-            >
-              {competency.name}
-            </button>
-          ))}
+          <option value="created_at_desc">Новые сначала</option>
+          <option value="created_at_asc">Старые сначала</option>
+          <option value="priority_desc">Высокий приоритет</option>
+          <option value="priority_asc">Низкий приоритет</option>
+        </Select>
+        <div className="competency-filter-field">
+          <Input
+            label="Компетенции"
+            name="competency"
+            value={competencySearch}
+            onChange={(event) => setCompetencySearch(event.target.value)}
+            placeholder="SQL, интервью..."
+          />
+          <div
+            className="filter-chips"
+            role="group"
+            aria-label="Фильтр по компетенциям"
+          >
+            {selectedCompetencies.length > 0 && (
+              <button
+                type="button"
+                className="chip"
+                onClick={() => updateCompetencies([])}
+              >
+                Сбросить все компетенции
+              </button>
+            )}
+            {selectedCompetencies.map((competency) => (
+              <button
+                key={competency}
+                type="button"
+                className="chip chip-selected"
+                onClick={() => removeCompetency(competency)}
+              >
+                {competency}
+                <span aria-hidden="true">×</span>
+              </button>
+            ))}
+            {visibleCompetencies.map((competency) => (
+              <button
+                key={competency.name}
+                type="button"
+                className="chip"
+                onClick={() => addCompetency(competency.name)}
+              >
+                {competency.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

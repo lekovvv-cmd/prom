@@ -89,11 +89,11 @@
   }
 
   .project-stream {
-    order: 1;
+    order: 2;
   }
 
   .filter-rail {
-    order: 2;
+    order: 1;
   }
 
   .form-grid,
@@ -265,4 +265,37 @@ button.chip {
   @apply flex;
   align-items: baseline;
   @apply justify-between gap-2.5;
+}
+
+.project-filter-options {
+  display: contents;
+}
+.project-filters-toggle {
+  display: none;
+}
+@media (max-width: 980px) {
+  .filter-rail .project-filters-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+  }
+  .filter-rail .project-filters-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .filter-rail .project-filter-options {
+    display: none;
+  }
+  .filter-rail .project-filter-options.is-open {
+    display: grid;
+    gap: 14px;
+  }
 }

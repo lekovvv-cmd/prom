@@ -257,3 +257,23 @@
   color: var(--muted);
   line-height: 1.55;
 }
+
+.page-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-bottom: 8px;
+  color: var(--muted-strong);
+  font-size: 14px;
+  text-decoration: none;
+}
+.page-back-link:hover {
+  color: var(--accent-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.page-back-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}

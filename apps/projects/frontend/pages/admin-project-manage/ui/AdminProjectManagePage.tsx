@@ -126,11 +126,7 @@ export function AdminProjectManagePage() {
       <Header />
       <PageLayout
         title={title}
-        actions={
-          <Link className="button button-secondary" to="/admin/projects">
-            Назад к проектам
-          </Link>
-        }
+        backLink={{ to: "/admin/projects", label: "К управлению проектами" }}
       >
         {error && <p className="form-error">{error}</p>}
         {isLoading ? (

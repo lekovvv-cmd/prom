@@ -6,12 +6,6 @@
 }
 
 @media (max-width: 760px) {
-  .brand-copy {
-    @apply hidden;
-  }
-}
-
-@media (max-width: 760px) {
   .header-auth {
     display: contents;
   }
@@ -83,14 +77,6 @@
 }
 
 @media (max-width: 760px) {
-  .header-auth .module-switcher {
-    grid-column: 2;
-    grid-row: 2;
-    justify-self: end;
-  }
-}
-
-@media (max-width: 760px) {
   .main-nav {
     grid-column: 1 / -1;
     grid-row: 4;
@@ -158,29 +144,14 @@
   }
 
   .app-header .main-nav,
-  .app-header .header-tools,
-  .app-header .module-switcher {
+  .app-header .header-tools {
     display: none;
-  }
-
-  .app-header.mobile-menu-open .module-switcher {
-    display: flex;
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-self: stretch;
-    width: 100%;
-    margin-top: 10px;
-  }
-
-  .app-header.mobile-menu-open .module-switcher a {
-    flex: 1 1 0;
-    text-align: center;
   }
 
   .app-header.mobile-menu-open .main-nav {
     display: flex;
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 2;
     flex-direction: column;
     align-items: stretch;
     gap: 2px;
@@ -213,7 +184,7 @@
   .app-header.mobile-menu-open .header-tools:not(:empty) {
     display: flex;
     grid-column: 1 / -1;
-    grid-row: 4;
+    grid-row: 3;
     width: 100%;
     margin-top: 8px;
     padding-top: 8px;

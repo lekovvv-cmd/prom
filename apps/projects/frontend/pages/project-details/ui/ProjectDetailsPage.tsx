@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { getProject } from "../../../entities/project/api/projectApi";
@@ -38,11 +38,7 @@ export function ProjectDetailsPage() {
       <Header />
       <PageLayout
         title={project?.title ?? "Проект"}
-        actions={
-          <Link to="/projects" className="button button-secondary">
-            Назад
-          </Link>
-        }
+        backLink={{ to: "/projects", label: "К витрине проектов" }}
       >
         {error && <p className="form-error">{error}</p>}
         {projectQuery.isLoading && <Spinner />}
