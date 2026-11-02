@@ -12,6 +12,8 @@ ENV VITE_PLATFORM_ENVIRONMENT=pilot \
 RUN npm run build --workspace=@prom/platform-shell
 
 FROM nginx:1.30.3-alpine@sha256:0d3b80406a13a767339fbe2f41406d6c7da727ab89cf8fae399e81f780f814d1
+# Patch CVE-2026-111497 in the pinned base image.
+RUN apk add --no-cache --upgrade 'brotli-libs>=1.2.1-r0'
 COPY apps/platform-shell/nginx.relaxdev.conf.template /etc/nginx/relaxdev.conf.template
 COPY apps/platform-shell/nginx.relaxdev.headers.conf /etc/nginx/relaxdev.headers.conf
 COPY apps/platform-shell/start-relaxdev.sh /start-relaxdev.sh

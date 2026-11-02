@@ -18,6 +18,8 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
 RUN npm run build --workspace=@prom/platform-shell
 
 FROM nginx:1.30.3-alpine@sha256:0d3b80406a13a767339fbe2f41406d6c7da727ab89cf8fae399e81f780f814d1 AS runtime
+# Patch CVE-2026-111497 in the pinned base image.
+RUN apk add --no-cache --upgrade 'brotli-libs>=1.2.1-r0'
 COPY apps/platform-shell/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/apps/platform-shell/dist /usr/share/nginx/html
 RUN chown -R nginx:nginx \
