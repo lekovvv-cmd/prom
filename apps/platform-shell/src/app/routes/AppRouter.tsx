@@ -6,10 +6,15 @@ import {
   getPlatformModuleForPath,
   platformModules,
 } from "../modules/registry";
-import { LoginPage } from "../../pages/login/ui/LoginPage";
 import { ModuleSelectorPage } from "../../pages/module-selector/ui/ModuleSelectorPage";
 import { ModuleErrorBoundary } from "@prom/ui/ModuleErrorBoundary";
 import { Spinner } from "@prom/ui/Spinner";
+
+const LoginPage = lazy(() =>
+  import("../../pages/login/ui/LoginPage").then((module) => ({
+    default: module.LoginPage,
+  })),
+);
 
 const moduleRoutes = new Map(
   platformModules.map((manifest) => [manifest.id, lazy(manifest.loadRoutes)]),
@@ -37,7 +42,12 @@ function ModuleRoute({ moduleId }: { moduleId: string }) {
 export function AppRouter() {
   const location = useLocation();
   if (location.pathname === "/") return <ModuleSelectorPage />;
-  if (location.pathname === "/login") return <LoginPage />;
+  if (location.pathname === "/login")
+    return (
+      <Suspense fallback={<Spinner label="Загружаем страницу входа" />}>
+        <LoginPage />
+      </Suspense>
+    );
 
   const manifest = getPlatformModuleForPath(location.pathname);
   if (manifest) return <ModuleRoute moduleId={manifest.id} />;

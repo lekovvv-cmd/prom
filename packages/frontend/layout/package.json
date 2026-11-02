@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/Header.tsx",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./login.css": "./src/login.css"
   },
   "dependencies": {
     "@prom/auth": "0.1.0",
