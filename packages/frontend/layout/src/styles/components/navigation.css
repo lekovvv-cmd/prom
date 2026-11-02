@@ -60,12 +60,6 @@
 }
 
 @media (max-width: 620px) {
-  .brand-copy small {
-    white-space: normal;
-  }
-}
-
-@media (max-width: 620px) {
   .main-nav {
     @apply w-full;
   }
@@ -82,14 +76,6 @@
   min-height: 66px;
   padding: 0 28px;
   background: var(--c-148);
-}
-
-.brand-copy strong {
-  font-weight: 650;
-}
-
-.brand-copy small {
-  font-size: 11px;
 }
 
 .main-nav a {

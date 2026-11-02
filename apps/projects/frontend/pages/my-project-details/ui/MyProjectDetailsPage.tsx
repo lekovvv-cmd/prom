@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { getMyProject } from "../../../entities/project/api/projectApi";
 import type { ProjectDetails as ProjectDetailsType } from "../../../entities/project/model/types";
@@ -44,11 +44,7 @@ export function MyProjectDetailsPage() {
       <Header />
       <PageLayout
         title={project?.title ?? "Мой проект"}
-        actions={
-          <Link to="/my/projects" className="button button-secondary">
-            Назад к моим проектам
-          </Link>
-        }
+        backLink={{ to: "/my/projects", label: "К моим проектам" }}
       >
         {error && <p className="form-error">{error}</p>}
         {isLoading && <Spinner />}

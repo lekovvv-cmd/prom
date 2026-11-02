@@ -16,9 +16,61 @@ vi.mock("@prom/auth", () => ({
   }),
 }));
 
-import { Header, HeaderToolsProvider } from "./Header";
+import {
+  Header,
+  HeaderToolsProvider,
+  ServiceNavigationProvider,
+} from "./Header";
 
 describe("Header", () => {
+  it("derives the selected service from its registered route prefixes", () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/admin/service-desk/access"]}>
+        <ServiceNavigationProvider
+          services={[
+            {
+              id: "projects",
+              title: "Проекты",
+              basePath: "/projects",
+              routePrefixes: ["/projects", "/admin"],
+            },
+            {
+              id: "service-desk",
+              title: "Поддержка",
+              basePath: "/service-desk",
+              routePrefixes: ["/service-desk", "/admin/service-desk"],
+            },
+          ]}
+        >
+          <Header />
+        </ServiceNavigationProvider>
+      </MemoryRouter>,
+    );
+    expect(html).toContain('aria-label="Сервисы: Поддержка"');
+    expect(html).not.toContain('class="module-switcher"');
+  });
+
+  it("does not select a registered service without module access", () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/library"]}>
+        <ServiceNavigationProvider
+          services={[
+            {
+              id: "library",
+              title: "Библиотека",
+              basePath: "/library",
+              routePrefixes: ["/library"],
+            },
+          ]}
+        >
+          <Header />
+        </ServiceNavigationProvider>
+      </MemoryRouter>,
+    );
+    expect(html).toContain('aria-label="Сервисы: Все сервисы"');
+    expect(html).not.toContain("Библиотека");
+  });
+
   it("shows Service Desk notifications to a Projects admin with Service Desk access", () => {
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/projects"]}>

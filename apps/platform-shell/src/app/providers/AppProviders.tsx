@@ -1,3 +1,5 @@
+import { ServiceNavigationProvider } from "@prom/layout";
+import { platformModules } from "../modules/registry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@prom/auth";
 import { closeAccessSession, getAccessSession } from "@prom/auth/api";
@@ -22,7 +24,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           loadSession={getAccessSession}
           closeSession={closeAccessSession}
         >
-          {children}
+          <ServiceNavigationProvider services={platformModules}>
+            {children}
+          </ServiceNavigationProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

@@ -17,6 +17,9 @@ import { useAuth } from "@prom/auth";
 import { Button } from "@prom/ui/Button";
 import utmnLogo from "./assets/utmn-logo.png";
 
+import { ServiceSwitcher, useServiceNavigation } from "./ServiceSwitcher";
+export { ServiceNavigationProvider } from "./ServiceSwitcher";
+
 const HeaderToolsContext = createContext<ReactNode>(null);
 
 export function HeaderToolsProvider({
@@ -57,12 +60,12 @@ export function Header() {
   );
   const isModuleRoute = isServiceDeskRoute || isProjectsRoute;
   const moduleAccess = modules ?? [];
-  const canAccessProjects =
-    !isAuthenticated || moduleAccess.some((module) => module.id === "projects");
-  const canAccessServiceDesk =
-    import.meta.env.VITE_PLATFORM_ENVIRONMENT !== "pilot" &&
-    (!isAuthenticated ||
-      moduleAccess.some((module) => module.id === "service-desk"));
+  const registeredServices = useServiceNavigation();
+  const availableServices = isAuthenticated
+    ? registeredServices.filter((service) =>
+        moduleAccess.some((module) => module.id === service.id),
+      )
+    : registeredServices;
   const canManageProjects =
     hasPermission("projects.create") || hasPermission("projects.manage");
 
@@ -70,27 +73,22 @@ export function Header() {
     <header
       className={`app-header${isMobileMenuOpen ? " mobile-menu-open" : ""}`}
     >
-      <NavLink
-        className={isModuleRoute ? "brand" : "brand brand-standalone"}
-        onClick={() => setOpenMenuPath(null)}
-        to={
-          isServiceDeskRoute
-            ? "/service-desk"
-            : isProjectsRoute
-              ? "/projects"
-              : "/"
-        }
-      >
-        <img className="brand-logo" src={utmnLogo} alt="UTMN" />
-        {isModuleRoute ? (
-          <span className="brand-copy">
-            <strong>
-              {isServiceDeskRoute ? "ШПИУ Service Desk" : "ШПИУ Проекты"}
-            </strong>
-            <small>Тюменский государственный университет</small>
-          </span>
-        ) : null}
-      </NavLink>
+      <div className="header-identity">
+        <NavLink
+          className={isModuleRoute ? "brand" : "brand brand-standalone"}
+          onClick={() => setOpenMenuPath(null)}
+          to={
+            isServiceDeskRoute
+              ? "/service-desk"
+              : isProjectsRoute
+                ? "/projects"
+                : "/"
+          }
+        >
+          <img className="brand-logo" src={utmnLogo} alt="UTMN" />
+        </NavLink>
+        <ServiceSwitcher key={location.pathname} services={availableServices} />
+      </div>
       {isModuleRoute ? (
         <nav
           id="header-navigation"
@@ -197,30 +195,6 @@ export function Header() {
               </NavLink>
             )}
           </div>
-          <nav
-            className="module-switcher"
-            aria-label="Переключатель модулей"
-            onClick={() => setOpenMenuPath(null)}
-          >
-            {canAccessProjects && (
-              <NavLink
-                to="/projects"
-                className={({ isActive }) =>
-                  !isServiceDeskRoute && isActive ? "active" : ""
-                }
-              >
-                Проекты
-              </NavLink>
-            )}
-            {canAccessServiceDesk && (
-              <NavLink
-                to="/service-desk"
-                className={() => (isServiceDeskRoute ? "active" : "")}
-              >
-                Service Desk
-              </NavLink>
-            )}
-          </nav>
         </div>
       ) : null}
       {isModuleRoute ? (
