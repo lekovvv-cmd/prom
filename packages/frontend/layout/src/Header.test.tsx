@@ -80,6 +80,7 @@ describe("Header", () => {
       </MemoryRouter>,
     );
 
+    expect(html).toContain('aria-label="Профиль: admin@utmn.ru"');
     expect(html).toContain("notification-center-for-admin");
     expect(html).not.toContain("contextual-counters");
   });

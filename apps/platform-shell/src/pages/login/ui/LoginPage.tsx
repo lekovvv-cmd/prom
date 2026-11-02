@@ -1,3 +1,5 @@
+import "@prom/layout/login.css";
+
 import { Header } from "@prom/layout";
 import { LoginForm } from "@prom/auth/login";
 import { Link } from "react-router-dom";

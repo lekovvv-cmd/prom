@@ -166,7 +166,9 @@ export function Header() {
                 <NavLink
                   className="user-chip user-chip-link"
                   to="/profile"
-                  aria-label="Профиль"
+                  aria-label={
+                    user?.email ? `Профиль: ${user.email}` : "Профиль"
+                  }
                   onClick={() => setOpenMenuPath(null)}
                 >
                   <UserRound size={15} />
